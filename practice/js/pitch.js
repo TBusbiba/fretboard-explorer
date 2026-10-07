@@ -9,9 +9,12 @@
 
 import { PitchDetector } from '../vendor/pitchy.js';
 import { frequencyToMidi } from './notes.js';
+import { correctOctave } from './octave.js';
 
 const FFT_SIZE = 4096;          // ~85 ms at 48 kHz: enough for the low E (82 Hz)
 const HOLD_MS = 90;
+const LOW_HOLD_MS = 150;      // below LOW_HZ: the attack is messier, wait a little longer
+const LOW_HZ = 120;
 const MIN_HITS = 3;
 const SILENCE_RESET_MS = 150;   // this long under the gate forgets the candidate
 const STALE_HIT_MS = 250;       // no agreeing reading for this long forgets it too
@@ -52,17 +55,19 @@ export function createPitchDetector({ getSettings, onNote, onLevel = () => {}, o
     }
     lastLoudAt = now;
 
-    const [hz, clarity] = detector.findPitch(buf, ctx.sampleRate);
-    if (clarity < clarityThreshold || hz < MIN_HZ || hz > MAX_HZ) {
+    const [rawHz, clarity] = detector.findPitch(buf, ctx.sampleRate);
+    if (clarity < clarityThreshold || rawHz < MIN_HZ || rawHz > MAX_HZ) {
       if (now - lastHitAt > STALE_HIT_MS) resetHold();
       return;
     }
+    const hz = correctOctave(buf, ctx.sampleRate, rawHz, { minHz: MIN_HZ });
 
     const midi = frequencyToMidi(hz);
     if (midi !== candidate) { candidate = midi; candidateSince = now; hits = 0; }
     hits += 1;
     lastHitAt = now;
-    if (hits >= MIN_HITS && now - candidateSince >= HOLD_MS && reported !== midi) {
+    const hold = hz < LOW_HZ ? LOW_HOLD_MS : HOLD_MS;
+    if (hits >= MIN_HITS && now - candidateSince >= hold && reported !== midi) {
       reported = midi;
       onNote(midi, hz, clarity);
     }
