@@ -10,7 +10,8 @@ export const DEFAULTS = Object.freeze({
   naturalsOnly: true,
 
   playNote: false,        // note mode: also play the target note after saying it
-  intervals: ['octaveUp', 'octaveDown', 'fifth', 'majorThird', 'minorThird'],
+  intervals: ['octaveUp', 'octaveDown', 'fifth', 'majorThird', 'minorThird'], // pool for 'random'
+  intervalPick: 'random', // 'random' or one interval id
 
   hintDelayMs: 5000,      // null = never
   pauseMs: 900,           // pause after a correct answer before the next target

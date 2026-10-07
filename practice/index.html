@@ -27,11 +27,13 @@
       <label><input type="radio" name="mode" value="note"><span>Find the note</span></label>
       <label><input type="radio" name="mode" value="intervals"><span>Intervals</span></label>
     </div>
+    <div class="picker" id="interval-picker" role="group" aria-label="Which interval" hidden></div>
 
     <section class="prompt" aria-live="polite">
       <div class="prompt__string" id="string-name">Press start</div>
       <div class="prompt__note" id="note-name" data-state="idle"></div>
       <div class="prompt__status" id="status">Pick a string, play the note it names, and the mic will confirm it.</div>
+      <div class="prompt__tip" id="tip" hidden></div>
     </section>
 
     <section class="board">
@@ -71,6 +73,17 @@
       <div class="stat"><span class="stat__value" id="stat-accuracy">—</span><span class="stat__label">first try</span></div>
       <div class="stat"><span class="stat__value" id="stat-avg">—</span><span class="stat__label">avg time</span></div>
       <div class="stat"><span class="stat__value" id="stat-wrong">0</span><span class="stat__label">wrong notes</span></div>
+    </section>
+
+    <section class="heat">
+      <div class="heat__head">
+        <h2>Your fretboard, over time</h2>
+        <div class="heat__actions">
+          <button type="button" class="btn btn--ghost btn--small" id="heat-btn" aria-pressed="false">Show on fretboard</button>
+          <button type="button" class="btn btn--ghost btn--small" id="heat-reset" hidden>Reset history</button>
+        </div>
+      </div>
+      <div class="heat__body" id="heat-body"></div>
     </section>
   </main>
 
@@ -145,7 +158,7 @@
       </fieldset>
 
       <fieldset class="group">
-        <legend>Intervals</legend>
+        <legend>Intervals in “Random”</legend>
         <div class="checks" id="interval-list"></div>
         <details class="tips">
           <summary>Shapes cheat-sheet</summary>

@@ -81,3 +81,20 @@ Keyboard: Space start/stop, N skip, H show hint now.
   and shows the shape tip for that root string. Intervals: octave ↑/↓, 5th,
   4th, major 3rd, minor 3rd — each with three tips (`INTERVALS` in `notes.js`,
   verified by a test that recomputes every worked example).
+
+## Round 3
+
+- Intervals mode is two-step: the root must be played first (root ring turns
+  green, "now the 5th ↑"), then the interval. A wrong note in either step
+  spoils first-try.
+- Hints are staged in Intervals mode: stage 1 (after the hint delay) shows the
+  shape tip on the main screen; stage 2 (one delay later) marks the positions.
+  H advances one stage. Note mode keeps a single stage.
+- Interval picker chips under the mode switch: Random (pool = the intervals
+  ticked in settings) or a specific interval (`settings.intervalPick`).
+- History (`history.js`, localStorage `fretboard-practice.history.v1`): per
+  position (note mode) and per interval, counting clean (first try, no hint),
+  solved, hints, skips and time. Mastery = 0.6·clean rate + 0.4·speed
+  (1.5 s → 1, 6 s → 0); bands strong ≥ 0.7, ok ≥ 0.4, weak below.
+  "Show on fretboard" overlays dots (opacity grows with tries); the panel lists
+  needs-work / solid / intervals; "Reset history" clears it.

@@ -167,26 +167,68 @@ test('wrong note reports octave offset when the note name matches', () => {
   assert.equal(w[0].name, 'A');
 });
 
-test('intervals mode: target carries root, interval and reachable positions; correct = target pitch', () => {
-  const { s, events } = harness({
+test('intervals mode: root first, then the interval; hints come in two stages', () => {
+  const { s, events, advance } = harness({
     mode: 'intervals', strings: [4, 3], fretFrom: 0, fretTo: 11, naturalsOnly: true, intervals: ['fifth'],
   });
   s.start();
   const t = events[0];
   assert.equal(t.mode, 'intervals');
-  assert.equal(s.mode, 'intervals');
-  assert.ok(t.target.root && t.target.interval === 'fifth');
+  assert.equal(s.step, 0);
+  assert.equal(s.note.midi, s.rootNote.midi, 'step 0 expects the root');
   assert.equal(s.interval.semitones, 7);
-  assert.equal(s.note.midi, s.rootNote.midi + 7);
+  assert.equal(s.target.midi, s.rootNote.midi + 7);
   assert.ok(t.target.positions.length >= 1);
-  // playing the root is wrong, not an octave issue
+
+  // playing the interval before the root is wrong
+  s.noteDetected(s.target.midi);
+  assert.equal(events.filter(e => e.type === 'wrong').length, 1);
+  assert.equal(events.at(-1).fret, -1);
+
+  // root -> step event, now expecting the interval
   s.noteDetected(s.rootNote.midi);
-  const w = events.find(e => e.type === 'wrong');
-  assert.equal(w.octaveOff, 0);
-  assert.equal(w.fret, -1);
-  // the fifth, on any string, is correct
-  s.noteDetected(s.note.midi);
-  assert.ok(events.some(e => e.type === 'correct'));
+  const step = events.find(e => e.type === 'step');
+  assert.equal(step.step, 1);
+  assert.equal(s.step, 1);
+  assert.equal(s.note.midi, s.target.midi);
+  assert.equal(s.state, 'listening');
+
+  // hint stages: tip at 3 s, positions at 6 s
+  advance(3000);
+  assert.deepEqual(events.filter(e => e.type === 'hint').map(e => [e.stage, e.stages]), [[1, 2]]);
+  assert.equal(s.hintShown, false);
+  advance(3000);
+  assert.deepEqual(events.filter(e => e.type === 'hint').map(e => e.stage), [1, 2]);
+  assert.equal(s.hintShown, true);
+
+  s.noteDetected(s.target.midi);
+  const c = events.find(e => e.type === 'correct');
+  assert.ok(c);
+  assert.equal(c.firstTry, false, 'a wrong note in any step spoils first-try');
+  assert.equal(c.hinted, true);
+});
+
+test('intervals: manual hint steps through the stages; note mode has one stage', () => {
+  const iv = harness({ mode: 'intervals', strings: [4, 3], fretFrom: 0, fretTo: 11, intervals: ['fifth'] });
+  iv.s.start();
+  iv.s.showHint(); iv.s.showHint(); iv.s.showHint();
+  assert.deepEqual(iv.events.filter(e => e.type === 'hint').map(e => e.stage), [1, 2]);
+  const n = harness();
+  n.s.start();
+  n.s.showHint(); n.s.showHint();
+  assert.deepEqual(n.events.filter(e => e.type === 'hint').map(e => [e.stage, e.stages]), [[1, 1]]);
+  assert.equal(n.s.hintShown, true);
+});
+
+test('hintProgress reports the fraction toward the next stage', () => {
+  const { s, advance } = harness({ hintDelayMs: 4000 });
+  assert.equal(s.hintProgress(), null);
+  s.start();
+  advance(1000);
+  assert.equal(s.hintProgress().fraction, 0.25);
+  assert.equal(s.hintProgress().remainingMs, 3000);
+  advance(3000);
+  assert.equal(s.hintProgress(), null); // stage reached, note mode done
 });
 
 test('intervals mode with no reachable drill emits error', () => {

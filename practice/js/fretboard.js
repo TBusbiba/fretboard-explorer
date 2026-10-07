@@ -86,6 +86,7 @@ export function createFretboard(svg) {
     t.textContent = n;
   }
 
+  const heat = el('g', { class: 'fb-heat' }, svg);
   const notes = el('g', { class: 'fb-notes' }, svg);
   const live = new Map(); // key -> g
 
@@ -132,6 +133,22 @@ export function createFretboard(svg) {
       dimR.setAttribute('x', rightStart);
       dimR.setAttribute('width', to >= LAST ? 0 : W - PAD_R - rightStart);
     },
+
+    /**
+     * Heatmap overlay. items: [{string, fret, text, band: 'strong'|'ok'|'weak', alpha, title}].
+     * Drawn under the live markers; replaced wholesale on each call.
+     */
+    showHeat(items) {
+      heat.innerHTML = '';
+      for (const it of items) {
+        const g = el('g', { class: `fb-heat-dot fb-heat-dot--${it.band}`, transform: `translate(${noteX(it.fret)} ${stringY(it.string)})`, opacity: it.alpha }, heat);
+        el('title', {}, g).textContent = it.title;
+        el('circle', { r: noteRadius(it.fret) }, g);
+        el('text', { y: 1 }, g).textContent = it.text;
+      }
+    },
+
+    clearHeat() { heat.innerHTML = ''; },
 
     /** Horizontal position (0..1) of a fret, for scrolling the container. */
     fretPosition(fret) { return noteX(fret) / W; },

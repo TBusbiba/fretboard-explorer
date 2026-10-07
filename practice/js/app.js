@@ -1,9 +1,10 @@
-import { STRINGS, FRET_COUNT, INTERVALS, spokenName, tipFor } from './notes.js';
-import { createSound } from './sound.js';
+import { STRINGS, FRET_COUNT, INTERVALS, intervalById, spokenName, tipFor, noteAt } from './notes.js';
 import { createFretboard } from './fretboard.js';
 import { createPitchDetector } from './pitch.js';
 import { createVoice } from './voice.js';
+import { createSound } from './sound.js';
 import { createSession } from './session.js';
+import { createHistory } from './history.js';
 import { loadSettings, saveSettings, resetSettings, DEFAULTS } from './settings.js';
 
 const $ = (id) => document.getElementById(id);
@@ -13,8 +14,15 @@ const SPEECH_TAIL_MS = 250;
 
 let settings = loadSettings();
 
+// What the session actually drills: a single picked interval, or the random pool.
+function sessionSettings() {
+  const pick = settings.intervalPick;
+  return { ...settings, intervals: pick && pick !== 'random' ? [pick] : settings.intervals };
+}
+
 // ---------- modules ----------
 const fretboard = createFretboard($('fretboard'));
+const history = createHistory();
 
 // The mic is muted while the voice speaks or a note plays, plus a short tail.
 const blockers = new Set();
@@ -45,18 +53,20 @@ const pitch = createPitchDetector({
 });
 
 const session = createSession({
-  getSettings: () => settings,
+  getSettings: sessionSettings,
   onEvent: handleSessionEvent,
 });
 
 // ---------- elements ----------
 const ui = {
-  stringName: $('string-name'), noteName: $('note-name'), status: $('status'),
+  stringName: $('string-name'), noteName: $('note-name'), status: $('status'), tip: $('tip'),
   boardScroll: $('board-scroll'),
   startBtn: $('start-btn'), skipBtn: $('skip-btn'), hintBtn: $('hint-btn'),
   meterFill: $('meter-fill'), meterGate: $('meter-gate'), micNote: $('mic-note'),
   ring: $('ring'), ringFill: $('ring-fill'), ringLabel: $('ring-label'),
   statCount: $('stat-count'), statAccuracy: $('stat-accuracy'), statAvg: $('stat-avg'), statWrong: $('stat-wrong'),
+  picker: $('interval-picker'),
+  heatBtn: $('heat-btn'), heatReset: $('heat-reset'), heatBody: $('heat-body'),
 };
 
 // ---------- session events ----------
@@ -67,46 +77,66 @@ function handleSessionEvent(type, p) {
     case 'target': {
       wrongTimers.forEach(clearTimeout); wrongTimers = [];
       fretboard.clearNotes();
+      hideHeat();
       pitch.reset();
       ui.ring.classList.remove('is-done');
-      setStatus('Listening…');
+      setTip('');
       if (p.mode === 'intervals') {
         const { root } = p.target, iv = session.interval, rootNote = session.rootNote;
         fretboard.highlightString(null);
         fretboard.showNote(root.string, root.fret, 'root', rootNote.name);
         scrollBoardTo(root.fret);
-        setPrompt(`${rootNote.name} on string ${STRINGS[root.string].number} · find`, `${iv.label} ${iv.arrow}`, 'listening');
-        announce(`${spokenName(rootNote.name)}, string ${STRINGS[root.string].number}. Find ${iv.spoken}`, rootNote.midi);
+        setPrompt(`${rootNote.name} on string ${STRINGS[root.string].number} · then find`, `${iv.label} ${iv.arrow}`, 'listening');
+        setStatus('Play the root first');
+        announce(`${spokenName(rootNote.name)}, string ${STRINGS[root.string].number}. Then ${iv.spoken}`, rootNote.midi);
       } else {
         fretboard.highlightString(p.target.string);
         scrollBoardTo(p.target.fret);
         setPrompt(`String ${STRINGS[p.target.string].number}`, p.note.name, 'listening');
+        setStatus('Listening…');
         announce(`string ${STRINGS[p.target.string].number}, ${spokenName(p.note.name)}`, settings.playNote ? p.note.midi : null);
       }
       break;
     }
+    case 'step': {
+      const { root } = session.target, iv = session.interval;
+      fretboard.showNote(root.string, root.fret, 'correct', session.rootNote.name);
+      setStatus(`Root ✓ — now the ${iv.label} ${iv.arrow}`, 'ok');
+      if (settings.voice && settings.speakFeedback) voice.speak('good', voiceOpts());
+      break;
+    }
     case 'hint':
-      ui.ring.classList.add('is-done');
       if (session.mode === 'intervals') {
-        for (const pos of p.target.positions) fretboard.showNote(pos.string, pos.fret, 'hint', session.note.name);
-        const where = p.target.positions.map(q => `string ${STRINGS[q.string].number} fret ${q.fret}`).join(' or ');
-        setStatus(`${session.note.name} — ${where}. ${tipFor(session.interval, p.target.root.string)}`);
+        if (p.stage === 1) {
+          setTip(tipFor(session.interval, p.target.root.string));
+        } else {
+          for (const pos of p.target.positions) fretboard.showNote(pos.string, pos.fret, 'hint', noteAt(pos.string, pos.fret).name);
+          const where = p.target.positions.map(q => `string ${STRINGS[q.string].number} fret ${q.fret}`).join(' or ');
+          setStatus(`${noteAt(p.target.positions[0].string, p.target.positions[0].fret).name} — ${where}`);
+          ui.ring.classList.add('is-done');
+        }
       } else {
         fretboard.showNote(p.target.string, p.target.fret, 'hint', session.note.name);
         setStatus(`Fret ${p.target.fret}`);
+        ui.ring.classList.add('is-done');
       }
       break;
-    case 'correct':
+    case 'correct': {
+      const result = { clean: p.firstTry && !p.hinted, ms: p.ms, hinted: p.hinted };
       if (session.mode === 'intervals') {
         for (const pos of p.target.positions) fretboard.showNote(pos.string, pos.fret, 'correct', session.note.name);
+        history.recordInterval(p.target.interval, result);
       } else {
         fretboard.showNote(p.target.string, p.target.fret, 'correct', session.note.name);
+        history.recordPosition(p.target, result);
       }
       ui.noteName.dataset.state = 'correct';
       setStatus(`Correct · ${(p.ms / 1000).toFixed(1)} s`, 'ok');
       if (settings.voice && settings.speakFeedback) voice.speak('correct', voiceOpts());
       updateStats();
+      renderHeatPanel();
       break;
+    }
     case 'wrong': {
       // Only mark positions inside the practised range; an octave-off note is
       // explained in words instead of pointing at a fret you aren't studying.
@@ -129,11 +159,13 @@ function handleSessionEvent(type, p) {
       break;
     }
     case 'stopped':
+      promptToken++;
       voice.cancel();
       fretboard.clearNotes();
       fretboard.highlightString(null);
       setPrompt('Stopped', '', 'idle');
       setStatus(`${p.stats.total} notes · press Start to go again`);
+      setTip('');
       setRing(0);
       ui.ring.classList.remove('is-done');
       break;
@@ -163,6 +195,11 @@ function setStatus(text, tone = '') {
   ui.status.className = 'prompt__status' + (tone ? ` is-${tone}` : '');
 }
 
+function setTip(text) {
+  ui.tip.textContent = text;
+  ui.tip.hidden = !text;
+}
+
 function scrollBoardTo(fret) {
   const el = ui.boardScroll;
   if (el.scrollWidth <= el.clientWidth + 4) return;
@@ -183,7 +220,18 @@ function syncButtons() {
   ui.startBtn.innerHTML = running ? 'Stop <kbd>Space</kbd>' : 'Start <kbd>Space</kbd>';
   ui.startBtn.classList.toggle('is-running', running);
   ui.skipBtn.disabled = !running;
-  ui.hintBtn.disabled = !(session.state === 'listening' && !session.hintShown);
+  ui.hintBtn.disabled = !(session.state === 'listening' && session.hintStage < session.hintStages);
+  ui.heatBtn.disabled = running || history.positions().length === 0;
+}
+
+// A skip is a "couldn't find it" for the heatmap.
+function skipNow() {
+  if (session.state === 'listening') {
+    if (session.mode === 'intervals') history.recordInterval(session.target.interval, { skipped: true });
+    else history.recordPosition(session.target, { skipped: true });
+    renderHeatPanel();
+  }
+  session.skip();
 }
 
 // ---------- hint ring ----------
@@ -199,14 +247,14 @@ function frame() {
   requestAnimationFrame(frame);
   if (session.state === 'idle') return;
   session.tick();
-  if (session.state === 'listening' && settings.hintDelayMs != null && !session.hintShown) {
-    const elapsed = performance.now() - session.startedAt;
-    setRing(elapsed / settings.hintDelayMs);
-    ui.ringLabel.textContent = `${Math.max(0, Math.ceil((settings.hintDelayMs - elapsed) / 1000))}s`;
+  const prog = session.hintProgress();
+  if (prog) {
+    setRing(prog.fraction);
+    ui.ringLabel.textContent = `${Math.max(0, Math.ceil(prog.remainingMs / 1000))}s`;
   } else if (session.state === 'listening' && settings.hintDelayMs == null) {
     setRing(0);
     ui.ringLabel.textContent = '∞';
-  } else if (session.hintShown || session.state === 'resolved') {
+  } else {
     setRing(session.hintShown ? 1 : 0);
     ui.ringLabel.textContent = session.hintShown ? 'hint' : '·';
   }
@@ -233,6 +281,70 @@ if (!window.isSecureContext) {
   updateMicState('error', { message: 'this page must be opened over http://localhost or https' });
 }
 
+// ---------- heatmap ----------
+let heatVisible = false;
+
+function heatItems() {
+  return history.positions().map((p) => ({
+    string: p.string, fret: p.fret,
+    text: noteAt(p.string, p.fret).name,
+    band: p.band,
+    alpha: 0.35 + 0.65 * p.confidence,
+    title: `${noteAt(p.string, p.fret).name} · string ${STRINGS[p.string].number} fret ${p.fret} · ${p.n} ${p.n === 1 ? 'try' : 'tries'} · ${Math.round(p.cleanRate * 100)}% clean · ${p.avgMs != null ? (p.avgMs / 1000).toFixed(1) + ' s' : 'never found'}`,
+  }));
+}
+
+function showHeat() {
+  heatVisible = true;
+  fretboard.showHeat(heatItems());
+  ui.heatBtn.textContent = 'Hide heatmap';
+  ui.heatBtn.setAttribute('aria-pressed', 'true');
+}
+function hideHeat() {
+  heatVisible = false;
+  fretboard.clearHeat();
+  ui.heatBtn.textContent = 'Show on fretboard';
+  ui.heatBtn.setAttribute('aria-pressed', 'false');
+}
+
+function describe(p, label) {
+  const time = p.avgMs != null ? `${(p.avgMs / 1000).toFixed(1)} s` : 'not found';
+  return `<li><span class="heat__dot heat__dot--${p.band}"></span><strong>${label}</strong><span class="heat__meta">${Math.round(p.cleanRate * 100)}% clean · ${time} · ${p.n}×</span></li>`;
+}
+
+function renderHeatPanel() {
+  const positions = history.positions();
+  const intervals = history.intervals();
+  if (positions.length === 0 && intervals.length === 0) {
+    ui.heatBody.innerHTML = '<p class="note">Nothing recorded yet. Every answer you give is remembered here, across sessions.</p>';
+    ui.heatReset.hidden = true;
+    return;
+  }
+  ui.heatReset.hidden = false;
+  const label = (p) => `${noteAt(p.string, p.fret).name} · string ${STRINGS[p.string].number} fret ${p.fret}`;
+  const weak = positions.filter(p => p.band !== 'strong').slice(0, 6);
+  const strong = positions.filter(p => p.band === 'strong').slice(-6).reverse();
+  let html = '';
+  if (positions.length) {
+    html += `<div class="heat__col"><h3>Needs work</h3><ul>${weak.map(p => describe(p, label(p))).join('') || '<li class="note">Nothing weak — nice.</li>'}</ul></div>`;
+    html += `<div class="heat__col"><h3>Solid</h3><ul>${strong.map(p => describe(p, label(p))).join('') || '<li class="note">Keep going.</li>'}</ul></div>`;
+  }
+  if (intervals.length) {
+    html += `<div class="heat__col"><h3>Intervals</h3><ul>${intervals.map(p => { const iv = intervalById(p.id); return describe(p, iv ? `${iv.label} ${iv.arrow}` : p.id); }).join('')}</ul></div>`;
+  }
+  ui.heatBody.innerHTML = html;
+  if (heatVisible) fretboard.showHeat(heatItems());
+}
+
+ui.heatBtn.addEventListener('click', () => (heatVisible ? hideHeat() : showHeat()));
+ui.heatReset.addEventListener('click', () => {
+  if (!confirm('Forget all recorded practice history?')) return;
+  history.reset();
+  hideHeat();
+  renderHeatPanel();
+  syncButtons();
+});
+
 // ---------- controls ----------
 async function toggleSession() {
   if (session.state === 'idle') {
@@ -245,20 +357,31 @@ async function toggleSession() {
 }
 
 ui.startBtn.addEventListener('click', toggleSession);
+ui.skipBtn.addEventListener('click', skipNow);
+ui.hintBtn.addEventListener('click', () => { session.showHint(); syncButtons(); });
 
 // mode switcher
 document.querySelectorAll('input[name="mode"]').forEach((r) => r.addEventListener('change', () => {
   commit({ mode: r.value });
   if (session.state !== 'idle') session.skip(); // re-pick in the new mode right away
 }));
-ui.skipBtn.addEventListener('click', () => session.skip());
-ui.hintBtn.addEventListener('click', () => { session.showHint(); syncButtons(); });
+
+// interval picker (Random + one chip per interval)
+for (const opt of [{ id: 'random', label: 'Random' }, ...INTERVALS.map(iv => ({ id: iv.id, label: `${iv.label} ${iv.arrow}` }))]) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'chip'; b.dataset.id = opt.id; b.textContent = opt.label;
+  b.addEventListener('click', () => {
+    commit({ intervalPick: opt.id });
+    if (session.state !== 'idle' && session.mode === 'intervals') session.skip();
+  });
+  ui.picker.appendChild(b);
+}
 
 document.addEventListener('keydown', (e) => {
   const tag = (e.target.tagName || '').toLowerCase();
   if (['input', 'select', 'textarea'].includes(tag) || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.code === 'Space') { e.preventDefault(); toggleSession(); }
-  else if (e.key === 'n' || e.key === 'N') session.skip();
+  else if (e.key === 'n' || e.key === 'N') skipNow();
   else if (e.key === 'h' || e.key === 'H') { session.showHint(); syncButtons(); }
   else if (e.key === 'Escape') closeSettings();
 });
@@ -342,7 +465,7 @@ f.voiceTest.addEventListener('click', () => voice.speak('string 5, C sharp', voi
 $('play-note').addEventListener('change', (e) => commit({ playNote: e.target.checked }));
 $('sound-test').addEventListener('click', () => sound.play(48));
 
-// intervals
+// intervals pool for Random
 const intervalList = $('interval-list');
 for (const iv of INTERVALS) {
   const label = document.createElement('label');
@@ -388,7 +511,10 @@ f.gain.addEventListener('input', () => commit({ gain: +f.gain.value }));
 f.reset.addEventListener('click', () => { settings = resetSettings(); applySettingsToUI(); });
 
 function applySettingsToUI() {
-  document.querySelector(`input[name="mode"][value="${settings.mode === 'intervals' ? 'intervals' : 'note'}"]`).checked = true;
+  const intervalsMode = settings.mode === 'intervals';
+  document.querySelector(`input[name="mode"][value="${intervalsMode ? 'intervals' : 'note'}"]`).checked = true;
+  ui.picker.hidden = !intervalsMode;
+  ui.picker.querySelectorAll('.chip').forEach((c) => c.classList.toggle('is-active', c.dataset.id === (settings.intervalPick || 'random')));
   $('play-note').checked = settings.playNote;
   intervalList.querySelectorAll('input').forEach((i) => { i.checked = settings.intervals.includes(i.value); });
 
@@ -426,6 +552,7 @@ function applySettingsToUI() {
 applySettingsToUI();
 syncButtons();
 updateStats();
+renderHeatPanel();
 
 // Expose for poking around in devtools.
-window.practice = { session, pitch, voice, sound, fretboard, get settings() { return settings; }, DEFAULTS };
+window.practice = { session, pitch, voice, sound, fretboard, history, get settings() { return settings; }, DEFAULTS };
