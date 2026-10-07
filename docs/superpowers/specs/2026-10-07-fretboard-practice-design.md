@@ -64,3 +64,20 @@ Keyboard: Space start/stop, N skip, H show hint now.
 
 - `node --test practice/tests` for notes.js and session.js.
 - pitch.js verified against synthesized tones in Node (pitchy) and by hand in the browser.
+
+## Additions (same day)
+
+- Prompts use string numbers (1 = high E … 6 = low E). Default fret range 0–11 so
+  every note appears once per string.
+- Octave-off answers are reported as "That's G, but an octave too high/low";
+  wrong-note markers are only drawn inside the practised range.
+- Detection hold is tolerant (3 agreeing readings over ≥90 ms, stray misses
+  ignored); 70 Hz high-pass ahead of the detector; defaults gate 0.007, clarity 0.84.
+- **Sound** (`sound.js`): Karplus–Strong pluck. Note mode has a "play the note
+  after saying it" toggle; the mic is muted while speaking or playing.
+- **Intervals mode** (`settings.mode = 'intervals'`): a root position is shown,
+  played and spoken ("B, string 4. Find the fifth above"). The answer is the
+  target pitch on any enabled string in range. Hint marks every such position
+  and shows the shape tip for that root string. Intervals: octave ↑/↓, 5th,
+  4th, major 3rd, minor 3rd — each with three tips (`INTERVALS` in `notes.js`,
+  verified by a test that recomputes every worked example).

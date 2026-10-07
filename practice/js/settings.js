@@ -3,10 +3,14 @@
 const KEY = 'fretboard-practice.settings.v2';
 
 export const DEFAULTS = Object.freeze({
+  mode: 'note',           // 'note' = find the named note; 'intervals' = find an interval from a root
   strings: [0, 1, 2, 3, 4, 5],
   fretFrom: 0,
   fretTo: 11,             // 0-11 covers every note once per string
   naturalsOnly: true,
+
+  playNote: false,        // note mode: also play the target note after saying it
+  intervals: ['octaveUp', 'octaveDown', 'fifth', 'majorThird', 'minorThird'],
 
   hintDelayMs: 5000,      // null = never
   pauseMs: 900,           // pause after a correct answer before the next target

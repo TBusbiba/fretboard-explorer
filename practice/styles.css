@@ -134,7 +134,7 @@ kbd {
 }
 .prompt__string.is-live { color: var(--accent); }
 .prompt__note {
-  font: 300 clamp(72px, 16vw, 148px)/1 var(--font-display);
+  font: 300 clamp(56px, 14vw, 132px)/1 var(--font-display);
   letter-spacing: -0.03em;
   margin: 6px 0 4px;
   color: var(--text);
@@ -213,6 +213,8 @@ kbd {
 .fb-note--correct circle { fill: var(--ok); stroke: var(--ok-ink); }
 .fb-note--correct text { fill: var(--ok-ink); }
 .fb-note--wrong circle { fill: var(--bad); stroke: var(--bad-ink); }
+.fb-note--root circle { fill: var(--surface-2); stroke: var(--text); }
+.fb-note--root text { fill: var(--text); }
 .fb-note--wrong text { fill: var(--bad-ink); }
 @keyframes marker-in  { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: scale(1); } }
 @keyframes marker-out { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.7); } }
@@ -430,6 +432,21 @@ input[type="range"]::-moz-range-thumb {
   border: 3px solid var(--surface);
   box-shadow: 0 0 0 1px var(--line-strong);
 }
+
+/* mode switcher + settings extras */
+.mode { width: min(360px, 100%); margin: 0 auto; }
+.note { margin: 0; font-size: 13px; color: var(--faint); }
+.switch small { display: block; font-size: 12px; color: var(--faint); }
+.checks { display: flex; flex-direction: column; gap: 4px; }
+.check { display: flex; align-items: center; gap: 10px; min-height: 36px; font-size: 14px; cursor: pointer; }
+.check input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
+.check small { margin-left: auto; color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+.tips summary { cursor: pointer; color: var(--muted); font-size: 14px; padding: 6px 0; }
+.tips summary:hover { color: var(--text); }
+.tips > ul { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.tips > ul > li { font-size: 13px; }
+.tips strong { display: block; color: var(--accent); font-weight: 500; margin-bottom: 2px; }
+.tips ul ul { margin: 0; padding-left: 16px; color: var(--muted); display: flex; flex-direction: column; gap: 2px; }
 
 /* ---------- responsive ---------- */
 @media (max-width: 760px) {

@@ -74,3 +74,44 @@ test('pickTarget is deterministic given rng', () => {
   const b = pickTarget(opts, null, () => 0.42);
   assert.deepEqual(a, b);
 });
+
+test('interval tips are consistent with the semitone math', async () => {
+  const { INTERVALS } = await import('../js/notes.js');
+  // Each tip example in the form "string A fret B → string C fret D" must really be that interval.
+  for (const iv of INTERVALS) {
+    for (const tip of iv.tips) {
+      const m = tip.match(/string (\d) fret (\d+) → string (\d) fret (\d+)/);
+      if (!m) continue;
+      const [, s1, f1, s2, f2] = m.map(Number);
+      const a = noteAt(s1 - 1, f1).midi, b = noteAt(s2 - 1, f2).midi;
+      assert.equal(b - a, iv.semitones, `${iv.id}: ${tip}`);
+    }
+  }
+});
+
+test('positionsForMidi finds every position in range', async () => {
+  const { positionsForMidi } = await import('../js/notes.js');
+  const opts = { strings: [0, 1, 2, 3, 4, 5], fretFrom: 0, fretTo: 11 };
+  // E4 (64): string 1 open, string 2 fret 5, string 3 fret 9
+  assert.deepEqual(positionsForMidi(64, opts), [{ string: 0, fret: 0 }, { string: 1, fret: 5 }, { string: 2, fret: 9 }]);
+  assert.deepEqual(positionsForMidi(40, { ...opts, fretFrom: 1 }), []); // low E open excluded
+});
+
+test('pickIntervalTarget only yields reachable targets and avoids repeats', async () => {
+  const { pickIntervalTarget, intervalById } = await import('../js/notes.js');
+  const opts = { strings: [0, 1, 2, 3, 4, 5], fretFrom: 0, fretTo: 11, naturalsOnly: true, intervals: ['octaveUp', 'octaveDown', 'fifth', 'majorThird', 'minorThird'] };
+  let prev = null;
+  for (let i = 0; i < 300; i++) {
+    const t = pickIntervalTarget(opts, prev, Math.random);
+    assert.ok(t.positions.length > 0);
+    const iv = intervalById(t.interval);
+    assert.equal(t.midi, noteAt(t.root.string, t.root.fret).midi + iv.semitones);
+    assert.ok(isNatural(noteAt(t.root.string, t.root.fret).name));
+    for (const p of t.positions) assert.equal(noteAt(p.string, p.fret).midi, t.midi);
+    if (prev) assert.ok(!(t.root.string === prev.root.string && t.root.fret === prev.root.fret && t.interval === prev.interval));
+    prev = t;
+  }
+  // Octave down from the lowest notes is impossible; octave up from string 1 fret 0..11 needs fret 12+ -> none in range on string 1 only
+  assert.equal(pickIntervalTarget({ ...opts, strings: [0], intervals: ['octaveUp'] }, null, Math.random), null);
+  assert.equal(pickIntervalTarget({ ...opts, intervals: [] }, null, Math.random), null);
+});

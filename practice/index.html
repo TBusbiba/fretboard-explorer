@@ -23,6 +23,11 @@
   </header>
 
   <main class="stage">
+    <div class="mode segmented" role="radiogroup" aria-label="Practice mode">
+      <label><input type="radio" name="mode" value="note"><span>Find the note</span></label>
+      <label><input type="radio" name="mode" value="intervals"><span>Intervals</span></label>
+    </div>
+
     <section class="prompt" aria-live="polite">
       <div class="prompt__string" id="string-name">Press start</div>
       <div class="prompt__note" id="note-name" data-state="idle"></div>
@@ -130,6 +135,22 @@
           <input type="range" id="voice-rate" min="0.6" max="1.6" step="0.1">
         </label>
         <button type="button" class="btn btn--ghost btn--small" id="voice-test">Test voice</button>
+      </fieldset>
+
+      <fieldset class="group">
+        <legend>Sound</legend>
+        <label class="switch"><input type="checkbox" id="play-note"><span>Play the note after saying it <small>find-the-note mode</small></span></label>
+        <p class="note">In Intervals mode the root note is always played.</p>
+        <button type="button" class="btn btn--ghost btn--small" id="sound-test">Test sound</button>
+      </fieldset>
+
+      <fieldset class="group">
+        <legend>Intervals</legend>
+        <div class="checks" id="interval-list"></div>
+        <details class="tips">
+          <summary>Shapes cheat-sheet</summary>
+          <ul id="tip-list"></ul>
+        </details>
       </fieldset>
 
       <fieldset class="group">

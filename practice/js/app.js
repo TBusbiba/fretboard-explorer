@@ -1,4 +1,5 @@
-import { STRINGS, FRET_COUNT, spokenName } from './notes.js';
+import { STRINGS, FRET_COUNT, INTERVALS, spokenName, tipFor } from './notes.js';
+import { createSound } from './sound.js';
 import { createFretboard } from './fretboard.js';
 import { createPitchDetector } from './pitch.js';
 import { createVoice } from './voice.js';
@@ -15,14 +16,26 @@ let settings = loadSettings();
 // ---------- modules ----------
 const fretboard = createFretboard($('fretboard'));
 
+// The mic is muted while the voice speaks or a note plays, plus a short tail.
+const blockers = new Set();
 let muteTimer = 0;
-const voice = createVoice({
-  onSpeaking(speaking) {
-    clearTimeout(muteTimer);
-    if (speaking) pitch.setMuted(true);
-    else muteTimer = setTimeout(() => pitch.setMuted(false), SPEECH_TAIL_MS);
-  },
-});
+function block(name, on) {
+  on ? blockers.add(name) : blockers.delete(name);
+  clearTimeout(muteTimer);
+  if (blockers.size) pitch.setMuted(true);
+  else muteTimer = setTimeout(() => pitch.setMuted(false), SPEECH_TAIL_MS);
+}
+const voice = createVoice({ onSpeaking: (v) => block('voice', v) });
+const sound = createSound({ onPlaying: (v) => block('sound', v) });
+
+// Speak, then play. Dropped if the target changed meanwhile.
+let promptToken = 0;
+async function announce(text, playMidi) {
+  const token = ++promptToken;
+  if (settings.voice && text) await voice.speak(text, voiceOpts());
+  if (token !== promptToken) return;
+  if (playMidi != null) await sound.play(playMidi);
+}
 
 const pitch = createPitchDetector({
   getSettings: () => settings,
@@ -54,22 +67,41 @@ function handleSessionEvent(type, p) {
     case 'target': {
       wrongTimers.forEach(clearTimeout); wrongTimers = [];
       fretboard.clearNotes();
-      fretboard.highlightString(p.target.string);
-      scrollBoardTo(p.target.fret);
       pitch.reset();
-      setPrompt(`String ${STRINGS[p.target.string].number}`, p.note.name, 'listening');
-      setStatus('Listening…');
       ui.ring.classList.remove('is-done');
-      if (settings.voice) voice.speak(`string ${STRINGS[p.target.string].number}, ${spokenName(p.note.name)}`, voiceOpts());
+      setStatus('Listening…');
+      if (p.mode === 'intervals') {
+        const { root } = p.target, iv = session.interval, rootNote = session.rootNote;
+        fretboard.highlightString(null);
+        fretboard.showNote(root.string, root.fret, 'root', rootNote.name);
+        scrollBoardTo(root.fret);
+        setPrompt(`${rootNote.name} on string ${STRINGS[root.string].number} · find`, `${iv.label} ${iv.arrow}`, 'listening');
+        announce(`${spokenName(rootNote.name)}, string ${STRINGS[root.string].number}. Find ${iv.spoken}`, rootNote.midi);
+      } else {
+        fretboard.highlightString(p.target.string);
+        scrollBoardTo(p.target.fret);
+        setPrompt(`String ${STRINGS[p.target.string].number}`, p.note.name, 'listening');
+        announce(`string ${STRINGS[p.target.string].number}, ${spokenName(p.note.name)}`, settings.playNote ? p.note.midi : null);
+      }
       break;
     }
     case 'hint':
-      fretboard.showNote(p.target.string, p.target.fret, 'hint', session.note.name);
       ui.ring.classList.add('is-done');
-      setStatus(`Fret ${p.target.fret}`);
+      if (session.mode === 'intervals') {
+        for (const pos of p.target.positions) fretboard.showNote(pos.string, pos.fret, 'hint', session.note.name);
+        const where = p.target.positions.map(q => `string ${STRINGS[q.string].number} fret ${q.fret}`).join(' or ');
+        setStatus(`${session.note.name} — ${where}. ${tipFor(session.interval, p.target.root.string)}`);
+      } else {
+        fretboard.showNote(p.target.string, p.target.fret, 'hint', session.note.name);
+        setStatus(`Fret ${p.target.fret}`);
+      }
       break;
     case 'correct':
-      fretboard.showNote(p.target.string, p.target.fret, 'correct', session.note.name);
+      if (session.mode === 'intervals') {
+        for (const pos of p.target.positions) fretboard.showNote(pos.string, pos.fret, 'correct', session.note.name);
+      } else {
+        fretboard.showNote(p.target.string, p.target.fret, 'correct', session.note.name);
+      }
       ui.noteName.dataset.state = 'correct';
       setStatus(`Correct · ${(p.ms / 1000).toFixed(1)} s`, 'ok');
       if (settings.voice && settings.speakFeedback) voice.speak('correct', voiceOpts());
@@ -213,6 +245,12 @@ async function toggleSession() {
 }
 
 ui.startBtn.addEventListener('click', toggleSession);
+
+// mode switcher
+document.querySelectorAll('input[name="mode"]').forEach((r) => r.addEventListener('change', () => {
+  commit({ mode: r.value });
+  if (session.state !== 'idle') session.skip(); // re-pick in the new mode right away
+}));
 ui.skipBtn.addEventListener('click', () => session.skip());
 ui.hintBtn.addEventListener('click', () => { session.showHint(); syncButtons(); });
 
@@ -301,6 +339,28 @@ f.voiceFeedback.addEventListener('change', () => commit({ speakFeedback: f.voice
 f.voiceSelect.addEventListener('change', () => commit({ voiceName: f.voiceSelect.value }));
 f.voiceRate.addEventListener('input', () => commit({ voiceRate: +f.voiceRate.value }));
 f.voiceTest.addEventListener('click', () => voice.speak('string 5, C sharp', voiceOpts()));
+$('play-note').addEventListener('change', (e) => commit({ playNote: e.target.checked }));
+$('sound-test').addEventListener('click', () => sound.play(48));
+
+// intervals
+const intervalList = $('interval-list');
+for (const iv of INTERVALS) {
+  const label = document.createElement('label');
+  label.className = 'check';
+  label.innerHTML = `<input type="checkbox" value="${iv.id}"><span>${iv.label} ${iv.arrow}</span><small>${iv.semitones > 0 ? '+' : ''}${iv.semitones} semitones</small>`;
+  label.querySelector('input').addEventListener('change', () => {
+    const on = new Set(settings.intervals);
+    label.querySelector('input').checked ? on.add(iv.id) : on.delete(iv.id);
+    commit({ intervals: INTERVALS.map(i => i.id).filter(id => on.has(id)) });
+  });
+  intervalList.appendChild(label);
+}
+const tipList = $('tip-list');
+for (const iv of INTERVALS) {
+  const li = document.createElement('li');
+  li.innerHTML = `<strong>${iv.label} ${iv.arrow}</strong><ul>${iv.tips.map(t => `<li>${t}</li>`).join('')}</ul>`;
+  tipList.appendChild(li);
+}
 
 function populateVoices() {
   const list = voice.getVoices();
@@ -328,6 +388,10 @@ f.gain.addEventListener('input', () => commit({ gain: +f.gain.value }));
 f.reset.addEventListener('click', () => { settings = resetSettings(); applySettingsToUI(); });
 
 function applySettingsToUI() {
+  document.querySelector(`input[name="mode"][value="${settings.mode === 'intervals' ? 'intervals' : 'note'}"]`).checked = true;
+  $('play-note').checked = settings.playNote;
+  intervalList.querySelectorAll('input').forEach((i) => { i.checked = settings.intervals.includes(i.value); });
+
   f.pills.querySelectorAll('.pill').forEach((b) =>
     b.setAttribute('aria-pressed', settings.strings.includes(+b.dataset.index)));
   f.fretFrom.value = settings.fretFrom;
@@ -364,4 +428,4 @@ syncButtons();
 updateStats();
 
 // Expose for poking around in devtools.
-window.practice = { session, pitch, voice, fretboard, get settings() { return settings; }, DEFAULTS };
+window.practice = { session, pitch, voice, sound, fretboard, get settings() { return settings; }, DEFAULTS };

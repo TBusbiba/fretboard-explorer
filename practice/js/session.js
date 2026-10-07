@@ -4,14 +4,15 @@
 // States: idle -> listening -> resolved -> listening ... -> idle
 //
 // Events (via onEvent(type, payload)):
-//   target  {target, note}        new target chosen
+//   target  {target, note, mode}  new target chosen. Note mode: target {string, fret}.
+//                                 Intervals mode: target {root, interval, midi, positions}.
 //   hint    {target}              show the answer position
 //   correct {target, ms, firstTry}
 //   wrong   {midi, name, fret}    fret is the position on the target string, or -1
 //   stopped {stats}
 //   error   {message}
 
-import { noteAt, pickTarget, fretForMidi, midiToNoteName } from './notes.js';
+import { noteAt, pickTarget, pickIntervalTarget, fretForMidi, midiToNoteName, midiToOctave, intervalById } from './notes.js';
 
 export function createSession({ getSettings, now = () => performance.now(), rng = Math.random, onEvent }) {
   const stats = { total: 0, firstTry: 0, wrong: 0, skipped: 0, times: [], get avgMs() {
@@ -20,8 +21,11 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
 
   const session = {
     state: 'idle',
+    mode: 'note',
     target: null,
     note: null,
+    rootNote: null,
+    interval: null,
     stats,
     startedAt: 0,
     hintShown: false,
@@ -33,19 +37,32 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
 
   function nextTarget() {
     const settings = getSettings();
-    const target = pickTarget(settings, session.target, rng);
+    const mode = settings.mode === 'intervals' ? 'intervals' : 'note';
+    const previous = session.mode === mode ? session.target : null;
+    const target = mode === 'intervals'
+      ? pickIntervalTarget(settings, previous, rng)
+      : pickTarget(settings, previous, rng);
     if (!target) {
       session.state = 'idle';
-      emit('error', { message: 'No notes match the current settings. Enable more strings or widen the fret range.' });
+      emit('error', {
+        message: mode === 'intervals'
+          ? 'No interval drills fit the current settings. Enable more strings, intervals, or widen the fret range.'
+          : 'No notes match the current settings. Enable more strings or widen the fret range.',
+      });
       return false;
     }
+    session.mode = mode;
     session.target = target;
-    session.note = noteAt(target.string, target.fret);
+    session.note = mode === 'intervals'
+      ? { name: midiToNoteName(target.midi), midi: target.midi, octave: midiToOctave(target.midi) }
+      : noteAt(target.string, target.fret);
+    session.rootNote = mode === 'intervals' ? noteAt(target.root.string, target.root.fret) : null;
+    session.interval = mode === 'intervals' ? intervalById(target.interval) : null;
     session.startedAt = now();
     session.hintShown = false;
     session.wrongSeen = new Set();
     session.state = 'listening';
-    emit('target', { target, note: session.note });
+    emit('target', { target, note: session.note, mode });
     return true;
   }
 
@@ -94,7 +111,7 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
     emit('wrong', {
       midi,
       name: midiToNoteName(midi),
-      fret: fretForMidi(session.target.string, midi),
+      fret: session.mode === 'note' ? fretForMidi(session.target.string, midi) : -1,
       // Right note name, wrong octave: +1 = an octave too high, -1 too low, 0 = different note.
       octaveOff: (midi - session.note.midi) % 12 === 0 ? octaves : 0,
     });

@@ -166,3 +166,45 @@ test('wrong note reports octave offset when the note name matches', () => {
   assert.deepEqual(w.map(e => e.octaveOff), [1, -1, 0]);
   assert.equal(w[0].name, 'A');
 });
+
+test('intervals mode: target carries root, interval and reachable positions; correct = target pitch', () => {
+  const { s, events } = harness({
+    mode: 'intervals', strings: [4, 3], fretFrom: 0, fretTo: 11, naturalsOnly: true, intervals: ['fifth'],
+  });
+  s.start();
+  const t = events[0];
+  assert.equal(t.mode, 'intervals');
+  assert.equal(s.mode, 'intervals');
+  assert.ok(t.target.root && t.target.interval === 'fifth');
+  assert.equal(s.interval.semitones, 7);
+  assert.equal(s.note.midi, s.rootNote.midi + 7);
+  assert.ok(t.target.positions.length >= 1);
+  // playing the root is wrong, not an octave issue
+  s.noteDetected(s.rootNote.midi);
+  const w = events.find(e => e.type === 'wrong');
+  assert.equal(w.octaveOff, 0);
+  assert.equal(w.fret, -1);
+  // the fifth, on any string, is correct
+  s.noteDetected(s.note.midi);
+  assert.ok(events.some(e => e.type === 'correct'));
+});
+
+test('intervals mode with no reachable drill emits error', () => {
+  const { s, events } = harness({ mode: 'intervals', strings: [0], fretFrom: 0, fretTo: 11, intervals: ['octaveUp'] });
+  s.start();
+  assert.equal(s.state, 'idle');
+  assert.equal(events[0].type, 'error');
+});
+
+test('switching mode between targets starts fresh (no cross-mode repeat check crash)', () => {
+  const { s, events, settings } = harness();
+  s.start();
+  settings.mode = 'intervals'; settings.intervals = ['fifth'];
+  settings.strings = [4, 3]; settings.fretTo = 11;
+  s.skip();
+  const t = events.filter(e => e.type === 'target').at(-1);
+  assert.equal(t.mode, 'intervals');
+  settings.mode = 'note';
+  s.skip();
+  assert.equal(events.filter(e => e.type === 'target').at(-1).mode, 'note');
+});
