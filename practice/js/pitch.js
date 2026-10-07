@@ -13,8 +13,10 @@ import { correctOctave } from './octave.js';
 
 const FFT_SIZE = 4096;          // ~85 ms at 48 kHz: enough for the low E (82 Hz)
 const HOLD_MS = 90;
-const LOW_HOLD_MS = 150;      // below LOW_HZ: the attack is messier, wait a little longer
-const LOW_HZ = 120;
+const LOW_HOLD_MS = 200;      // below LOW_HZ: the attack is messier, wait longer and want more agreement
+const LOW_HITS = 5;
+const LOW_HZ = 260;           // covers strings 6 and 5 and their octave-up mistakes
+const RECENT_MS = 300;        // window in which a lower-octave reading overrides a higher one
 const MIN_HITS = 3;
 const SILENCE_RESET_MS = 150;   // this long under the gate forgets the candidate
 const STALE_HIT_MS = 250;       // no agreeing reading for this long forgets it too
@@ -30,11 +32,12 @@ export function createPitchDetector({ getSettings, onNote, onLevel = () => {}, o
   let state = 'idle'; // idle | starting | running | denied | error
 
   let candidate = null, candidateSince = 0, hits = 0, lastHitAt = 0, lastLoudAt = 0;
+  let recent = []; // [midi, time] of recent accepted readings
   let reported = null;
 
   function setState(s, detail) { state = s; onState(s, detail); }
 
-  function resetHold() { candidate = null; candidateSince = 0; hits = 0; lastHitAt = 0; }
+  function resetHold() { candidate = null; candidateSince = 0; hits = 0; lastHitAt = 0; recent = []; }
 
   function frame() {
     rafId = requestAnimationFrame(frame);
@@ -63,13 +66,22 @@ export function createPitchDetector({ getSettings, onNote, onLevel = () => {}, o
     const hz = correctOctave(buf, ctx.sampleRate, rawHz, { minHz: MIN_HZ });
 
     const midi = frequencyToMidi(hz);
+    recent.push([midi, now]);
+    while (recent.length && now - recent[0][1] > RECENT_MS) recent.shift();
     if (midi !== candidate) { candidate = midi; candidateSince = now; hits = 0; }
     hits += 1;
     lastHitAt = now;
-    const hold = hz < LOW_HZ ? LOW_HOLD_MS : HOLD_MS;
-    if (hits >= MIN_HITS && now - candidateSince >= hold && reported !== midi) {
-      reported = midi;
-      onNote(midi, hz, clarity);
+    const low = hz < LOW_HZ;
+    const hold = low ? LOW_HOLD_MS : HOLD_MS;
+    const need = low ? LOW_HITS : MIN_HITS;
+    if (hits >= need && now - candidateSince >= hold && reported !== midi) {
+      // Octave-up errors on low strings are transient: if the lower octave was
+      // read at all while this note settled, that is the real note.
+      let final = midi;
+      if (low && recent.filter(([m]) => m === midi - 12).length >= 2) final = midi - 12;
+      if (reported === final) return;
+      reported = final;
+      onNote(final, hz, clarity);
     }
   }
 

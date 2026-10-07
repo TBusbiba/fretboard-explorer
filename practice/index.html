@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="5">
+<html lang="en" data-build="6">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -79,9 +79,20 @@
       <div class="heat__head">
         <h2>Your fretboard, over time</h2>
         <div class="heat__actions">
-          <button type="button" class="btn btn--ghost btn--small" id="heat-btn" aria-pressed="false">Show on fretboard</button>
           <button type="button" class="btn btn--ghost btn--small" id="heat-reset" hidden>Reset history</button>
         </div>
+      </div>
+      <div class="heat__board-wrap">
+        <svg class="fretboard fretboard--mini" id="heat-board"></svg>
+      </div>
+      <div class="heat__legend" aria-label="Scale">
+        <span>needs work</span>
+        <span class="heat__scale"><i class="heat__dot--l0"></i><i class="heat__dot--l1"></i><i class="heat__dot--l2"></i><i class="heat__dot--l3"></i><i class="heat__dot--l4"></i><i class="heat__dot--l5"></i></span>
+        <span>solid</span>
+        <span class="heat__legend-sep">·</span>
+        <i class="heat__dot--none"></i><span>not practised yet</span>
+        <span class="heat__legend-sep">·</span>
+        <span>faded = few tries</span>
       </div>
       <div class="heat__body" id="heat-body"></div>
     </section>

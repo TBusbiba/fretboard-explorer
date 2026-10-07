@@ -25,7 +25,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '5';
+const BUILD = '6';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -90,7 +90,7 @@ const ui = {
   ring: $('ring'), ringFill: $('ring-fill'), ringLabel: $('ring-label'),
   statCount: $('stat-count'), statAccuracy: $('stat-accuracy'), statAvg: $('stat-avg'), statWrong: $('stat-wrong'),
   picker: $('interval-picker'),
-  heatBtn: $('heat-btn'), heatReset: $('heat-reset'), heatBody: $('heat-body'),
+  heatReset: $('heat-reset'), heatBody: $('heat-body'),
 };
 
 // ---------- session events ----------
@@ -101,7 +101,6 @@ function handleSessionEvent(type, p) {
     case 'target': {
       wrongTimers.forEach(clearTimeout); wrongTimers = [];
       fretboard.clearNotes();
-      hideHeat();
       pitch.reset();
       ui.ring.classList.remove('is-done');
       setTip('');
@@ -245,7 +244,6 @@ function syncButtons() {
   ui.startBtn.classList.toggle('is-running', running);
   ui.skipBtn.disabled = !running;
   ui.hintBtn.disabled = !(session.state === 'listening' && session.hintStage < session.hintStages);
-  ui.heatBtn.disabled = running || history.positions().length === 0;
 }
 
 // A skip is a "couldn't find it" for the heatmap.
@@ -306,65 +304,66 @@ if (!window.isSecureContext) {
 }
 
 // ---------- heatmap ----------
-let heatVisible = false;
+const heatBoard = createFretboard($('heat-board'));
 
 function heatItems() {
-  return history.positions().map((p) => ({
-    string: p.string, fret: p.fret,
-    text: noteAt(p.string, p.fret).name,
-    band: p.band,
-    alpha: 0.35 + 0.65 * p.confidence,
-    title: `${noteAt(p.string, p.fret).name} · string ${STRINGS[p.string].number} fret ${p.fret} · ${p.n} ${p.n === 1 ? 'try' : 'tries'} · ${Math.round(p.cleanRate * 100)}% clean · ${p.avgMs != null ? (p.avgMs / 1000).toFixed(1) + ' s' : 'never found'}`,
-  }));
-}
-
-function showHeat() {
-  heatVisible = true;
-  fretboard.showHeat(heatItems());
-  ui.heatBtn.textContent = 'Hide heatmap';
-  ui.heatBtn.setAttribute('aria-pressed', 'true');
-}
-function hideHeat() {
-  heatVisible = false;
-  fretboard.clearHeat();
-  ui.heatBtn.textContent = 'Show on fretboard';
-  ui.heatBtn.setAttribute('aria-pressed', 'false');
+  const known = new Map(history.positions().map(p => [`${p.string}:${p.fret}`, p]));
+  const items = [];
+  for (const string of settings.strings) {
+    for (let fret = settings.fretFrom; fret <= settings.fretTo; fret++) {
+      const name = noteAt(string, fret).name;
+      if (settings.naturalsOnly && name.includes('♯')) continue;
+      const p = known.get(`${string}:${fret}`);
+      known.delete(`${string}:${fret}`);
+      items.push(p ? {
+        string, fret, text: name, level: p.level, alpha: 0.45 + 0.55 * p.confidence,
+        title: `${name} · string ${STRINGS[string].number} fret ${fret} · ${p.n} ${p.n === 1 ? 'try' : 'tries'} · ${Math.round(p.cleanRate * 100)}% clean · ${p.avgMs != null ? (p.avgMs / 1000).toFixed(1) + ' s' : 'never found'}`,
+      } : { string, fret, text: name, level: null, title: `${name} · string ${STRINGS[string].number} fret ${fret} · not practised yet` });
+    }
+  }
+  // Practised positions outside the current range / note set still count.
+  for (const p of known.values()) {
+    const name = noteAt(p.string, p.fret).name;
+    items.push({
+      string: p.string, fret: p.fret, text: name, level: p.level, alpha: 0.45 + 0.55 * p.confidence,
+      title: `${name} · string ${STRINGS[p.string].number} fret ${p.fret} · ${p.n} ${p.n === 1 ? 'try' : 'tries'} · ${Math.round(p.cleanRate * 100)}% clean · ${p.avgMs != null ? (p.avgMs / 1000).toFixed(1) + ' s' : 'never found'}`,
+    });
+  }
+  return items;
 }
 
 function describe(p, label) {
   const time = p.avgMs != null ? `${(p.avgMs / 1000).toFixed(1)} s` : 'not found';
-  return `<li><span class="heat__dot heat__dot--${p.band}"></span><strong>${label}</strong><span class="heat__meta">${Math.round(p.cleanRate * 100)}% clean · ${time} · ${p.n}×</span></li>`;
+  return `<li><span class="heat__dot heat__dot--l${p.level}"></span><strong>${label}</strong><span class="heat__meta">${Math.round(p.cleanRate * 100)}% clean · ${time} · ${p.n}×</span></li>`;
 }
 
 function renderHeatPanel() {
+  heatBoard.setRange(settings.fretFrom, settings.fretTo);
+  heatBoard.showHeat(heatItems());
   const positions = history.positions();
   const intervals = history.intervals();
-  if (positions.length === 0 && intervals.length === 0) {
-    ui.heatBody.innerHTML = '<p class="note">Nothing recorded yet. Every answer you give is remembered here, across sessions.</p>';
-    ui.heatReset.hidden = true;
-    return;
-  }
-  ui.heatReset.hidden = false;
+  ui.heatReset.hidden = positions.length === 0 && intervals.length === 0;
   const label = (p) => `${noteAt(p.string, p.fret).name} · string ${STRINGS[p.string].number} fret ${p.fret}`;
-  const weak = positions.filter(p => p.band !== 'strong').slice(0, 6);
-  const strong = positions.filter(p => p.band === 'strong').slice(-6).reverse();
+  const weak = positions.filter(p => p.level <= 2).slice(0, 6);
+  const strong = positions.filter(p => p.level >= 4).slice(-6).reverse();
   let html = '';
-  if (positions.length) {
-    html += `<div class="heat__col"><h3>Needs work</h3><ul>${weak.map(p => describe(p, label(p))).join('') || '<li class="note">Nothing weak — nice.</li>'}</ul></div>`;
-    html += `<div class="heat__col"><h3>Solid</h3><ul>${strong.map(p => describe(p, label(p))).join('') || '<li class="note">Keep going.</li>'}</ul></div>`;
-  }
-  if (intervals.length) {
-    html += `<div class="heat__col"><h3>Intervals</h3><ul>${intervals.map(p => { const iv = intervalById(p.id); return describe(p, iv ? `${iv.label} ${iv.arrow}` : p.id); }).join('')}</ul></div>`;
+  if (positions.length === 0 && intervals.length === 0) {
+    html = '<p class="note">Nothing recorded yet. Every answer you give is remembered here, across sessions.</p>';
+  } else {
+    if (positions.length) {
+      html += `<div class="heat__col"><h3>Needs work</h3><ul>${weak.map(p => describe(p, label(p))).join('') || '<li class="note">Nothing weak — nice.</li>'}</ul></div>`;
+      html += `<div class="heat__col"><h3>Solid</h3><ul>${strong.map(p => describe(p, label(p))).join('') || '<li class="note">Keep going.</li>'}</ul></div>`;
+    }
+    if (intervals.length) {
+      html += `<div class="heat__col"><h3>Intervals</h3><ul>${intervals.map(p => { const iv = intervalById(p.id); return describe(p, iv ? `${iv.label} ${iv.arrow}` : p.id); }).join('')}</ul></div>`;
+    }
   }
   ui.heatBody.innerHTML = html;
-  if (heatVisible) fretboard.showHeat(heatItems());
 }
 
-ui.heatBtn.addEventListener('click', () => (heatVisible ? hideHeat() : showHeat()));
 ui.heatReset.addEventListener('click', () => {
   if (!confirm('Forget all recorded practice history?')) return;
   history.reset();
-  hideHeat();
   renderHeatPanel();
   syncButtons();
 });
@@ -549,6 +548,7 @@ function applySettingsToUI() {
   f.presets.querySelectorAll('.chip').forEach((c) =>
     c.classList.toggle('is-active', +c.dataset.from === settings.fretFrom && +c.dataset.to === settings.fretTo));
   fretboard.setRange(settings.fretFrom, settings.fretTo);
+  if (typeof renderHeatPanel === 'function') renderHeatPanel();
 
   document.querySelector(`input[name="noteset"][value="${settings.naturalsOnly ? 'naturals' : 'chromatic'}"]`).checked = true;
 
@@ -579,4 +579,4 @@ updateStats();
 renderHeatPanel();
 
 // Expose for poking around in devtools.
-window.practice = { session, pitch, voice, sound, fretboard, history, get settings() { return settings; }, DEFAULTS };
+window.practice = { session, pitch, voice, sound, fretboard, history, renderHeatPanel, get settings() { return settings; }, DEFAULTS };

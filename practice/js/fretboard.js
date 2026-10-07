@@ -135,13 +135,14 @@ export function createFretboard(svg) {
     },
 
     /**
-     * Heatmap overlay. items: [{string, fret, text, band: 'strong'|'ok'|'weak', alpha, title}].
-     * Drawn under the live markers; replaced wholesale on each call.
+     * Heatmap. items: [{string, fret, text, level: 0..5 | null, alpha, title}].
+     * level null = not practised yet (faint outline). Replaced wholesale on each call.
      */
     showHeat(items) {
       heat.innerHTML = '';
       for (const it of items) {
-        const g = el('g', { class: `fb-heat-dot fb-heat-dot--${it.band}`, transform: `translate(${noteX(it.fret)} ${stringY(it.string)})`, opacity: it.alpha }, heat);
+        const cls = it.level == null ? 'fb-heat-dot fb-heat-dot--none' : `fb-heat-dot fb-heat-dot--l${it.level}`;
+        const g = el('g', { class: cls, transform: `translate(${noteX(it.fret)} ${stringY(it.string)})`, opacity: it.alpha ?? 1 }, heat);
         el('title', {}, g).textContent = it.title;
         el('circle', { r: noteRadius(it.fret) }, g);
         el('text', { y: 1 }, g).textContent = it.text;

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createHistory, mastery, band } from '../js/history.js';
+import { createHistory, mastery, band, level } from '../js/history.js';
 
 function memStorage() {
   const m = new Map();
@@ -38,6 +38,8 @@ test('mastery blends clean rate and speed; bands are stable', () => {
   assert.equal(mastery({ n: 4, clean: 0, solved: 4, msTotal: 40000 }), 0);         // never clean, 10 s
   const mid = mastery({ n: 4, clean: 2, solved: 4, msTotal: 15000 });              // 50% clean, 3.75 s
   assert.ok(mid > 0.4 && mid < 0.7);
+  assert.deepEqual([0, 0.1, 0.34, 0.5, 0.67, 0.84, 1].map(level), [0, 0, 2, 3, 4, 5, 5]);
+  assert.equal(level(null), null);
   assert.equal(band(0.9), 'strong'); assert.equal(band(0.5), 'ok'); assert.equal(band(0.1), 'weak'); assert.equal(band(null), null);
 });
 

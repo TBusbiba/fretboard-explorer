@@ -26,7 +26,7 @@ export function goertzel(buf, sampleRate, freq) {
  * `maxHz` limits the check to the low range where the detector actually errs
  * (attack transients on strings 6 and 5).
  */
-export function correctOctave(buf, sampleRate, hz, { minHz = 70, maxHz = 270, ratio = 0.3 } = {}) {
+export function correctOctave(buf, sampleRate, hz, { minHz = 70, maxHz = 270, ratio = 0.2 } = {}) {
   const half = hz / 2;
   // Only the low strings suffer from this; never second-guess higher detections.
   if (half < minHz || hz > maxHz) return hz;

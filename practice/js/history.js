@@ -31,6 +31,12 @@ export function mastery(e) {
   return 0.6 * cleanRate + 0.4 * speed;
 }
 
+/** 0 (needs work) .. 5 (solid), or null when unpractised. */
+export function level(score) {
+  if (score == null) return null;
+  return Math.min(5, Math.floor(score * 6));
+}
+
 export function band(score) {
   if (score == null) return null;
   return score >= 0.7 ? 'strong' : score >= 0.4 ? 'ok' : 'weak';
@@ -46,6 +52,7 @@ function summarize(key, e) {
     skips: e.skips,
     mastery: mastery(e),
     band: band(mastery(e)),
+    level: level(mastery(e)),
     confidence: Math.min(1, e.n / 5),   // 5 tries = fully confident
   };
 }
