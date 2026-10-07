@@ -9,9 +9,23 @@ import { loadSettings, saveSettings, resetSettings, DEFAULTS } from './settings.
 
 const $ = (id) => document.getElementById(id);
 
+// Any uncaught error is shown on the page (with a hard-reload hint, since a
+// stale cached module is the usual cause) instead of failing silently.
+function showFault(message) {
+  let el = $('fault');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'fault'; el.className = 'stale';
+    document.body.appendChild(el);
+  }
+  el.textContent = `Something broke: ${message} — try a hard reload (Cmd+Shift+R).`;
+}
+window.addEventListener('error', (e) => showFault(e.message || String(e.error)));
+window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.reason.message ? e.reason.message : String(e.reason)));
+
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '4';
+const BUILD = '5';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
