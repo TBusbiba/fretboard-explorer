@@ -490,6 +490,10 @@ input[type="range"]::-moz-range-thumb {
 .heat__dot--ok { background: var(--accent); }
 .heat__dot--weak { background: var(--bad); }
 
+/* stale-build banner */
+.stale { position: fixed; inset: auto 16px 16px; z-index: 30; padding: 14px 18px; border-radius: var(--r-md); background: var(--bad); color: var(--bad-ink); font-weight: 500; text-align: center; }
+.stale kbd { color: inherit; background: rgba(0, 0, 0, 0.12); border-color: rgba(0, 0, 0, 0.2); }
+
 /* ---------- responsive ---------- */
 @media (max-width: 760px) {
   .stage { padding-top: 16px; gap: 16px; }

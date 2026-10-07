@@ -8,6 +8,16 @@ import { createHistory } from './history.js';
 import { loadSettings, saveSettings, resetSettings, DEFAULTS } from './settings.js';
 
 const $ = (id) => document.getElementById(id);
+
+// Guard against a browser mixing a cached index.html with newer scripts (or
+// vice versa): bump both this and data-build in index.html together.
+const BUILD = '4';
+if (document.documentElement.dataset.build !== BUILD) {
+  const el = $('stale');
+  if (el) el.hidden = false;
+  else document.body.insertAdjacentHTML('afterbegin', '<div class="stale">This page is out of date — press Cmd+Shift+R to reload it.</div>');
+  throw new Error(`Fretboard Practice: index.html build ${document.documentElement.dataset.build} ≠ app.js build ${BUILD}`);
+}
 const RING_LEN = 113.1;
 const WRONG_MARKER_MS = 1200;
 const SPEECH_TAIL_MS = 250;

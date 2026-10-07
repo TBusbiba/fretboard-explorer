@@ -98,3 +98,11 @@ Keyboard: Space start/stop, N skip, H show hint now.
   (1.5 s → 1, 6 s → 0); bands strong ≥ 0.7, ok ≥ 0.4, weak below.
   "Show on fretboard" overlays dots (opacity grows with tries); the panel lists
   needs-work / solid / intervals; "Reset history" clears it.
+
+## Dev server and cache guard
+
+`python3 serve.py` (repo root) serves everything with `Cache-Control: no-store`
+so plain reloads always pick up edits; the stock `http.server` let Chrome mix a
+cached `index.html` with newer scripts. `index.html` carries `data-build` and
+`app.js` a matching `BUILD`; on mismatch the page shows a "reload" banner and
+stops instead of half-working. Bump both together when the HTML structure changes.
