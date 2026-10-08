@@ -25,7 +25,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '10';
+const BUILD = '11';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -100,6 +100,7 @@ const ui = {
 
 // ---------- session events ----------
 let wrongTimers = [];
+let lastTriadKey = null; // chord + strings of the previous triad target, to keep the voice short within a sequence
 
 function handleSessionEvent(type, p) {
   switch (type) {
@@ -133,8 +134,15 @@ function handleSessionEvent(type, p) {
         scrollBoardTo(low.fret + 1);
         setPrompt(`Triad · strings ${group.label} · ${inv.label}`, `${rootNote.name} ${triad.label}`, 'listening');
         setStatus(`Play it low to high, starting on string ${STRINGS[low.string].number}`);
-        announce(`${spokenName(rootNote.name)} ${triad.spoken}, ${inv.label}, strings ${group.strings.map(s => STRINGS[s].number).join(' ')}`, null)
-          .then(() => sound.playSequence(session.steps.map(n => n.midi)));
+        // Same chord on the same strings as last time (a Root → 1st → 2nd or Climb
+        // sequence): just name the inversion.
+        const key = `${p.target.group}|${p.target.triad}|${p.target.rootPc}`;
+        const continuing = key === lastTriadKey;
+        lastTriadKey = key;
+        const text = continuing
+          ? inv.label
+          : `${spokenName(rootNote.name)} ${triad.spoken}, ${inv.label}, strings ${group.strings.map(s => STRINGS[s].number).join(' ')}`;
+        announce(text, null).then(() => sound.playSequence(session.steps.map(n => n.midi)));
       } else {
         fretboard.highlightString(p.target.string);
         scrollBoardTo(p.target.fret);
@@ -229,6 +237,7 @@ function handleSessionEvent(type, p) {
     }
     case 'stopped':
       promptToken++;
+      lastTriadKey = null;
       voice.cancel();
       fretboard.clearNotes();
       fretboard.highlightString(null);
