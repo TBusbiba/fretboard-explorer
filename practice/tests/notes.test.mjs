@@ -218,3 +218,21 @@ test('triad inversion control: random never repeats, fixed sticks, cycle walks r
     }
   }
 });
+
+test('ordered inversions: root -> 1st -> 2nd of the same chord on the same strings, then a new chord', async () => {
+  const { pickTriadTarget } = await import('../js/notes.js');
+  const opts = { strings: [0, 1, 2, 3, 4, 5], fretFrom: 0, fretTo: 11, naturalsOnly: true,
+    triads: ['major', 'minor'], triadGroups: ['654', '543', '432', '321'], triadInversion: 'ordered' };
+  const sameChord = (x, y) => x.group === y.group && x.triad === y.triad && x.rootPc === y.rootPc;
+  let prev = null;
+  for (let round = 0; round < 30; round++) {
+    const a = pickTriadTarget(opts, prev, Math.random);
+    const b = pickTriadTarget(opts, a, Math.random);
+    const c = pickTriadTarget(opts, b, Math.random);
+    assert.deepEqual([a.inversion, b.inversion, c.inversion], [0, 1, 2]);
+    assert.ok(sameChord(a, b) && sameChord(b, c), 'same chord');
+    assert.equal(a.group, b.group); assert.equal(b.group, c.group);
+    if (prev) assert.ok(!sameChord(a, prev), 'new chord after a full round');
+    prev = c;
+  }
+});

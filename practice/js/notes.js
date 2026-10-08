@@ -273,9 +273,11 @@ const TRIAD_SPAN = 4;
  * Pick a close-voiced triad on a 3-string group in some inversion. Notes are
  * ascending, low string to high, within a 5-fret window and the fret range.
  * opts.triadInversion: 'random' (never the same inversion twice in a row),
- * 0 | 1 | 2 (fixed), or 'cycle' (one chord on one group, starting from its
- * lowest voicing and climbing through the inversions up the neck; when no
- * higher voicing is left, a different chord starts).
+ * 0 | 1 | 2 (fixed), 'ordered' (one chord on one group: root position, then
+ * 1st, then 2nd inversion — each up the neck when it exists higher, else the
+ * lowest voicing of that inversion — then a different chord), or 'cycle'
+ * (one chord on one group from its lowest voicing, climbing through the
+ * inversions until no higher voicing is left, then a different chord).
  * @returns {{root:{string,fret}, group:string, triad:string, inversion:number, notes:[{string,fret,midi,degree}], midi}|null}
  */
 export function pickTriadTarget(opts, previous, rng = Math.random) {
@@ -323,6 +325,30 @@ export function pickTriadTarget(opts, previous, rng = Math.random) {
 
   const lowFret = (c) => Math.min(...c.notes.map(n => n.fret));
   const sameChord = (a, b) => a.group === b.group && a.triad === b.triad && a.rootPc === b.rootPc;
+  if (want === 'ordered') {
+    if (previous && previous.inversion < 2) {
+      const run = candidates.filter(c => sameChord(c, previous) && c.inversion === previous.inversion + 1).sort((a, b) => lowFret(a) - lowFret(b));
+      if (run.length) {
+        const prevLow = lowFret(previous);
+        return run.find(c => lowFret(c) > prevLow) || run[0];
+      }
+    }
+    // a new chord (different when possible) that has all three inversions, from its lowest root position
+    const byChord = new Map();
+    for (const c of candidates) {
+      const k = `${c.group}|${c.triad}|${c.rootPc}`;
+      (byChord.get(k) || byChord.set(k, []).get(k)).push(c);
+    }
+    let chords = [...byChord.values()].filter(vs => [0, 1, 2].every(i => vs.some(c => c.inversion === i)));
+    if (chords.length === 0) chords = [...byChord.values()];
+    if (previous) {
+      const other = chords.filter(vs => !sameChord(vs[0], previous));
+      if (other.length) chords = other;
+    }
+    const vs = chords[Math.floor(rng() * chords.length)];
+    return vs.filter(c => c.inversion === 0).sort((a, b) => lowFret(a) - lowFret(b))[0]
+      || vs.sort((a, b) => lowFret(a) - lowFret(b))[0];
+  }
   if (want === 'cycle') {
     if (previous) {
       // the same chord's next voicing up the neck, if there is one
