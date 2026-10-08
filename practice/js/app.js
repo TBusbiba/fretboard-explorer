@@ -25,7 +25,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '8';
+const BUILD = '9';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -94,7 +94,7 @@ const ui = {
   meterFill: $('meter-fill'), meterGate: $('meter-gate'), micNote: $('mic-note'),
   ring: $('ring'), ringFill: $('ring-fill'), ringLabel: $('ring-label'),
   statCount: $('stat-count'), statAccuracy: $('stat-accuracy'), statAvg: $('stat-avg'), statWrong: $('stat-wrong'),
-  picker: $('interval-picker'), chordPicker: $('chord-picker'), triadPicker: $('triad-picker'), groupPicker: $('group-picker'),
+  picker: $('interval-picker'), chordPicker: $('chord-picker'), triadPicker: $('triad-picker'), groupPicker: $('group-picker'), inversionPicker: $('inversion-picker'),
   heatReset: $('heat-reset'), heatBody: $('heat-body'),
 };
 
@@ -475,6 +475,15 @@ for (const opt of [{ id: 'random', label: 'Random' }, ...TRIADS.map(t => ({ id: 
   });
   ui.triadPicker.appendChild(b);
 }
+for (const opt of [{ id: 'random', label: 'Any inversion' }, { id: 0, label: 'Root position' }, { id: 1, label: '1st inversion' }, { id: 2, label: '2nd inversion' }, { id: 'cycle', label: 'Cycle up the neck' }]) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'chip'; b.dataset.id = String(opt.id); b.textContent = opt.label;
+  b.addEventListener('click', () => {
+    commit({ triadInversion: opt.id });
+    if (session.state !== 'idle' && session.mode === 'triads') session.skip();
+  });
+  ui.inversionPicker.appendChild(b);
+}
 for (const g of STRING_GROUPS) {
   const b = document.createElement('button');
   b.type = 'button'; b.className = 'chip'; b.dataset.id = g.id; b.textContent = `strings ${g.label}`;
@@ -638,6 +647,8 @@ function applySettingsToUI() {
   const mode = ['intervals', 'arpeggios', 'triads'].includes(settings.mode) ? settings.mode : 'note';
   ui.triadPicker.hidden = mode !== 'triads';
   ui.triadPicker.querySelectorAll('.chip').forEach((c) => c.classList.toggle('is-active', c.dataset.id === (settings.triadPick || 'random')));
+  ui.inversionPicker.hidden = mode !== 'triads';
+  ui.inversionPicker.querySelectorAll('.chip').forEach((c) => c.classList.toggle('is-active', c.dataset.id === String(settings.triadInversion ?? 'random')));
   ui.groupPicker.hidden = mode !== 'triads';
   ui.groupPicker.querySelectorAll('.chip').forEach((c) => { const on = settings.triadGroups.includes(c.dataset.id); c.classList.toggle('is-active', on); c.setAttribute('aria-pressed', on); });
   document.querySelector(`input[name="mode"][value="${mode}"]`).checked = true;

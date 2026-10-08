@@ -184,3 +184,37 @@ test('pickTriadTarget returns null without groups or with a disabled string', as
   assert.equal(pickTriadTarget({ strings: [0, 1, 2, 3, 4, 5], fretFrom: 0, fretTo: 11, naturalsOnly: false, triads: ['major'], triadGroups: [] }, null, Math.random), null);
   assert.equal(pickTriadTarget({ strings: [0, 1, 3, 4, 5], fretFrom: 0, fretTo: 11, naturalsOnly: false, triads: ['major'], triadGroups: ['321'] }, null, Math.random), null);
 });
+
+test('triad inversion control: random never repeats, fixed sticks, cycle walks root -> 1st -> 2nd up the neck', async () => {
+  const { pickTriadTarget } = await import('../js/notes.js');
+  const base = { strings: [0, 1, 2, 3, 4, 5], fretFrom: 0, fretTo: 11, naturalsOnly: true, triads: ['major'], triadGroups: ['321'] };
+  let prev = null;
+  for (let i = 0; i < 200; i++) {
+    const t = pickTriadTarget({ ...base, triadInversion: 'random' }, prev, Math.random);
+    if (prev) assert.notEqual(t.inversion, prev.inversion);
+    prev = t;
+  }
+  for (const inv of [0, 1, 2]) {
+    for (let i = 0; i < 50; i++) assert.equal(pickTriadTarget({ ...base, triadInversion: inv }, null, Math.random).inversion, inv);
+  }
+  const cyc = { ...base, triadInversion: 'cycle' };
+  const low = (t) => Math.min(...t.notes.map(n => n.fret));
+  const sameChord = (x, y) => x.group === y.group && x.triad === y.triad && x.rootPc === y.rootPc;
+  for (let trial = 0; trial < 20; trial++) {
+    // walk: same chord, strictly up the neck, inversions advancing, until a new chord starts low
+    let t = pickTriadTarget(cyc, null, Math.random);
+    const first = t;
+    let steps = 0;
+    for (;;) {
+      const n = pickTriadTarget(cyc, t, Math.random);
+      if (!sameChord(n, t)) {
+        assert.ok(steps >= 1, 'a cycle has at least two voicings');
+        assert.ok(!sameChord(n, first), 'the next cycle is a different chord');
+        break;
+      }
+      assert.ok(low(n) > low(t), `climbs: ${low(t)} -> ${low(n)}`);
+      assert.equal(n.inversion, (t.inversion + 1) % 3, 'next voicing up is the next inversion');
+      t = n; steps++;
+    }
+  }
+});

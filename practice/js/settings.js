@@ -17,6 +17,7 @@ export const DEFAULTS = Object.freeze({
   triads: ['major', 'minor', 'dim', 'aug', 'dom7', 'min7'],
   triadPick: 'random',
   triadGroups: ['654', '543', '432', '321'],
+  triadInversion: 'random', // 'random' | 0 | 1 | 2 | 'cycle'
 
   hintDelayMs: 5000,      // null = never
   pauseMs: 900,           // pause after a correct answer before the next target

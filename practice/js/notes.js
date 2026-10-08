@@ -272,6 +272,10 @@ const TRIAD_SPAN = 4;
 /**
  * Pick a close-voiced triad on a 3-string group in some inversion. Notes are
  * ascending, low string to high, within a 5-fret window and the fret range.
+ * opts.triadInversion: 'random' (never the same inversion twice in a row),
+ * 0 | 1 | 2 (fixed), or 'cycle' (one chord on one group, starting from its
+ * lowest voicing and climbing through the inversions up the neck; when no
+ * higher voicing is left, a different chord starts).
  * @returns {{root:{string,fret}, group:string, triad:string, inversion:number, notes:[{string,fret,midi,degree}], midi}|null}
  */
 export function pickTriadTarget(opts, previous, rng = Math.random) {
@@ -314,8 +318,38 @@ export function pickTriadTarget(opts, previous, rng = Math.random) {
     }
   }
   if (candidates.length === 0) return null;
+  const want = opts.triadInversion;
   const same = (a, b) => a.group === b.group && a.triad === b.triad && a.inversion === b.inversion && a.rootPc === b.rootPc && a.notes[0].fret === b.notes[0].fret;
-  const fresh = previous ? candidates.filter(c => !same(c, previous)) : candidates;
-  const pool = fresh.length > 0 ? fresh : candidates;
+
+  const lowFret = (c) => Math.min(...c.notes.map(n => n.fret));
+  const sameChord = (a, b) => a.group === b.group && a.triad === b.triad && a.rootPc === b.rootPc;
+  if (want === 'cycle') {
+    if (previous) {
+      // the same chord's next voicing up the neck, if there is one
+      const prevLow = lowFret(previous);
+      const up = candidates.filter(c => sameChord(c, previous) && lowFret(c) > prevLow).sort((a, b) => lowFret(a) - lowFret(b));
+      if (up.length) return up[0];
+    }
+    // a new chord (different from the last when possible), from its lowest voicing
+    let pool = candidates;
+    if (previous) {
+      const other = pool.filter(c => !sameChord(c, previous));
+      if (other.length) pool = other;
+    }
+    const seed = pool[Math.floor(rng() * pool.length)];
+    return pool.filter(c => sameChord(c, seed)).sort((a, b) => lowFret(a) - lowFret(b))[0];
+  }
+
+  let pool = candidates;
+  if (typeof want === 'number') pool = pool.filter(c => c.inversion === want);
+  if (pool.length === 0) return null;
+  if (previous) {
+    const fresh = pool.filter(c => !same(c, previous));
+    if (fresh.length) pool = fresh;
+    if (want === 'random' || want == null) {
+      const varied = pool.filter(c => c.inversion !== previous.inversion);
+      if (varied.length) pool = varied;
+    }
+  }
   return pool[Math.floor(rng() * pool.length)];
 }
