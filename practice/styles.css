@@ -434,7 +434,8 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* mode switcher + settings extras */
-.mode { width: min(360px, 100%); margin: 0 auto; }
+.mode { width: min(600px, 100%); margin: 0 auto; grid-template-columns: repeat(4, 1fr); }
+.picker--groups .chip[aria-pressed="true"] { background: var(--accent-soft); }
 .note { margin: 0; font-size: 13px; color: var(--faint); }
 .switch small { display: block; font-size: 12px; color: var(--faint); }
 .checks { display: flex; flex-direction: column; gap: 4px; }

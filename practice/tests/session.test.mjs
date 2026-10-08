@@ -250,3 +250,65 @@ test('switching mode between targets starts fresh (no cross-mode repeat check cr
   s.skip();
   assert.equal(events.filter(e => e.type === 'target').at(-1).mode, 'note');
 });
+
+test('arpeggio mode: every chord tone in order from the root string up; wrong order is wrong', () => {
+  const { s, events } = harness({
+    mode: 'arpeggios', strings: [0, 1, 2, 3, 4, 5], fretFrom: 0, fretTo: 11, naturalsOnly: true, chords: ['major'],
+  });
+  s.start();
+  const t = events[0];
+  assert.equal(t.mode, 'arpeggios');
+  assert.ok(s.chord && s.chord.id === 'major');
+  assert.equal(s.steps.length, s.target.root.string + 1);
+  assert.equal(s.steps[0].midi, s.rootNote.midi);
+  assert.equal(s.steps[0].degree, 0);
+  // the second tone before the root is wrong
+  s.noteDetected(s.steps[1].midi);
+  assert.equal(events.filter(e => e.type === 'wrong').length, 1);
+  // play the sequence
+  const total = s.steps.length;
+  for (let i = 0; i < total; i++) {
+    assert.equal(s.step, i);
+    s.noteDetected(s.steps[i].midi);
+  }
+  const steps = events.filter(e => e.type === 'step');
+  assert.equal(steps.length, total - 1);
+  assert.deepEqual(steps.map(e => e.total), Array(total - 1).fill(total));
+  const c = events.find(e => e.type === 'correct');
+  assert.ok(c && c.firstTry === false);
+  assert.equal(s.state, 'resolved');
+});
+
+test('sequence modes: hint reveals per step and the countdown restarts after each played note', () => {
+  const { s, events, advance } = harness({
+    mode: 'arpeggios', strings: [0, 1, 2, 3, 4, 5], fretFrom: 0, fretTo: 11, naturalsOnly: true, chords: ['major'], hintDelayMs: 2000,
+  });
+  s.start();
+  advance(2000);                                   // tip
+  assert.deepEqual(events.filter(e => e.type === 'hint').map(e => [e.stage, e.step]), [[1, 0]]);
+  advance(2000);                                   // reveal step 0
+  assert.deepEqual(events.filter(e => e.type === 'hint').map(e => [e.stage, e.step]), [[1, 0], [2, 0]]);
+  assert.equal(s.hintShown, true);
+  s.noteDetected(s.note.midi);                     // play step 0 -> stage drops back to 1
+  assert.equal(s.hintStage, 1);
+  assert.equal(s.hintShown, false);
+  advance(1999);
+  assert.equal(events.filter(e => e.type === 'hint').length, 2);
+  advance(1);                                      // reveal step 1 after a fresh delay
+  assert.deepEqual(events.filter(e => e.type === 'hint').at(-1).step, 1);
+  s.showHint();                                    // nothing more to show for this step
+  assert.equal(events.filter(e => e.type === 'hint').length, 3);
+});
+
+test('triads mode drives a 3-note sequence', () => {
+  const { s, events } = harness({
+    mode: 'triads', strings: [0, 1, 2, 3, 4, 5], fretFrom: 0, fretTo: 11, naturalsOnly: true, triads: ['minor'], triadGroups: ['543'],
+  });
+  s.start();
+  assert.equal(s.mode, 'triads');
+  assert.equal(s.triad.id, 'minor');
+  assert.equal(s.steps.length, 3);
+  assert.deepEqual(s.steps.map(n => n.string), [4, 3, 2]);
+  for (let i = 0; i < 3; i++) s.noteDetected(s.steps[i].midi);
+  assert.ok(events.some(e => e.type === 'correct'));
+});

@@ -1,4 +1,4 @@
-import { STRINGS, FRET_COUNT, INTERVALS, intervalById, spokenName, tipFor, noteAt } from './notes.js';
+import { STRINGS, FRET_COUNT, INTERVALS, CHORDS, TRIADS, STRING_GROUPS, INVERSIONS, DEGREE_LABELS, intervalById, chordById, triadById, stringGroupById, spokenName, tipFor, noteAt } from './notes.js';
 import { createFretboard } from './fretboard.js';
 import { createPitchDetector } from './pitch.js';
 import { createVoice } from './voice.js';
@@ -25,7 +25,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '6';
+const BUILD = '8';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -40,8 +40,13 @@ let settings = loadSettings();
 
 // What the session actually drills: a single picked interval, or the random pool.
 function sessionSettings() {
-  const pick = settings.intervalPick;
-  return { ...settings, intervals: pick && pick !== 'random' ? [pick] : settings.intervals };
+  const pick = settings.intervalPick, cpick = settings.chordPick, tpick = settings.triadPick;
+  return {
+    ...settings,
+    intervals: pick && pick !== 'random' ? [pick] : settings.intervals,
+    chords: cpick && cpick !== 'random' ? [cpick] : settings.chords,
+    triads: tpick && tpick !== 'random' ? [tpick] : settings.triads,
+  };
 }
 
 // ---------- modules ----------
@@ -89,7 +94,7 @@ const ui = {
   meterFill: $('meter-fill'), meterGate: $('meter-gate'), micNote: $('mic-note'),
   ring: $('ring'), ringFill: $('ring-fill'), ringLabel: $('ring-label'),
   statCount: $('stat-count'), statAccuracy: $('stat-accuracy'), statAvg: $('stat-avg'), statWrong: $('stat-wrong'),
-  picker: $('interval-picker'),
+  picker: $('interval-picker'), chordPicker: $('chord-picker'), triadPicker: $('triad-picker'), groupPicker: $('group-picker'),
   heatReset: $('heat-reset'), heatBody: $('heat-body'),
 };
 
@@ -112,6 +117,24 @@ function handleSessionEvent(type, p) {
         setPrompt(`${rootNote.name} on string ${STRINGS[root.string].number} · then find`, `${iv.label} ${iv.arrow}`, 'listening');
         setStatus('Play the root first');
         announce(`${spokenName(rootNote.name)}, string ${STRINGS[root.string].number}. Then ${iv.spoken}`, rootNote.midi);
+      } else if (p.mode === 'arpeggios') {
+        const { root } = p.target, chord = session.chord, rootNote = session.rootNote;
+        fretboard.highlightString(null);
+        fretboard.showNote(root.string, root.fret, 'root', 'R');
+        scrollBoardTo(root.fret + 2);
+        setPrompt(`Arpeggio · string ${STRINGS[root.string].number} → 1 · ${session.steps.length} notes`, `${rootNote.name} ${chord.label}`, 'listening');
+        setStatus('Play the root first');
+        announce(`${spokenName(rootNote.name)} ${chord.spoken}, from string ${STRINGS[root.string].number}`, null)
+          .then(() => sound.playSequence(session.steps.map(n => n.midi)));
+      } else if (p.mode === 'triads') {
+        const triad = session.triad, rootNote = session.rootNote, inv = INVERSIONS[p.target.inversion], group = stringGroupById(p.target.group);
+        const low = session.steps[0];
+        fretboard.highlightString(null);
+        scrollBoardTo(low.fret + 1);
+        setPrompt(`Triad · strings ${group.label} · ${inv.label}`, `${rootNote.name} ${triad.label}`, 'listening');
+        setStatus(`Play it low to high, starting on string ${STRINGS[low.string].number}`);
+        announce(`${spokenName(rootNote.name)} ${triad.spoken}, ${inv.label}, strings ${group.strings.map(s => STRINGS[s].number).join(' ')}`, null)
+          .then(() => sound.playSequence(session.steps.map(n => n.midi)));
       } else {
         fretboard.highlightString(p.target.string);
         scrollBoardTo(p.target.fret);
@@ -122,14 +145,31 @@ function handleSessionEvent(type, p) {
       break;
     }
     case 'step': {
-      const { root } = session.target, iv = session.interval;
-      fretboard.showNote(root.string, root.fret, 'correct', session.rootNote.name);
-      setStatus(`Root ✓ — now the ${iv.label} ${iv.arrow}`, 'ok');
-      if (settings.voice && settings.speakFeedback) voice.speak('good', voiceOpts());
+      const done = session.steps[p.step - 1];
+      if (session.mode === 'arpeggios' || session.mode === 'triads') {
+        fretboard.showNote(done.string, done.fret, 'correct', DEGREE_LABELS[done.degree] || done.name);
+        const next = session.note;
+        setStatus(`${p.step} of ${p.total} ✓ — next: ${DEGREE_LABELS[next.degree] || next.name} (${next.name}) on string ${STRINGS[next.string].number}`, 'ok');
+      } else {
+        const { root } = session.target, iv = session.interval;
+        fretboard.showNote(root.string, root.fret, 'correct', session.rootNote.name);
+        setStatus(`Root ✓ — now the ${iv.label} ${iv.arrow}`, 'ok');
+        if (settings.voice && settings.speakFeedback) voice.speak('good', voiceOpts());
+      }
       break;
     }
     case 'hint':
-      if (session.mode === 'intervals') {
+      if (session.mode === 'arpeggios' || session.mode === 'triads') {
+        if (p.stage === 1) {
+          setTip(session.mode === 'triads' ? `${session.triad.tip} ${INVERSIONS[session.target.inversion].tip}` : session.chord.tip);
+        } else {
+          // Only the note that is due now; the next one gets its own countdown.
+          const n = session.steps[p.step];
+          fretboard.showNote(n.string, n.fret, 'hint', DEGREE_LABELS[n.degree] || n.name);
+          setStatus(`${DEGREE_LABELS[n.degree] || ''} ${n.name} — string ${STRINGS[n.string].number} fret ${n.fret}`);
+          ui.ring.classList.add('is-done');
+        }
+      } else if (session.mode === 'intervals') {
         if (p.stage === 1) {
           setTip(tipFor(session.interval, p.target.root.string));
         } else {
@@ -149,6 +189,12 @@ function handleSessionEvent(type, p) {
       if (session.mode === 'intervals') {
         for (const pos of p.target.positions) fretboard.showNote(pos.string, pos.fret, 'correct', session.note.name);
         history.recordInterval(p.target.interval, result);
+      } else if (session.mode === 'arpeggios') {
+        for (const n of session.steps) fretboard.showNote(n.string, n.fret, 'correct', DEGREE_LABELS[n.degree] || n.name);
+        history.recordChord(p.target.chord, result);
+      } else if (session.mode === 'triads') {
+        for (const n of session.steps) fretboard.showNote(n.string, n.fret, 'correct', DEGREE_LABELS[n.degree] || n.name);
+        history.recordTriad(p.target.triad, result);
       } else {
         fretboard.showNote(p.target.string, p.target.fret, 'correct', session.note.name);
         history.recordPosition(p.target, result);
@@ -250,6 +296,8 @@ function syncButtons() {
 function skipNow() {
   if (session.state === 'listening') {
     if (session.mode === 'intervals') history.recordInterval(session.target.interval, { skipped: true });
+    else if (session.mode === 'arpeggios') history.recordChord(session.target.chord, { skipped: true });
+    else if (session.mode === 'triads') history.recordTriad(session.target.triad, { skipped: true });
     else history.recordPosition(session.target, { skipped: true });
     renderHeatPanel();
   }
@@ -342,12 +390,12 @@ function renderHeatPanel() {
   heatBoard.showHeat(heatItems());
   const positions = history.positions();
   const intervals = history.intervals();
-  ui.heatReset.hidden = positions.length === 0 && intervals.length === 0;
+  ui.heatReset.hidden = history.empty;
   const label = (p) => `${noteAt(p.string, p.fret).name} · string ${STRINGS[p.string].number} fret ${p.fret}`;
   const weak = positions.filter(p => p.level <= 2).slice(0, 6);
   const strong = positions.filter(p => p.level >= 4).slice(-6).reverse();
   let html = '';
-  if (positions.length === 0 && intervals.length === 0) {
+  if (history.empty) {
     html = '<p class="note">Nothing recorded yet. Every answer you give is remembered here, across sessions.</p>';
   } else {
     if (positions.length) {
@@ -356,6 +404,14 @@ function renderHeatPanel() {
     }
     if (intervals.length) {
       html += `<div class="heat__col"><h3>Intervals</h3><ul>${intervals.map(p => { const iv = intervalById(p.id); return describe(p, iv ? `${iv.label} ${iv.arrow}` : p.id); }).join('')}</ul></div>`;
+    }
+    const chords = history.chords();
+    if (chords.length) {
+      html += `<div class="heat__col"><h3>Arpeggios</h3><ul>${chords.map(p => { const c = chordById(p.id); return describe(p, c ? c.label : p.id); }).join('')}</ul></div>`;
+    }
+    const triads = history.triads();
+    if (triads.length) {
+      html += `<div class="heat__col"><h3>Triads</h3><ul>${triads.map(p => { const t = triadById(p.id); return describe(p, t ? t.label : p.id); }).join('')}</ul></div>`;
     }
   }
   ui.heatBody.innerHTML = html;
@@ -398,6 +454,39 @@ for (const opt of [{ id: 'random', label: 'Random' }, ...INTERVALS.map(iv => ({ 
     if (session.state !== 'idle' && session.mode === 'intervals') session.skip();
   });
   ui.picker.appendChild(b);
+}
+
+for (const opt of [{ id: 'random', label: 'Random' }, ...CHORDS.map(c => ({ id: c.id, label: c.label }))]) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'chip'; b.dataset.id = opt.id; b.textContent = opt.label;
+  b.addEventListener('click', () => {
+    commit({ chordPick: opt.id });
+    if (session.state !== 'idle' && session.mode === 'arpeggios') session.skip();
+  });
+  ui.chordPicker.appendChild(b);
+}
+
+for (const opt of [{ id: 'random', label: 'Random' }, ...TRIADS.map(t => ({ id: t.id, label: t.label }))]) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'chip'; b.dataset.id = opt.id; b.textContent = opt.label;
+  b.addEventListener('click', () => {
+    commit({ triadPick: opt.id });
+    if (session.state !== 'idle' && session.mode === 'triads') session.skip();
+  });
+  ui.triadPicker.appendChild(b);
+}
+for (const g of STRING_GROUPS) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'chip'; b.dataset.id = g.id; b.textContent = `strings ${g.label}`;
+  b.setAttribute('aria-pressed', 'false');
+  b.addEventListener('click', () => {
+    const on = new Set(settings.triadGroups);
+    on.has(g.id) ? on.delete(g.id) : on.add(g.id);
+    if (on.size === 0) return; // keep at least one group
+    commit({ triadGroups: STRING_GROUPS.map(x => x.id).filter(id => on.has(id)) });
+    if (session.state !== 'idle' && session.mode === 'triads') session.skip();
+  });
+  ui.groupPicker.appendChild(b);
 }
 
 document.addEventListener('keydown', (e) => {
@@ -501,6 +590,18 @@ for (const iv of INTERVALS) {
   });
   intervalList.appendChild(label);
 }
+const chordList = $('chord-list');
+for (const c of CHORDS) {
+  const label = document.createElement('label');
+  label.className = 'check';
+  label.innerHTML = `<input type="checkbox" value="${c.id}"><span>${c.label}</span><small>${c.tones.map(t => DEGREE_LABELS[t]).join(' ')}</small>`;
+  label.querySelector('input').addEventListener('change', () => {
+    const on = new Set(settings.chords);
+    label.querySelector('input').checked ? on.add(c.id) : on.delete(c.id);
+    commit({ chords: CHORDS.map(i => i.id).filter(id => on.has(id)) });
+  });
+  chordList.appendChild(label);
+}
 const tipList = $('tip-list');
 for (const iv of INTERVALS) {
   const li = document.createElement('li');
@@ -534,10 +635,17 @@ f.gain.addEventListener('input', () => commit({ gain: +f.gain.value }));
 f.reset.addEventListener('click', () => { settings = resetSettings(); applySettingsToUI(); });
 
 function applySettingsToUI() {
-  const intervalsMode = settings.mode === 'intervals';
-  document.querySelector(`input[name="mode"][value="${intervalsMode ? 'intervals' : 'note'}"]`).checked = true;
-  ui.picker.hidden = !intervalsMode;
+  const mode = ['intervals', 'arpeggios', 'triads'].includes(settings.mode) ? settings.mode : 'note';
+  ui.triadPicker.hidden = mode !== 'triads';
+  ui.triadPicker.querySelectorAll('.chip').forEach((c) => c.classList.toggle('is-active', c.dataset.id === (settings.triadPick || 'random')));
+  ui.groupPicker.hidden = mode !== 'triads';
+  ui.groupPicker.querySelectorAll('.chip').forEach((c) => { const on = settings.triadGroups.includes(c.dataset.id); c.classList.toggle('is-active', on); c.setAttribute('aria-pressed', on); });
+  document.querySelector(`input[name="mode"][value="${mode}"]`).checked = true;
+  ui.picker.hidden = mode !== 'intervals';
   ui.picker.querySelectorAll('.chip').forEach((c) => c.classList.toggle('is-active', c.dataset.id === (settings.intervalPick || 'random')));
+  ui.chordPicker.hidden = mode !== 'arpeggios';
+  ui.chordPicker.querySelectorAll('.chip').forEach((c) => c.classList.toggle('is-active', c.dataset.id === (settings.chordPick || 'random')));
+  chordList.querySelectorAll('input').forEach((i) => { i.checked = settings.chords.includes(i.value); });
   $('play-note').checked = settings.playNote;
   intervalList.querySelectorAll('input').forEach((i) => { i.checked = settings.intervals.includes(i.value); });
 

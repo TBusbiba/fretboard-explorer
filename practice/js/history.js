@@ -8,7 +8,7 @@ const KEY = 'fretboard-practice.history.v1';
 const FAST_MS = 1500;   // this quick or faster = full speed score
 const SLOW_MS = 6000;   // this slow or slower = zero speed score
 
-function blank() { return { positions: {}, intervals: {} }; }
+function blank() { return { positions: {}, intervals: {}, chords: {}, triads: {} }; }
 
 function entry(map, key) {
   return map[key] || (map[key] = { n: 0, clean: 0, solved: 0, msTotal: 0, hints: 0, skips: 0 });
@@ -91,7 +91,25 @@ export function createHistory(storage = globalThis.localStorage) {
         .map(([id, e]) => ({ id, ...summarize(id, e) }))
         .sort((a, b) => a.mastery - b.mastery);
     },
-    get empty() { return Object.keys(data.positions).length === 0 && Object.keys(data.intervals).length === 0; },
+    recordChord(id, result) {
+      record(entry(data.chords, id), result);
+      save();
+    },
+    chords() {
+      return Object.entries(data.chords || {})
+        .map(([id, e]) => ({ id, ...summarize(id, e) }))
+        .sort((a, b) => a.mastery - b.mastery);
+    },
+    recordTriad(id, result) {
+      record(entry(data.triads || (data.triads = {}), id), result);
+      save();
+    },
+    triads() {
+      return Object.entries(data.triads || {})
+        .map(([id, e]) => ({ id, ...summarize(id, e) }))
+        .sort((a, b) => a.mastery - b.mastery);
+    },
+    get empty() { return ['positions', 'intervals', 'chords', 'triads'].every(k => Object.keys(data[k] || {}).length === 0); },
     reset() { data = blank(); save(); },
   };
 }

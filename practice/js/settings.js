@@ -3,7 +3,7 @@
 const KEY = 'fretboard-practice.settings.v2';
 
 export const DEFAULTS = Object.freeze({
-  mode: 'note',           // 'note' = find the named note; 'intervals' = find an interval from a root
+  mode: 'note',           // 'note' | 'intervals' | 'arpeggios' | 'triads'
   strings: [0, 1, 2, 3, 4, 5],
   fretFrom: 0,
   fretTo: 11,             // 0-11 covers every note once per string
@@ -12,6 +12,11 @@ export const DEFAULTS = Object.freeze({
   playNote: false,        // note mode: also play the target note after saying it
   intervals: ['octaveUp', 'octaveDown', 'fifth', 'majorThird', 'minorThird'], // pool for 'random'
   intervalPick: 'random', // 'random' or one interval id
+  chords: ['major', 'minor', 'dom7', 'min7', 'maj7'], // pool for 'random' in arpeggio mode
+  chordPick: 'random',
+  triads: ['major', 'minor', 'dim', 'aug', 'dom7', 'min7'],
+  triadPick: 'random',
+  triadGroups: ['654', '543', '432', '321'],
 
   hintDelayMs: 5000,      // null = never
   pauseMs: 900,           // pause after a correct answer before the next target

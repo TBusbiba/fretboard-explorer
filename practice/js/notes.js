@@ -177,3 +177,145 @@ export function tipFor(interval, rootString) {
   if (rootString === 0) return tips[2];   // no higher string: same-string rule
   return tips[0];
 }
+
+// ---------- chords / arpeggios ----------
+export const CHORDS = [
+  { id: 'major', label: 'Major', spoken: 'major', tones: [0, 4, 7], tip: 'Major: root, major 3rd (4 frets above the root), 5th (7 frets above). Moving up a string lands ~5 frets lower (4 from string 3 to 2).' },
+  { id: 'minor', label: 'Minor', spoken: 'minor', tones: [0, 3, 7], tip: 'Minor: root, minor 3rd (3 frets above the root), 5th (7 frets above). Only the 3rd differs from major — one fret lower.' },
+  { id: 'dom7', label: '7', spoken: 'seven', tones: [0, 4, 7, 10], tip: 'Dominant 7: major triad plus the ♭7 (10 frets above the root, or 2 frets below the octave).' },
+  { id: 'min7', label: 'm7', spoken: 'minor seven', tones: [0, 3, 7, 10], tip: 'Minor 7: minor triad plus the ♭7 (2 frets below the octave).' },
+  { id: 'maj7', label: 'maj7', spoken: 'major seven', tones: [0, 4, 7, 11], tip: 'Major 7: major triad plus the 7th (1 fret below the octave).' },
+];
+
+export const DEGREE_LABELS = { 0: 'R', 3: '♭3', 4: '3', 7: '5', 10: '♭7', 11: '7' };
+
+export function chordById(id) {
+  return CHORDS.find(c => c.id === id) || null;
+}
+
+const ARPEGGIO_SPAN = 4;          // frets above the root fret that a shape may use
+const ARPEGGIO_ROOT_STRINGS = [5, 4, 3];   // string 6, 5 or 4
+
+/**
+ * Pick a random arpeggio: root position + chord, one chord tone per string
+ * from the root's string up to string 1, each within [rootFret, rootFret+4].
+ * @returns {{root:{string,fret}, chord:string, notes:[{string,fret,midi,degree}], midi}|null}
+ */
+export function pickArpeggioTarget(opts, previous, rng = Math.random) {
+  const chords = opts.chords.map(chordById).filter(Boolean);
+  const enabled = new Set(opts.strings);
+  const candidates = [];
+  for (const rootString of ARPEGGIO_ROOT_STRINGS) {
+    // every string from the root up to string 1 must be enabled
+    let ok = true;
+    for (let s = rootString; s >= 0; s--) if (!enabled.has(s)) ok = false;
+    if (!ok) continue;
+    for (let fret = opts.fretFrom; fret + ARPEGGIO_SPAN <= opts.fretTo; fret++) {
+      const root = noteAt(rootString, fret);
+      if (opts.naturalsOnly && !isNatural(root.name)) continue;
+      for (const chord of chords) {
+        const notes = [];
+        for (let s = rootString; s >= 0; s--) {
+          let found = null;
+          for (let f = fret; f <= fret + ARPEGGIO_SPAN; f++) {
+            const midi = STRINGS[s].midi + f;
+            const degree = (((midi - root.midi) % 12) + 12) % 12;
+            if (chord.tones.includes(degree)) { found = { string: s, fret: f, midi, degree }; break; }
+          }
+          if (!found) { notes.length = 0; break; }
+          notes.push(found);
+        }
+        if (notes.length === 0) continue;
+        candidates.push({ root: { string: rootString, fret }, chord: chord.id, notes, midi: root.midi });
+      }
+    }
+  }
+  if (candidates.length === 0) return null;
+  const fresh = previous
+    ? candidates.filter(c => !(c.root.string === previous.root.string && c.root.fret === previous.root.fret && c.chord === previous.chord))
+    : candidates;
+  const pool = fresh.length > 0 ? fresh : candidates;
+  return pool[Math.floor(rng() * pool.length)];
+}
+
+// ---------- triads on three adjacent strings ----------
+export const TRIADS = [
+  { id: 'major', label: 'Major', spoken: 'major', tones: [0, 4, 7], tip: 'Major triad: root, major 3rd, 5th (R · 3 · 5).' },
+  { id: 'minor', label: 'Minor', spoken: 'minor', tones: [0, 3, 7], tip: 'Minor triad: root, minor 3rd, 5th (R · ♭3 · 5) — the 3rd one fret lower than major.' },
+  { id: 'dim', label: 'Dim', spoken: 'diminished', tones: [0, 3, 6], tip: 'Diminished: root, minor 3rd, flat 5th (R · ♭3 · ♭5) — minor with the 5th one fret lower.' },
+  { id: 'aug', label: 'Aug', spoken: 'augmented', tones: [0, 4, 8], tip: 'Augmented: root, major 3rd, sharp 5th (R · 3 · ♯5) — major with the 5th one fret higher.' },
+  { id: 'dom7', label: '7 shell', spoken: 'seven', tones: [0, 4, 10], tip: 'Dominant 7 shell voicing: root, 3rd, ♭7 — no 5th.' },
+  { id: 'min7', label: 'm7 shell', spoken: 'minor seven', tones: [0, 3, 10], tip: 'Minor 7 shell voicing: root, ♭3, ♭7 — no 5th.' },
+];
+DEGREE_LABELS[6] = '♭5';
+DEGREE_LABELS[8] = '♯5';
+
+// Three adjacent strings, low to high, named by string number.
+export const STRING_GROUPS = [
+  { id: '654', strings: [5, 4, 3], label: '6 · 5 · 4' },
+  { id: '543', strings: [4, 3, 2], label: '5 · 4 · 3' },
+  { id: '432', strings: [3, 2, 1], label: '4 · 3 · 2' },
+  { id: '321', strings: [2, 1, 0], label: '3 · 2 · 1' },
+];
+
+export const INVERSIONS = [
+  { index: 0, label: 'root position', tip: 'Root position: the root is on the lowest string of the group.' },
+  { index: 1, label: '1st inversion', tip: '1st inversion: the 3rd is on the lowest string; the root ends up on top.' },
+  { index: 2, label: '2nd inversion', tip: '2nd inversion: the 5th (or 7th in a shell) is on the lowest string.' },
+];
+
+export function triadById(id) { return TRIADS.find(t => t.id === id) || null; }
+export function stringGroupById(id) { return STRING_GROUPS.find(g => g.id === id) || null; }
+
+const TRIAD_SPAN = 4;
+
+/**
+ * Pick a close-voiced triad on a 3-string group in some inversion. Notes are
+ * ascending, low string to high, within a 5-fret window and the fret range.
+ * @returns {{root:{string,fret}, group:string, triad:string, inversion:number, notes:[{string,fret,midi,degree}], midi}|null}
+ */
+export function pickTriadTarget(opts, previous, rng = Math.random) {
+  const triads = opts.triads.map(triadById).filter(Boolean);
+  const groups = opts.triadGroups.map(stringGroupById).filter(Boolean);
+  const enabled = new Set(opts.strings);
+  const candidates = [];
+  for (const group of groups) {
+    if (!group.strings.every(s => enabled.has(s))) continue;
+    const [low, mid, high] = group.strings;
+    for (const triad of triads) {
+      for (let rootPc = 0; rootPc < 12; rootPc++) {
+        if (opts.naturalsOnly && !isNatural(NOTE_NAMES[rootPc])) continue;
+        for (let inv = 0; inv < 3; inv++) {
+          const order = [0, 1, 2].map(k => triad.tones[(inv + k) % 3]);   // degree on low, mid, high
+          for (let f0 = opts.fretFrom; f0 <= opts.fretTo; f0++) {
+            const m0 = STRINGS[low].midi + f0;
+            if ((((m0 - rootPc) % 12) + 12) % 12 !== order[0]) continue;
+            // mid: smallest pitch above m0 with the right degree, then high above that
+            const pick = (string, above, degree) => {
+              for (let f = opts.fretFrom; f <= opts.fretTo; f++) {
+                const m = STRINGS[string].midi + f;
+                if (m > above && (((m - rootPc) % 12) + 12) % 12 === degree) return { string, fret: f, midi: m, degree };
+              }
+              return null;
+            };
+            const n1 = pick(mid, m0, order[1]); if (!n1) continue;
+            const n2 = pick(high, n1.midi, order[2]); if (!n2) continue;
+            const frets = [f0, n1.fret, n2.fret];
+            if (Math.max(...frets) - Math.min(...frets) > TRIAD_SPAN) continue;
+            const notes = [{ string: low, fret: f0, midi: m0, degree: order[0] }, n1, n2];
+            const rootNote = notes.find(n => n.degree === 0);
+            candidates.push({
+              root: { string: rootNote.string, fret: rootNote.fret }, rootPc,
+              group: group.id, triad: triad.id, inversion: inv, notes, midi: rootNote.midi,
+            });
+          }
+        }
+      }
+    }
+  }
+  if (candidates.length === 0) return null;
+  const same = (a, b) => a.group === b.group && a.triad === b.triad && a.inversion === b.inversion && a.rootPc === b.rootPc && a.notes[0].fret === b.notes[0].fret;
+  const fresh = previous ? candidates.filter(c => !same(c, previous)) : candidates;
+  const pool = fresh.length > 0 ? fresh : candidates;
+  return pool[Math.floor(rng() * pool.length)];
+}

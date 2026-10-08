@@ -3,12 +3,15 @@
 //
 // States: idle -> listening -> resolved -> listening ... -> idle
 //
-// Note mode: one expected pitch per target. Intervals mode: two steps — the
-// root first, then the interval — and two hint stages (tip, then positions).
+// Every target is a sequence of expected pitches ("steps"): one in note mode,
+// root then interval in intervals mode, one chord tone per string in arpeggio
+// and triad modes. Multi-step modes have two hint stages: a tip, then the
+// position(s). In sequence modes (arpeggios, triads) stage 2 reveals only the
+// current step, and each new step restarts the countdown.
 //
 // Events (via onEvent(type, payload)):
 //   target  {target, note, mode}   new target chosen
-//   step    {step, note}           intervals: root played, now listening for the interval
+//   step    {step, total, note}    a step was played; now listening for the next one
 //   hint    {target, stage, stages} stage 1..stages (note mode has 1 stage; intervals 2)
 //   correct {target, ms, firstTry, hinted}
 //   wrong   {midi, name, fret, octaveOff}
@@ -16,7 +19,8 @@
 //   error   {message}
 
 import {
-  noteAt, pickTarget, pickIntervalTarget, fretForMidi, midiToNoteName, midiToOctave, intervalById,
+  noteAt, pickTarget, pickIntervalTarget, pickArpeggioTarget, pickTriadTarget, fretForMidi, midiToNoteName,
+  midiToOctave, intervalById, chordById, triadById,
 } from './notes.js';
 
 export function createSession({ getSettings, now = () => performance.now(), rng = Math.random, onEvent }) {
@@ -31,10 +35,14 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
     state: 'idle',
     mode: 'note',
     target: null,
-    note: null,        // the pitch currently expected
-    rootNote: null,    // intervals: the root
+    note: null,        // the pitch currently expected (= steps[step])
+    steps: [],         // [{midi, name, octave, string?, fret?, degree?}]
+    step: 0,
+    rootNote: null,    // intervals / arpeggios: the root
     interval: null,    // intervals: the interval definition
-    step: 0,           // intervals: 0 = waiting for root, 1 = waiting for interval
+    chord: null,       // arpeggios: the chord definition
+    triad: null,       // triads: the triad definition
+    hintAnchor: 0,     // time the next hint stage counts from
     stats,
     startedAt: 0,
     hintStage: 0,
@@ -50,35 +58,54 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
 
   function nextTarget() {
     const settings = getSettings();
-    const mode = settings.mode === 'intervals' ? 'intervals' : 'note';
+    const mode = ['intervals', 'arpeggios', 'triads'].includes(settings.mode) ? settings.mode : 'note';
     const previous = session.mode === mode ? session.target : null;
-    const target = mode === 'intervals'
-      ? pickIntervalTarget(settings, previous, rng)
+    const target = mode === 'intervals' ? pickIntervalTarget(settings, previous, rng)
+      : mode === 'arpeggios' ? pickArpeggioTarget(settings, previous, rng)
+      : mode === 'triads' ? pickTriadTarget(settings, previous, rng)
       : pickTarget(settings, previous, rng);
     if (!target) {
       session.state = 'idle';
       emit('error', {
         message: mode === 'intervals'
           ? 'No interval drills fit the current settings. Enable more strings, intervals, or widen the fret range.'
-          : 'No notes match the current settings. Enable more strings or widen the fret range.',
+          : mode === 'arpeggios'
+            ? 'No arpeggio fits the current settings. Enable all strings from 6 (or 5) up to 1, pick some chords, and allow at least 5 frets.'
+            : mode === 'triads'
+              ? 'No triad fits the current settings. Pick at least one string group (with its strings enabled) and one triad type.'
+              : 'No notes match the current settings. Enable more strings or widen the fret range.',
       });
       return false;
     }
     session.mode = mode;
     session.target = target;
     session.step = 0;
+    session.rootNote = null; session.interval = null; session.chord = null; session.triad = null;
     if (mode === 'intervals') {
       session.rootNote = noteAt(target.root.string, target.root.fret);
       session.interval = intervalById(target.interval);
-      session.note = session.rootNote;      // step 0: play the root first
+      session.steps = [
+        { ...session.rootNote, string: target.root.string, fret: target.root.fret },
+        noteFor(target.midi),
+      ];
+      session.hintStages = 2;
+    } else if (mode === 'arpeggios') {
+      session.rootNote = noteAt(target.root.string, target.root.fret);
+      session.chord = chordById(target.chord);
+      session.steps = target.notes.map(n => ({ ...noteFor(n.midi), string: n.string, fret: n.fret, degree: n.degree }));
+      session.hintStages = 2;
+    } else if (mode === 'triads') {
+      session.rootNote = noteAt(target.root.string, target.root.fret);
+      session.triad = triadById(target.triad);
+      session.steps = target.notes.map(n => ({ ...noteFor(n.midi), string: n.string, fret: n.fret, degree: n.degree }));
       session.hintStages = 2;
     } else {
-      session.rootNote = null;
-      session.interval = null;
-      session.note = noteAt(target.string, target.fret);
+      session.steps = [{ ...noteAt(target.string, target.fret), string: target.string, fret: target.fret }];
       session.hintStages = 1;
     }
+    session.note = session.steps[0];
     session.startedAt = now();
+    session.hintAnchor = session.startedAt;
     session.hintStage = 0;
     session.wrongSeen = new Set();
     session.hadWrong = false;
@@ -90,7 +117,8 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
   function showHint() {
     if (session.state !== 'listening' || session.hintStage >= session.hintStages) return;
     session.hintStage += 1;
-    emit('hint', { target: session.target, stage: session.hintStage, stages: session.hintStages });
+    session.hintAnchor = now();
+    emit('hint', { target: session.target, stage: session.hintStage, stages: session.hintStages, step: session.step });
   }
 
   Object.defineProperty(session, 'hintShown', { get: () => session.hintStage >= session.hintStages });
@@ -117,11 +145,14 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
   session.noteDetected = (midi) => {
     if (session.state !== 'listening') return;
     if (midi === session.note.midi) {
-      if (session.mode === 'intervals' && session.step === 0) {
-        session.step = 1;
-        session.note = noteFor(session.target.midi);
+      if (session.step < session.steps.length - 1) {
+        session.step += 1;
+        session.note = session.steps[session.step];
         session.wrongSeen = new Set();
-        emit('step', { step: 1, note: session.note });
+        // Sequence modes reveal one note per hint: the next step needs its own countdown.
+        if (session.mode === 'arpeggios' || session.mode === 'triads') session.hintStage = Math.min(session.hintStage, 1);
+        session.hintAnchor = now();
+        emit('step', { step: session.step, total: session.steps.length, note: session.note });
         return;
       }
       const ms = now() - session.startedAt;
@@ -152,9 +183,8 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
     const t = now();
     if (session.state === 'listening') {
       const { hintDelayMs } = getSettings();
-      // Each hint stage arrives one delay after the previous one.
-      if (hintDelayMs != null && session.hintStage < session.hintStages
-          && t - session.startedAt >= hintDelayMs * (session.hintStage + 1)) showHint();
+      // Each hint stage arrives one delay after the previous stage (or step).
+      if (hintDelayMs != null && session.hintStage < session.hintStages && t - session.hintAnchor >= hintDelayMs) showHint();
     } else if (session.state === 'resolved') {
       const { pauseMs = 900 } = getSettings();
       if (t - session.resolvedAt >= pauseMs) nextTarget();
@@ -165,7 +195,7 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
   session.hintProgress = () => {
     const { hintDelayMs } = getSettings();
     if (session.state !== 'listening' || hintDelayMs == null || session.hintStage >= session.hintStages) return null;
-    const elapsed = now() - session.startedAt - hintDelayMs * session.hintStage;
+    const elapsed = now() - session.hintAnchor;
     return { fraction: Math.min(1, Math.max(0, elapsed / hintDelayMs)), remainingMs: Math.max(0, hintDelayMs - elapsed) };
   };
 

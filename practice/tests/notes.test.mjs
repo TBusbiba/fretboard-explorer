@@ -115,3 +115,72 @@ test('pickIntervalTarget only yields reachable targets and avoids repeats', asyn
   assert.equal(pickIntervalTarget({ ...opts, strings: [0], intervals: ['octaveUp'] }, null, Math.random), null);
   assert.equal(pickIntervalTarget({ ...opts, intervals: [] }, null, Math.random), null);
 });
+
+test('pickArpeggioTarget builds one chord tone per string within a 5-fret window, root first', async () => {
+  const { pickArpeggioTarget, chordById } = await import('../js/notes.js');
+  const opts = { strings: [0, 1, 2, 3, 4, 5], fretFrom: 0, fretTo: 11, naturalsOnly: true, chords: ['major', 'minor', 'dom7', 'min7', 'maj7'] };
+  let prev = null;
+  for (let i = 0; i < 300; i++) {
+    const t = pickArpeggioTarget(opts, prev, Math.random);
+    const chord = chordById(t.chord);
+    const root = noteAt(t.root.string, t.root.fret);
+    assert.equal(t.notes[0].string, t.root.string);
+    assert.equal(t.notes[0].fret, t.root.fret);
+    assert.equal(t.notes[0].degree, 0);
+    assert.equal(t.notes.length, t.root.string + 1, 'one note per string up to string 1');
+    for (let k = 0; k < t.notes.length; k++) {
+      const n = t.notes[k];
+      assert.equal(n.string, t.root.string - k);
+      assert.ok(n.fret >= t.root.fret && n.fret <= t.root.fret + 4, `fret ${n.fret} in window of ${t.root.fret}`);
+      assert.equal(noteAt(n.string, n.fret).midi, n.midi);
+      assert.ok(chord.tones.includes((((n.midi - root.midi) % 12) + 12) % 12));
+    }
+    assert.ok(t.root.fret + 4 <= opts.fretTo);
+    if (prev) assert.ok(!(t.root.string === prev.root.string && t.root.fret === prev.root.fret && t.chord === prev.chord));
+    prev = t;
+  }
+  // The classic shapes come out right: C major with the root on string 5 fret 3 (A-shape).
+  const fixed = { ...opts, chords: ['major'] };
+  let t;
+  for (let i = 0; i < 2000 && !(t && t.root.string === 4 && t.root.fret === 3); i++) t = pickArpeggioTarget(fixed, null, Math.random);
+  assert.deepEqual(t.notes.map(n => [n.string, n.fret]), [[4, 3], [3, 5], [2, 5], [1, 5], [0, 3]]);
+});
+
+test('pickArpeggioTarget returns null when a string in the run is disabled or the range is too short', async () => {
+  const { pickArpeggioTarget } = await import('../js/notes.js');
+  assert.equal(pickArpeggioTarget({ strings: [0, 1, 2, 4, 5], fretFrom: 0, fretTo: 11, naturalsOnly: false, chords: ['major'] }, null, Math.random), null);
+  assert.equal(pickArpeggioTarget({ strings: [0, 1, 2, 3, 4, 5], fretFrom: 0, fretTo: 3, naturalsOnly: false, chords: ['major'] }, null, Math.random), null);
+});
+
+test('pickTriadTarget: ascending close voicing on the chosen 3-string group, right inversion, within 5 frets', async () => {
+  const { pickTriadTarget, triadById, stringGroupById, NOTE_NAMES } = await import('../js/notes.js');
+  const opts = { strings: [0, 1, 2, 3, 4, 5], fretFrom: 0, fretTo: 11, naturalsOnly: true,
+    triads: ['major', 'minor', 'dim', 'aug', 'dom7', 'min7'], triadGroups: ['654', '543', '432', '321'] };
+  let prev = null;
+  for (let i = 0; i < 400; i++) {
+    const t = pickTriadTarget(opts, prev, Math.random);
+    const triad = triadById(t.triad), group = stringGroupById(t.group);
+    assert.deepEqual(t.notes.map(n => n.string), group.strings);
+    assert.ok(t.notes[0].midi < t.notes[1].midi && t.notes[1].midi < t.notes[2].midi, 'ascending');
+    const frets = t.notes.map(n => n.fret);
+    assert.ok(Math.max(...frets) - Math.min(...frets) <= 4);
+    assert.ok(frets.every(f => f >= 0 && f <= 11));
+    // degrees are the triad tones rotated by the inversion
+    assert.deepEqual(t.notes.map(n => n.degree), [0, 1, 2].map(k => triad.tones[(t.inversion + k) % 3]));
+    for (const n of t.notes) assert.equal((((n.midi - t.rootPc) % 12) + 12) % 12, n.degree);
+    assert.ok(NOTE_NAMES[t.rootPc] && !NOTE_NAMES[t.rootPc].includes('♯'));
+    assert.equal(noteAt(t.root.string, t.root.fret).midi % 12, t.rootPc);
+    prev = t;
+  }
+  // A known shape: C major root position on 3·2·1 = G string fret 5 (C), B string fret 5 (E), E string fret 3 (G)
+  const fixed = { ...opts, triads: ['major'], triadGroups: ['321'] };
+  let t;
+  for (let i = 0; i < 3000 && !(t && t.rootPc === 0 && t.inversion === 0); i++) t = pickTriadTarget(fixed, null, Math.random);
+  assert.deepEqual(t.notes.map(n => [n.string + 1, n.fret]), [[3, 5], [2, 5], [1, 3]]);
+});
+
+test('pickTriadTarget returns null without groups or with a disabled string', async () => {
+  const { pickTriadTarget } = await import('../js/notes.js');
+  assert.equal(pickTriadTarget({ strings: [0, 1, 2, 3, 4, 5], fretFrom: 0, fretTo: 11, naturalsOnly: false, triads: ['major'], triadGroups: [] }, null, Math.random), null);
+  assert.equal(pickTriadTarget({ strings: [0, 1, 3, 4, 5], fretFrom: 0, fretTo: 11, naturalsOnly: false, triads: ['major'], triadGroups: ['321'] }, null, Math.random), null);
+});

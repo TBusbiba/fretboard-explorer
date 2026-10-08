@@ -56,6 +56,15 @@ export function createSound({ onPlaying = () => {} } = {}) {
       });
     },
 
+    /** Play notes one after another (short plucks), e.g. an arpeggio cue. */
+    async playSequence(midis, { duration = 0.5, gap = 0.22, volume = 0.5 } = {}) {
+      for (let i = 0; i < midis.length; i++) {
+        const p = this.play(midis[i], { duration, volume });
+        if (i < midis.length - 1) await new Promise(r => setTimeout(r, gap * 1000));
+        else await p;
+      }
+    },
+
     get playing() { return playing > 0; },
   };
 }

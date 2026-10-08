@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="6">
+<html lang="en" data-build="8">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -26,8 +26,13 @@
     <div class="mode segmented" role="radiogroup" aria-label="Practice mode">
       <label><input type="radio" name="mode" value="note"><span>Find the note</span></label>
       <label><input type="radio" name="mode" value="intervals"><span>Intervals</span></label>
+      <label><input type="radio" name="mode" value="arpeggios"><span>Arpeggios</span></label>
+      <label><input type="radio" name="mode" value="triads"><span>Triads</span></label>
     </div>
     <div class="picker" id="interval-picker" role="group" aria-label="Which interval" hidden></div>
+    <div class="picker" id="chord-picker" role="group" aria-label="Which chord" hidden></div>
+    <div class="picker" id="triad-picker" role="group" aria-label="Which triad" hidden></div>
+    <div class="picker picker--groups" id="group-picker" role="group" aria-label="String groups" hidden></div>
 
     <section class="prompt" aria-live="polite">
       <div class="prompt__string" id="string-name">Press start</div>
@@ -175,6 +180,17 @@
           <summary>Shapes cheat-sheet</summary>
           <ul id="tip-list"></ul>
         </details>
+      </fieldset>
+
+      <fieldset class="group">
+        <legend>Chords in “Random” (arpeggios)</legend>
+        <div class="checks" id="chord-list"></div>
+        <p class="note">An arpeggio runs one chord tone per string from the root's string (6, 5 or 4) up to string 1, within five frets.</p>
+      </fieldset>
+
+      <fieldset class="group">
+        <legend>Triads</legend>
+        <p class="note">Close-voiced triads on three adjacent strings, in all three inversions, played low to high. Pick the string groups and triad type above the prompt.</p>
       </fieldset>
 
       <fieldset class="group">

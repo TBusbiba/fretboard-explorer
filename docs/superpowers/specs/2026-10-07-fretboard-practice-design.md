@@ -106,3 +106,19 @@ so plain reloads always pick up edits; the stock `http.server` let Chrome mix a
 cached `index.html` with newer scripts. `index.html` carries `data-build` and
 `app.js` a matching `BUILD`; on mismatch the page shows a "reload" banner and
 stops instead of half-working. Bump both together when the HTML structure changes.
+
+## Round 4 (2026-10-08)
+
+- **Arpeggios mode**: chord (major, minor, 7, m7, maj7) with the root on string
+  6, 5 or 4; one chord tone per string up to string 1 within a 5-fret window
+  (lowest tone in the window per string → CAGED-style shapes). Spoken cue is
+  short ("A major, from string 6"); the shape is then played as quick plucks
+  (`sound.playSequence`).
+- **Triads mode**: close-voiced triads (major, minor, dim, aug, plus 7 / m7
+  shell voicings R·3·♭7) on a 3-string group (6·5·4, 5·4·3, 4·3·2, 3·2·1 —
+  any subset) in all three inversions, ascending, within 5 frets. Prompt names
+  the inversion.
+- Sequence modes reveal hints **one note at a time**: stage 1 tip, stage 2 the
+  current step only; after each played note the stage drops back to 1 and the
+  countdown restarts (`session.hintAnchor`).
+- History gains `chords` and `triads`; the heatmap panel lists them.
