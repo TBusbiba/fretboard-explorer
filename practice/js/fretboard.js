@@ -151,6 +151,22 @@ export function createFretboard(svg) {
 
     clearHeat() { heat.innerHTML = ''; },
 
+    /** Call handler({string, fret}) when the board is clicked/tapped. */
+    onTap(handler) {
+      svg.style.cursor = 'pointer';
+      svg.addEventListener('click', (e) => {
+        const r = svg.getBoundingClientRect();
+        const x = (e.clientX - r.left) / r.width * W, y = (e.clientY - r.top) / r.height * H;
+        if (y < TOP - 18 || y > H - BOTTOM + 18) return;
+        let string = 0, best = Infinity;
+        for (let i = 0; i < STRINGS.length; i++) { const d = Math.abs(stringY(i) - y); if (d < best) { best = d; string = i; } }
+        let fret = 0;
+        if (x >= NUT_X) { fret = 1; while (fret < LAST && x > fretX(fret)) fret++; }
+        else if (x < NUT_X - 56) return;
+        handler({ string, fret });
+      });
+    },
+
     /** Horizontal position (0..1) of a fret, for scrolling the container. */
     fretPosition(fret) { return noteX(fret) / W; },
   };

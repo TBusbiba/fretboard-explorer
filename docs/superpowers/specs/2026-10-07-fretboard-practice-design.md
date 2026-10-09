@@ -122,3 +122,24 @@ stops instead of half-working. Bump both together when the HTML structure change
   current step only; after each played note the stage drops back to 1 and the
   countdown restarts (`session.hintAnchor`).
 - History gains `chords` and `triads`; the heatmap panel lists them.
+
+## Vibrato trainer (2026-10-09)
+
+`practice/vibrato.html` + `practice/js/vibrato/`:
+- `pitch-worklet.js`: AudioWorklet running the pitch detector (pitchy + octave
+  guard) every 256 samples (~5 ms) on a 2048-sample window; posts {t, hz, clarity, rms}.
+- `tracker.js`: mic → gain → 70 Hz high-pass → worklet; clarity gating and a
+  3-point median; frames carry a fractional MIDI value.
+- `analysis.js` (pure, tested): cents contour → cycles via extremes with
+  hysteresis → rate, depth, evenness (std of excursions), return (signed
+  offset from home), bend overshoot; penalties → 0..100 score and the single
+  worst problem with text + tip. Fretted: home 0, pushes up. Bend: home =
+  bend target, dips down; above the target is overshoot. Musical rate 4–7.5 Hz.
+- `lane.js`: canvas, time left→right, cents up/down; corridor, note/target
+  lines, phase-locked ghost of the ideal motion from the vibrato start, trace
+  coloured per point (ok/warn/bad by distance to the corridor), cycle markers,
+  now-dot.
+- `vibrato.js`: note chosen by tapping the fretboard or auto-locked after
+  300 ms of a steady pitch; bend mode phases bending → vibrato once the pitch
+  sits within 25¢ of the target for 150 ms; verdict needs ≥ 2 cycles; a problem
+  must repeat before it replaces the current one.

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vibrato Trainer</title>
+  <meta name="description" content="Play a note, add vibrato, and see the pitch move in real time: depth, rate, evenness and return, with feedback on what to fix.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <a class="top__back" href="index.html" aria-label="Back to practice modes">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      <span>Practice</span>
+    </a>
+    <h1 class="top__title">Fretboard Practice · Vibrato</h1>
+    <span></span>
+  </header>
+
+  <main class="stage">
+    <div class="mode segmented" aria-label="Practice mode">
+      <a class="mode__link" href="index.html"><span>Find the note</span></a>
+      <a class="mode__link" href="index.html"><span>Intervals</span></a>
+      <a class="mode__link" href="index.html"><span>Arpeggios</span></a>
+      <a class="mode__link" href="index.html"><span>Triads</span></a>
+      <a class="mode__link is-active" href="vibrato.html"><span>Vibrato</span></a>
+    </div>
+
+    <div class="vib__pickers">
+      <span class="lbl">Mode</span>
+      <button type="button" class="chip" data-k="mode" data-v="fretted">Fretted vibrato</button>
+      <button type="button" class="chip" data-k="mode" data-v="bend">Vibrato on a bend</button>
+      <span class="lbl">Depth</span>
+      <button type="button" class="chip" data-k="depth" data-v="50">Subtle · 50¢</button>
+      <button type="button" class="chip" data-k="depth" data-v="100">½ step · 100¢</button>
+      <button type="button" class="chip" data-k="depth" data-v="200">Full step · 200¢</button>
+      <span id="bend-row" hidden>
+        <span class="lbl">Bend</span>
+        <button type="button" class="chip" data-k="bend" data-v="100">½ step</button>
+        <button type="button" class="chip" data-k="bend" data-v="200">Full step</button>
+        <button type="button" class="chip" data-k="bend" data-v="300">1½ steps</button>
+      </span>
+    </div>
+
+    <div class="vib">
+      <section class="vib__lane">
+        <div class="vib__head">
+          <span class="vib__title" id="lane-title">Fretted vibrato</span>
+          <span class="vib__sub">time flows left to right · 4 s visible</span>
+        </div>
+        <canvas class="lane" id="lane" aria-label="Live pitch trace"></canvas>
+        <div class="vib__legend">
+          <span><i style="border-color:#f2b544"></i>note</span>
+          <span><i style="border-color:#f2b544; border-top-style:dashed"></i>target</span>
+          <span><i style="border-color:rgba(255,255,255,.25)"></i>ideal motion</span>
+          <span><i style="border-color:#4ed19a"></i>on track</span>
+          <span><i style="border-color:#f2b544"></i>drifting</span>
+          <span><i style="border-color:#f0624d"></i>off</span>
+        </div>
+      </section>
+
+      <aside class="vib__side">
+        <div class="vcard vnote">
+          <div class="vnote__big" id="note-name">—</div>
+          <div class="vnote__meta" id="note-meta"></div>
+        </div>
+        <div class="vcard vscore">
+          <div class="vring"><svg viewBox="0 0 92 92"><circle class="t" cx="46" cy="46" r="40"/><circle class="f" id="ring" cx="46" cy="46" r="40"/></svg><div class="v" id="score">–</div></div>
+          <div class="vchips">
+            <div class="vm" id="c-rate"><span class="k">Rate</span><span class="v">–</span></div>
+            <div class="vm" id="c-depth"><span class="k">Depth</span><span class="v">–</span></div>
+            <div class="vm" id="c-even"><span class="k">Evenness</span><span class="v">–</span></div>
+            <div class="vm" id="c-return"><span class="k">Return</span><span class="v">–</span></div>
+          </div>
+        </div>
+        <div class="vcard"><div class="vfb" id="fb">Play a note and add vibrato. The verdict appears after two full cycles.<small></small></div><div class="note" id="session" style="margin-top:8px"></div></div>
+        <div class="vcard">
+          <div class="controls__center" style="justify-content:flex-start; gap:8px; flex-wrap:wrap">
+            <button class="btn btn--primary" id="start-btn">Start <kbd>Space</kbd></button>
+            <button class="btn btn--ghost" id="relock-btn">New note <kbd>L</kbd></button>
+          </div>
+          <div class="mic-note" id="mic-note" hidden style="margin-top:8px"></div>
+          <details class="vib__mic">
+            <summary>Microphone</summary>
+            <div class="sliders">
+              <label class="slider"><span class="slider__head"><span>Gate</span><output id="gate-out"></output></span><input type="range" id="gate" min="1" max="40" step="1"></label>
+              <label class="slider"><span class="slider__head"><span>Clarity</span><output id="clarity-out"></output></span><input type="range" id="clarity" min="0.5" max="0.99" step="0.01"></label>
+              <label class="slider"><span class="slider__head"><span>Gain</span><output id="gain-out"></output></span><input type="range" id="gain" min="0.5" max="5" step="0.1"></label>
+            </div>
+          </details>
+        </div>
+      </aside>
+    </div>
+
+    <section class="board vib__board">
+      <div class="board__scroll"><svg class="fretboard" id="fretboard"></svg></div>
+      <p class="note" style="margin-top:8px">Tap a position to choose the note (in bend mode, the base fret). Or skip it: the note locks on its own when you play.</p>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span><kbd>Space</kbd> start / stop</span>
+    <span><kbd>L</kbd> new note</span>
+  </footer>
+
+  <script type="module" src="js/vibrato/vibrato.js"></script>
+</body>
+</html>
