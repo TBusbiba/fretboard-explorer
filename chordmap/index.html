@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chord Map</title>
+  <meta name="description" content="A floating map of every major and minor chord, linked to the chords one note away and the 7th chords that bridge them.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <a class="top__back" href="../index.html" aria-label="Back to Fretboard Explorer">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      <span>Explorer</span>
+    </a>
+    <h1 class="top__title">Chord Map</h1>
+    <div class="trail" aria-label="Your path">
+      <div class="trail__chips" id="trail-chips"></div>
+      <label class="trail__opt" title="Play the bridging 7th before each chord"><input type="checkbox" id="trail-bridges" checked><span>7ths</span></label>
+      <button class="btn btn--small" id="trail-play" disabled>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg>Play path
+      </button>
+      <button class="btn btn--small btn--ghost" id="trail-clear">Clear</button>
+    </div>
+    <button class="icon-btn" id="sound-toggle" aria-label="Sound" aria-pressed="true" title="Sound on/off">
+      <svg class="i-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>
+      <svg class="i-off" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4z"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>
+    </button>
+  </header>
+
+  <main class="layout">
+    <section class="map">
+      <svg class="map__svg" id="map-svg" aria-label="Chord map"></svg>
+
+      <div class="map__tools">
+        <div class="map__settings">
+          <div class="segmented" role="radiogroup" aria-label="How far to branch">
+            <label><input type="radio" name="depth" value="3"><span>3 rings</span></label>
+            <label><input type="radio" name="depth" value="4"><span>4 rings</span></label>
+          </div>
+          <div class="segmented segmented--acc" role="radiogroup" aria-label="Note names">
+            <label title="Name notes with sharps"><input type="radio" name="accidentals" value="sharp"><span>♯</span></label>
+            <label title="Name notes with flats"><input type="radio" name="accidentals" value="flat"><span>♭</span></label>
+          </div>
+        </div>
+        <div class="zoom">
+          <button class="icon-btn" id="zoom-out" aria-label="Zoom out">−</button>
+          <button class="icon-btn" id="zoom-fit" aria-label="Fit map" title="Fit">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+          </button>
+          <button class="icon-btn" id="zoom-in" aria-label="Zoom in">+</button>
+        </div>
+      </div>
+
+      <div class="legend">
+        <div class="legend__row"><span class="dot dot--maj"></span><b>Major</b> bright, settled</div>
+        <div class="legend__row"><span class="dot dot--min"></span><b>Minor</b> dark, soft</div>
+        <div class="legend__row"><span class="dot dot--dom7 dot--small"></span><b>7th</b> tense, pulls to the next chord</div>
+        <div class="legend__row legend__lines"><span class="ln ln--half"></span>half-step move <span class="ln ln--whole"></span>whole step</div>
+        <p class="legend__hint">Tap a chord to hear it · double-tap to travel · drag chords or the background · scroll / pinch to zoom</p>
+      </div>
+
+      <button class="btn panel-open" id="panel-open">Details</button>
+    </section>
+
+    <aside class="panel" id="panel" aria-live="polite"></aside>
+  </main>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
