@@ -2,27 +2,27 @@
    amber = major (bright), cyan = minor (dark), rose = dominant 7th (tense). */
 
 :root {
-  --bg: #050507;
-  --surface: #0e0e13;
-  --surface-2: #16161d;
-  --line: rgba(255, 255, 255, 0.08);
-  --line-strong: rgba(255, 255, 255, 0.16);
-  --text: #ece9f2;
-  --muted: #9893a6;
-  --faint: #5c586a;
+  --bg: var(--ns-ink);
+  --surface: #17130f;
+  --surface-2: #211c16;
+  --line: var(--ns-line);
+  --line-strong: var(--ns-line-2);
+  --text: var(--ns-text);
+  --muted: var(--ns-text-2);
+  --faint: var(--ns-text-3);
 
-  --maj: #ffb547;
-  --min: #4fd1ff;
-  --dom7: #ff5c93;
-  --maj-ink: #2a1700;
+  --maj: var(--ns-brass);
+  --min: var(--ns-ice);
+  --dom7: var(--ns-rose);
+  --maj-ink: var(--ns-brass-ink);
   --min-ink: #00202c;
   --dom7-ink: #2c0414;
 
-  --font-display: 'Outfit', system-ui, sans-serif;
-  --font-body: 'Work Sans', system-ui, sans-serif;
-  --r-sm: 8px; --r-md: 12px; --r-lg: 18px;
-  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
-  --panel-w: 390px;
+  --font-display: var(--ns-serif);
+  --font-body: var(--ns-sans);
+  --r-sm: var(--ns-r-sm); --r-md: var(--ns-r-md); --r-lg: var(--ns-r-lg);
+  --ease: var(--ns-ease);
+  --panel-w: 400px;
 }
 
 * { box-sizing: border-box; }
@@ -45,7 +45,9 @@ button { font: inherit; color: inherit; }
   display: flex; align-items: center; gap: 14px;
   padding: 10px 16px;
   border-bottom: 1px solid var(--line);
-  background: rgba(5, 5, 7, 0.85);
+  background: rgba(12, 10, 9, 0.6);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
   position: relative; z-index: 3;
 }
 .top__back {
@@ -82,7 +84,7 @@ button { font: inherit; color: inherit; }
 .btn:disabled { opacity: 0.4; cursor: default; }
 .btn--small { padding: 5px 11px; font-size: 13px; }
 .btn--ghost { background: transparent; }
-.btn--primary { background: var(--text); color: #0b0b0f; border-color: transparent; }
+.btn--primary { background: linear-gradient(180deg, var(--ns-brass-hi), var(--ns-brass)); color: var(--ns-brass-ink); border-color: transparent; box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 8px 24px -10px var(--ns-brass-glow); }
 .btn--icon { width: 34px; height: 34px; padding: 0; justify-content: center; flex: none; }
 .icon-btn {
   width: 38px; height: 38px; display: inline-grid; place-items: center;
@@ -118,9 +120,7 @@ button { font: inherit; color: inherit; }
 
 .map {
   position: relative; min-width: 0; overflow: hidden;
-  background:
-    radial-gradient(ellipse at 50% 50%, rgba(80, 70, 130, 0.10), transparent 60%),
-    var(--bg);
+  background: radial-gradient(ellipse at 50% 50%, rgba(240, 178, 74, 0.06), transparent 62%);
 }
 .map__svg {
   width: 100%; height: 100%; display: block;
@@ -158,7 +158,7 @@ button { font: inherit; color: inherit; }
 .node { cursor: grab; }
 .node__halo { fill: none; stroke: transparent; stroke-width: 1.5; transition: stroke 200ms; }
 .node__body { fill: #0b0b10; stroke-width: 1.6; transition: fill 250ms, stroke-width 200ms; }
-.node text { font-family: var(--font-display); font-weight: 500; pointer-events: none; }
+.node text { font-family: var(--font-display); font-weight: 500; font-variation-settings: 'opsz' 36; pointer-events: none; }
 .node--maj .node__body { stroke: color-mix(in srgb, var(--maj) 70%, transparent); }
 .node--maj text { fill: color-mix(in srgb, var(--maj) 85%, white); }
 .node--min .node__body { stroke: color-mix(in srgb, var(--min) 70%, transparent); }
@@ -228,7 +228,9 @@ button { font: inherit; color: inherit; }
 /* ---- panel ---- */
 .panel {
   min-width: 0; overflow-y: auto; overflow-x: hidden;
-  background: var(--surface);
+  background: linear-gradient(180deg, rgba(30, 25, 20, 0.88), rgba(16, 13, 11, 0.92));
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   border-left: 1px solid var(--line);
 }
 .panel-closed .panel { border-left: 0; }
@@ -248,7 +250,7 @@ button { font: inherit; color: inherit; }
 }
 .p-close:hover { color: var(--text); background: var(--surface-2); }
 .p-kind { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-.p-name { font: 700 56px/1.05 var(--font-display); margin: 4px 0 6px; }
+.p-name { font: 400 64px/1 var(--font-display); font-variation-settings: 'opsz' 144, 'SOFT' 50; letter-spacing: -0.03em; margin: 6px 0 8px; }
 .p-head--maj .p-name { color: var(--maj); }
 .p-head--min .p-name { color: var(--min); }
 .p-head--dom7 .p-name { color: var(--dom7); }

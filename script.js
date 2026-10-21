@@ -119,7 +119,7 @@ class GuitarScaleApp {
             } else if (highlightFrets.includes(fret)) {
                 fretNum.classList.add('text-white');
             } else {
-                fretNum.classList.add('text-[#92adc9]');
+                fretNum.classList.add('text-[#b9ae9c]');
             }
             
             fretNum.textContent = fret;
@@ -130,12 +130,12 @@ class GuitarScaleApp {
         
         // Create fretboard body
         const fretboardBody = document.createElement('div');
-        fretboardBody.className = 'relative min-w-[1100px] h-[220px] bg-[#24303c] rounded-xl border-[6px] border-[#16202a] shadow-2xl overflow-hidden select-none';
+        fretboardBody.className = 'relative min-w-[1100px] h-[220px] bg-[#2c1a12] rounded-xl border-[6px] border-[#100d0b] shadow-2xl overflow-hidden select-none';
         fretboardBody.id = 'fretboard-body';
         
         // Background gradient
         const bgGradient = document.createElement('div');
-        bgGradient.className = 'absolute inset-0 opacity-30 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#334155] via-[#1e293b] to-[#0f172a]';
+        bgGradient.className = 'absolute inset-0 opacity-30 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#5a3622] via-[#221d17] to-[#140a06]';
         fretboardBody.appendChild(bgGradient);
         
         // String lines
@@ -159,10 +159,10 @@ class GuitarScaleApp {
         
         // Nut (open strings area)
         const nut = document.createElement('div');
-        nut.className = 'absolute left-0 top-0 bottom-0 w-[50px] bg-[#111820] border-r-[6px] border-[#94a3b8] z-20 grid grid-rows-6 justify-items-center items-center';
+        nut.className = 'absolute left-0 top-0 bottom-0 w-[50px] bg-[#0f0c0a] border-r-[6px] border-[#d8cfbe] z-20 grid grid-rows-6 justify-items-center items-center';
         
         const nutLabel = document.createElement('span');
-        nutLabel.className = 'text-[#5a6b7c] font-bold text-[10px] -rotate-90 absolute left-3';
+        nutLabel.className = 'text-[#8a7f6f] font-bold text-[10px] -rotate-90 absolute left-3';
         nutLabel.textContent = 'NUT';
         nut.appendChild(nutLabel);
         
@@ -191,7 +191,7 @@ class GuitarScaleApp {
             
             // Special styling for 12th fret
             if (fret === 12) {
-                fretCell.classList.add('border-r-[#94a3b8]', 'border-r-4');
+                fretCell.classList.add('border-r-[#d8cfbe]', 'border-r-4');
             }
             
             // Add inlay dots
@@ -627,18 +627,18 @@ class GuitarScaleApp {
             if (!emotion) return;
             
             const card = document.createElement('div');
-            card.className = 'bg-[#111a22] p-3 rounded-lg border border-[#324d67]/50 hover:border-primary/50 transition-colors';
+            card.className = 'bg-[#14110e] p-3 rounded-lg border border-[#3a3128]/50 hover:border-primary/50 transition-colors';
             
             const isRoot = index === 0;
-            const badgeClass = isRoot ? 'bg-primary' : 'bg-[#1e293b] border border-[#324d67]';
-            const badgeTextClass = isRoot ? 'text-white' : 'text-[#92adc9]';
+            const badgeClass = isRoot ? 'bg-primary' : 'bg-[#221d17] border border-[#3a3128]';
+            const badgeTextClass = isRoot ? 'text-white' : 'text-[#b9ae9c]';
             
             card.innerHTML = `
                 <div class="flex items-center gap-2 mb-1">
                     <span class="w-6 h-6 rounded-full ${badgeClass} flex items-center justify-center text-xs font-bold ${badgeTextClass}">${emotion.degree}</span>
                     <span class="text-white font-bold text-sm">${emotion.name}</span>
                 </div>
-                <p class="text-xs text-[#92adc9]">${emotion.desc}</p>
+                <p class="text-xs text-[#b9ae9c]">${emotion.desc}</p>
             `;
             
             container.appendChild(card);
@@ -796,7 +796,7 @@ class GuitarScaleApp {
             if (btn.dataset.pattern === pattern) {
                 btn.className = 'pattern-btn active px-3 h-10 rounded-lg bg-primary text-white text-sm font-semibold transition-all';
             } else {
-                btn.className = 'pattern-btn px-3 h-10 rounded-lg bg-[#111a22] border border-[#324d67] text-[#92adc9] text-sm font-medium hover:border-primary transition-all';
+                btn.className = 'pattern-btn px-3 h-10 rounded-lg bg-[#14110e] border border-[#3a3128] text-[#b9ae9c] text-sm font-medium hover:border-primary transition-all';
             }
         });
         
@@ -988,7 +988,7 @@ class GuitarScaleApp {
             if (this.showTab) {
                 tabToggle.className = 'flex items-center gap-2 px-4 py-2 bg-primary text-white border border-primary rounded-lg text-sm font-bold transition-colors';
             } else {
-                tabToggle.className = 'flex items-center gap-2 px-4 py-2 bg-[#1e293b] hover:bg-[#2a3848] text-[#92adc9] border border-[#324d67] rounded-lg text-sm font-medium transition-colors';
+                tabToggle.className = 'flex items-center gap-2 px-4 py-2 bg-[#221d17] hover:bg-[#2e271f] text-[#b9ae9c] border border-[#3a3128] rounded-lg text-sm font-medium transition-colors';
             }
         }
     }
@@ -1082,7 +1082,7 @@ class GuitarScaleApp {
             if (this.showCaged) {
                 cagedToggle.className = 'flex items-center gap-2 px-4 py-2 bg-primary text-white border border-primary rounded-lg text-sm font-bold transition-colors';
             } else {
-                cagedToggle.className = 'flex items-center gap-2 px-4 py-2 bg-[#1e293b] hover:bg-[#2a3848] text-[#92adc9] border border-[#324d67] rounded-lg text-sm font-medium transition-colors';
+                cagedToggle.className = 'flex items-center gap-2 px-4 py-2 bg-[#221d17] hover:bg-[#2e271f] text-[#b9ae9c] border border-[#3a3128] rounded-lg text-sm font-medium transition-colors';
             }
         }
         
@@ -1182,7 +1182,7 @@ class GuitarScaleApp {
         const noteCircles = this.fretboard.querySelectorAll('.note-circle');
         noteCircles.forEach(circle => {
             if (circle.classList.contains('root-note')) {
-                circle.style.boxShadow = '0 0 0 4px rgba(19,127,236,0.3)';
+                circle.style.boxShadow = '0 0 0 4px rgba(240,178,74,0.3)';
             } else {
                 circle.style.boxShadow = '0 2px 4px rgba(0,0,0,0.5)';
             }
@@ -1232,7 +1232,7 @@ class GuitarScaleApp {
             button.addEventListener('click', () => {
                 document.querySelectorAll('.degree-btn').forEach(btn => btn.classList.remove('selected'));
                 button.classList.add('selected');
-                this.colorAllInstancesOfNote(note, '#137fec');
+                this.colorAllInstancesOfNote(note, '#c9541a');
             });
             
             degreeButtonsContainer.appendChild(button);
@@ -1349,7 +1349,7 @@ class GuitarScaleApp {
         const triadNotes = intervals.map(interval => scaleNotes[interval]).filter(Boolean);
         
         const triadColors = {
-            [triadNotes[0]]: '#137fec',
+            [triadNotes[0]]: '#c9541a',
             [triadNotes[1]]: '#4ecdc4',
             [triadNotes[2]]: '#45b7d1'
         };
@@ -1411,7 +1411,7 @@ class GuitarScaleApp {
         
         if (intervalsInfo) {
             intervalsInfo.innerHTML = `
-                <span class="px-2 py-1 rounded text-xs font-bold" style="background: #137fec; color: white;">Root</span>
+                <span class="px-2 py-1 rounded text-xs font-bold" style="background: #c9541a; color: white;">Root</span>
                 <span class="px-2 py-1 rounded text-xs font-bold" style="background: #4ecdc4; color: white;">3rd</span>
                 <span class="px-2 py-1 rounded text-xs font-bold" style="background: #45b7d1; color: white;">5th</span>
             `;
@@ -1441,7 +1441,7 @@ class GuitarScaleApp {
             if (intervalsElement) {
                 intervalsElement.innerHTML = this.currentScale1.intervals.map((interval, i) => {
                     const isRoot = i === 0;
-                    return `<span class="px-2 py-1 rounded-full text-xs ${isRoot ? 'bg-primary/20 text-primary border border-primary/30' : 'bg-[#1e293b] text-[#92adc9] border border-[#324d67]'}">${interval}</span>`;
+                    return `<span class="px-2 py-1 rounded-full text-xs ${isRoot ? 'bg-primary/20 text-primary border border-primary/30' : 'bg-[#221d17] text-[#b9ae9c] border border-[#3a3128]'}">${interval}</span>`;
                 }).join('');
             }
         }
@@ -1854,8 +1854,8 @@ class PatternManager {
 // Color Manager Class
 class ColorManager {
     constructor() {
-        this.rootColor = '#137fec';
-        this.scaleColor = '#16202a';
+        this.rootColor = '#c9541a';
+        this.scaleColor = '#100d0b';
         this.comparisonColor = '#7a9ca8';
     }
     

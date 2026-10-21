@@ -4,9 +4,9 @@
 // trace, cycle markers and the "now" dot.
 
 const COL = {
-  bg: '#110f0c', grid: 'rgba(255,255,255,0.06)', accent: '#f2b544', accentDim: 'rgba(242,181,68,0.35)',
-  corridor: 'rgba(242,181,68,0.05)', ghost: 'rgba(255,255,255,0.22)', text: '#9a9283', faint: '#5f594f',
-  ok: '#4ed19a', warn: '#f2b544', bad: '#f0624d',
+  bg: '#0f0c0a', grid: 'rgba(255,240,215,0.06)', accent: '#f0b24a', accentDim: 'rgba(240,178,74,0.35)',
+  corridor: 'rgba(240,178,74,0.06)', ghost: 'rgba(255,240,215,0.22)', text: '#b9ae9c', faint: '#7d7364',
+  ok: '#5ad8a2', warn: '#f0b24a', bad: '#f46a54',
 };
 
 export function createLane(canvas, { visibleSeconds = 4 } = {}) {
@@ -57,7 +57,7 @@ export function createLane(canvas, { visibleSeconds = 4 } = {}) {
     const line = (c, color, dash, width) => { ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.setLineDash(dash); ctx.beginPath(); ctx.moveTo(padL, Y(c)); ctx.lineTo(W - padR, Y(c)); ctx.stroke(); ctx.restore(); };
     if (bend) { line(0, COL.accentDim, [], 1.5); line(home, COL.accent, [], 2); }
     else { line(0, COL.accent, [], 2); line(far, COL.accent, [6, 6], 1.5); }
-    ctx.fillStyle = COL.accent; ctx.font = '600 12px Outfit';
+    ctx.fillStyle = COL.accent; ctx.font = '500 12px "Geist Mono", monospace';
     if (bend) { ctx.fillText(v.labels.base || 'base', padL + 6, Y(0) - 6); ctx.fillText(v.labels.target || 'target', padL + 6, Y(home) - 6); }
     else { ctx.fillText(v.labels.home || 'note', padL + 6, Y(0) - 6); ctx.fillText(v.labels.target || 'target', padL + 6, Y(far) - 6); }
 
@@ -97,10 +97,10 @@ export function createLane(canvas, { visibleSeconds = 4 } = {}) {
     if (last && v.now - last.t < 0.15) {
       const col = COL[last.band] || COL.ok;
       ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 18; dot(X(last.t), Y(last.c), col, 7); ctx.restore();
-      ctx.fillStyle = '#efe9dd'; ctx.font = '600 13px Outfit'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#f4ecdf'; ctx.font = '600 13px Geist, sans-serif'; ctx.textAlign = 'center';
       ctx.fillText((last.c >= 0 ? '+' : '') + Math.round(last.c) + '¢', X(last.t), Y(last.c) - 14);
     } else if (v.message) {
-      ctx.fillStyle = COL.text; ctx.font = '500 15px Outfit'; ctx.textAlign = 'center';
+      ctx.fillStyle = COL.text; ctx.font = '500 15px Geist, sans-serif'; ctx.textAlign = 'center';
       ctx.fillText(v.message, (padL + W - padR) / 2, H / 2);
     }
   }

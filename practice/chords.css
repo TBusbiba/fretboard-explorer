@@ -89,6 +89,8 @@
 .card__tag { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--tone); font-weight: 600; }
 .card__name { font: 700 clamp(64px, 18vw, 92px)/1 var(--font-display); letter-spacing: -0.02em; color: var(--text); text-shadow: 0 0 40px color-mix(in srgb, var(--tone) 35%, transparent); }
 .card__ask { font-size: 14px; color: var(--muted); }
+.acc { font-size: 0.5em; vertical-align: 0.75em; margin-left: 0.04em; line-height: 0; }
+.back__note .acc, .found .acc { font-size: 0.6em; vertical-align: 0.55em; }
 
 .card.is-dealing { animation: deal 620ms var(--spring) both; }
 .card.is-leaving { animation: leave 380ms var(--ease) both; }
@@ -166,6 +168,8 @@
 }
 .cq:has(.card[data-quality="min"]) .key.is-picked { background: var(--cq-min); color: #00202c; box-shadow: 0 0 0 3px var(--cq-min-soft), 0 8px 24px rgba(92, 208, 240, 0.35); }
 .key.bounce { animation: key-bounce 320ms var(--spring); }
+.keypad.hide-rare .key--rare { visibility: hidden; pointer-events: none; }
+.cq-rare { font-size: 13px; color: var(--muted); margin-right: auto; margin-left: 8px; }
 
 /* key signature options */
 .cq-q { margin: 0; color: var(--muted); text-align: center; }
@@ -201,8 +205,10 @@
 }
 .found.is-found { color: var(--ok-ink); background: var(--ok); border: 1.5px solid var(--ok); animation: pop 420ms var(--spring); }
 .found__hint { flex-basis: 100%; text-align: center; font-size: 13px; color: var(--faint); }
-.fb-note--hint circle { fill: rgba(242, 181, 68, 0.22); stroke: var(--accent); }
-.fb-note--hint text { fill: var(--accent); }
+.fb-note--hint .fb-note__dot { fill: rgba(240, 178, 74, 0.2); stroke: var(--accent); }
+.fb-note--hint .fb-note__glow { opacity: 0.35; animation: none; }
+.fb-note--hint .fb-note__shine { fill-opacity: 0.12; }
+.fb-note--hint text { fill: var(--ns-brass-hi); }
 
 /* ---- effects layer ---- */
 .fx { position: fixed; inset: 0; pointer-events: none; z-index: 50; overflow: hidden; }

@@ -1,0 +1,165 @@
+/* ♭ ♮ ♯ only: Fraunces and Geist have no accidentals, and the system
+   fallback sets them loose. Tiny Noto subsets (SIL OFL) drawn at text
+   proportions: the serif one for Fraunces, the sans one for Geist. */
+@font-face {
+  font-family: 'NS Acc Serif';
+  src: url('fonts/acc-serif.woff2') format('woff2');
+  unicode-range: U+266D-266F;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'NS Acc Sans';
+  src: url('fonts/acc-sans.woff2') format('woff2');
+  unicode-range: U+266D-266F;
+  font-display: swap;
+}
+
+/* ==========================================================================
+   Night Stage — the shared visual identity for every page.
+
+   A dark, warm room lit by one brass spotlight. The instrument (rosewood,
+   nickel, pearl) is the brightest thing in it. Colour always means
+   something: brass = focus / major, ice = minor, rose = tension,
+   green / red = right / wrong.
+
+   Load this first; page stylesheets build on its tokens.
+   ========================================================================== */
+
+:root {
+  /* room */
+  --ns-ink: #0c0a09;
+  --ns-ink-2: #12100d;
+  --ns-panel: rgba(26, 22, 18, 0.72);
+  --ns-panel-solid: #1a1612;
+  --ns-panel-2: #221d17;
+  --ns-raise: #2b241c;
+  --ns-line: rgba(255, 236, 205, 0.08);
+  --ns-line-2: rgba(255, 236, 205, 0.15);
+  --ns-line-3: rgba(255, 236, 205, 0.26);
+
+  /* text */
+  --ns-text: #f4ecdf;
+  --ns-text-2: #b9ae9c;
+  --ns-text-3: #7d7364;
+
+  /* light */
+  --ns-brass: #f0b24a;
+  --ns-brass-hi: #ffd27d;
+  --ns-brass-ink: #1d1203;
+  --ns-brass-soft: rgba(240, 178, 74, 0.15);
+  --ns-brass-glow: rgba(240, 178, 74, 0.45);
+  --ns-ice: #6cd3f2;
+  --ns-ice-soft: rgba(108, 211, 242, 0.15);
+  --ns-rose: #ff6b98;
+  --ns-ok: #5ad8a2;
+  --ns-ok-ink: #032a1a;
+  --ns-bad: #f46a54;
+  --ns-bad-ink: #2d0904;
+
+  /* type */
+  --ns-serif: 'Fraunces', 'NS Acc Serif', 'Iowan Old Style', Georgia, serif;
+  --ns-sans: 'Geist', 'NS Acc Sans', ui-sans-serif, system-ui, sans-serif;
+  --ns-mono: 'Geist Mono', ui-monospace, 'SF Mono', monospace;
+
+  /* shape + motion */
+  --ns-r-sm: 10px; --ns-r-md: 14px; --ns-r-lg: 22px; --ns-r-xl: 30px;
+  --ns-ease: cubic-bezier(0.16, 1, 0.3, 1);       /* expo out */
+  --ns-spring: cubic-bezier(0.34, 1.56, 0.64, 1);  /* gentle overshoot */
+  --ns-fast: 160ms; --ns-med: 280ms; --ns-slow: 520ms;
+  --ns-shadow: 0 1px 0 rgba(255, 240, 215, 0.05) inset, 0 18px 50px -18px rgba(0, 0, 0, 0.8);
+}
+
+html { color-scheme: dark; background: var(--ns-ink); }
+body { background: transparent !important; }
+
+/* ---- the room: a warm spotlight from above, a cooler bounce below, grain ---- */
+body::before {
+  content: '';
+  position: fixed; inset: -10vmax;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(60vmax 40vmax at 50% -6%, rgba(240, 178, 74, 0.16), transparent 62%),
+    radial-gradient(50vmax 36vmax at 88% 108%, rgba(108, 211, 242, 0.07), transparent 60%),
+    radial-gradient(44vmax 30vmax at 4% 70%, rgba(255, 107, 152, 0.05), transparent 60%),
+    var(--ns-ink);
+  animation: ns-breathe 18s ease-in-out infinite alternate;
+}
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.07;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+@keyframes ns-breathe {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(-1.5vmax, 1vmax, 0) scale(1.04); }
+}
+
+::selection { background: rgba(240, 178, 74, 0.35); color: #fff; }
+
+/* ---- app header: brand + the three places ---- */
+.ns-brand {
+  display: inline-flex; align-items: center; gap: 10px;
+  color: var(--ns-text); text-decoration: none;
+  font: 500 19px/1 var(--ns-serif);
+  font-variation-settings: 'opsz' 48, 'SOFT' 100;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.ns-brand em { font-style: italic; color: var(--ns-brass); font-weight: 400; }
+.ns-brand__mark { width: 30px; height: 30px; flex: none; filter: drop-shadow(0 0 10px rgba(240, 178, 74, 0.35)); }
+.ns-brand__mark .s { stroke: currentColor; opacity: 0.5; }
+.ns-brand__mark .d { fill: var(--ns-brass); transform-origin: center; transform-box: fill-box; animation: ns-pulse 3.2s var(--ns-ease) infinite; }
+@keyframes ns-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+
+.ns-nav {
+  display: inline-flex; gap: 2px; padding: 4px;
+  border-radius: 999px;
+  background: rgba(255, 240, 215, 0.04);
+  border: 1px solid var(--ns-line);
+  box-shadow: 0 1px 0 rgba(255, 240, 215, 0.04) inset;
+}
+.ns-nav a {
+  position: relative;
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 36px; padding: 0 16px;
+  border-radius: 999px;
+  color: var(--ns-text-2); text-decoration: none;
+  font: 500 14px/1 var(--ns-sans);
+  transition: color var(--ns-fast), background var(--ns-fast);
+}
+.ns-nav a svg { opacity: 0.8; }
+.ns-nav a:hover { color: var(--ns-text); background: rgba(255, 240, 215, 0.05); }
+.ns-nav a[aria-current="page"] {
+  color: var(--ns-brass-ink);
+  background: linear-gradient(180deg, var(--ns-brass-hi), var(--ns-brass));
+  box-shadow: 0 6px 20px -6px var(--ns-brass-glow), 0 1px 0 rgba(255, 255, 255, 0.4) inset;
+}
+.ns-nav a[aria-current="page"] svg { opacity: 1; }
+
+.ns-sr {
+  position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ---- page entrance: content rises into the light ---- */
+.ns-rise { animation: ns-rise 700ms var(--ns-ease) both; }
+.ns-rise-2 { animation: ns-rise 700ms 80ms var(--ns-ease) both; }
+.ns-rise-3 { animation: ns-rise 700ms 160ms var(--ns-ease) both; }
+.ns-rise-4 { animation: ns-rise 700ms 240ms var(--ns-ease) both; }
+@keyframes ns-rise { from { opacity: 0; transform: translateY(14px); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+
+@media (max-width: 760px) {
+  .ns-brand__word { display: none; }
+  .ns-nav a { padding: 0 11px; font-size: 13px; white-space: nowrap; }
+  .ns-nav a svg, .ns-nav a .material-symbols-outlined { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::before, .ns-brand__mark .d { animation: none; }
+  .ns-rise, .ns-rise-2, .ns-rise-3, .ns-rise-4 { animation: none; }
+}

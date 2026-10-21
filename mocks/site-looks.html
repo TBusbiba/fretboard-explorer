@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Four Keepers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Archivo+Black&family=Space+Grotesk:wght@400;500;700&family=VT323&family=IBM+Plex+Mono:wght@400;500;600&family=Shrikhand&family=Press+Start+2P&family=Fredoka:wght@400;500;600&family=Caveat:wght@500;700&family=UnifrakturMaguntia&family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Share+Tech+Mono&family=Bangers&family=Comic+Neue:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* Five whole-site directions for Fretboard. Mock-ups only: same data
+   (C major, frets 0–12) everywhere, nothing wired to the app. */
+* { box-sizing: border-box; }
+body { margin: 0; background: #101012; color: #e9e8ec; font: 15px/1.5 Inter, system-ui, sans-serif; }
+.sheet { max-width: 1320px; margin: 0 auto; padding: 46px 24px 0; }
+.sheet h1 { margin: 0; font: 400 46px/1.05 'Instrument Serif', serif; }
+.sheet > p { color: #8f8d98; max-width: 720px; margin: 10px 0 0; }
+.toc { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.toc a { color: #cfcdd6; text-decoration: none; border: 1px solid #2a2a31; border-radius: 999px; padding: 6px 14px; font-size: 13px; }
+.toc a:hover { border-color: #55545f; }
+.opt { max-width: 1320px; margin: 56px auto 0; padding: 0 24px; }
+.opt__head { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; align-items: baseline; margin-bottom: 16px; }
+.opt__n { font: 600 12px 'JetBrains Mono', monospace; color: #77757f; letter-spacing: .1em; }
+.opt__name { font: 400 34px/1 'Instrument Serif', serif; }
+.opt__name small { font: 500 12px Inter; color: #f0b24a; letter-spacing: .08em; text-transform: uppercase; margin-left: 10px; vertical-align: middle; }
+.opt__pitch { grid-column: 2; color: #9a98a3; margin: 0; max-width: 900px; }
+.opt__pitch b { color: #e9e8ec; font-weight: 500; }
+.screen { border-radius: 18px; overflow: hidden; box-shadow: 0 40px 80px -30px #000, 0 0 0 1px rgba(255,255,255,.06); }
+.wide { overflow-x: auto; }
+.screen > * { min-width: 1180px; }
+footer.sheet { padding: 50px 24px 80px; color: #77757f; font-size: 13px; }
+svg { display: block; width: 100%; height: auto; }
+
+/* =========================================================
+   3 · RISO ZINE — two-ink risograph print: fluoro pink and
+   blue on paper, misregistered, loud type, stickers.
+   ========================================================= */
+.d3 { --pink: #ff48b0; --blue: #0078bf; background: #f5f0e6; color: #1a1a1a; font-family: 'Space Grotesk', sans-serif; position: relative; padding: 26px 34px 30px; overflow: hidden; }
+.d3::before { /* halftone wash */
+  content: ''; position: absolute; right: -60px; top: -80px; width: 520px; height: 520px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, var(--pink) 1.6px, transparent 1.8px) 0 0 / 9px 9px; opacity: .35; mix-blend-mode: multiply; }
+.d3::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .5; mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 .3  0 0 0 0 .3  0 0 0 0 .3  0 0 0 .16 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+.d3 .top { position: relative; display: flex; align-items: center; gap: 12px; z-index: 1; }
+.d3 .mast { font: 400 28px/1 'Archivo Black', sans-serif; letter-spacing: -.02em; color: var(--blue); text-shadow: 2px 1.5px 0 var(--pink); mix-blend-mode: multiply; margin-right: 18px; }
+.d3 .sticker { font: 700 13px 'Space Grotesk'; text-transform: uppercase; letter-spacing: .04em; padding: 7px 14px; border-radius: 999px; border: 2px solid #1a1a1a; background: #f5f0e6; }
+.d3 .sticker.on { background: var(--pink); transform: rotate(-3deg); box-shadow: 3px 3px 0 #1a1a1a; }
+.d3 .sticker:nth-child(3) { transform: rotate(1.5deg); }
+.d3 .issue { margin-left: auto; font: 500 12px 'Space Grotesk'; text-transform: uppercase; letter-spacing: .14em; }
+.d3 .hero { position: relative; z-index: 1; display: grid; grid-template-columns: auto 1fr 300px; gap: 28px; align-items: end; margin-top: 18px; }
+.d3 .giant { font: 400 230px/.78 'Archivo Black', sans-serif; letter-spacing: -.06em; position: relative; color: transparent; -webkit-text-stroke: 3px var(--blue); }
+.d3 .giant::after { content: 'C'; position: absolute; left: 10px; top: 8px; color: var(--pink); -webkit-text-stroke: 0; mix-blend-mode: multiply; z-index: -1; }
+.d3 .blurb h2 { margin: 0; font: 400 54px/.95 'Archivo Black'; letter-spacing: -.03em; text-transform: uppercase; }
+.d3 .blurb h2 span { color: var(--pink); mix-blend-mode: multiply; }
+.d3 .blurb p { font-size: 16px; max-width: 420px; margin: 12px 0 0; }
+.d3 .blurb .pills { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 14px; }
+.d3 .blurb .pills span { font: 700 12px 'Space Grotesk'; padding: 5px 10px; border: 2px solid var(--blue); color: var(--blue); border-radius: 6px; }
+.d3 .blurb .pills span.on { background: var(--blue); color: #f5f0e6; }
+.d3 .ticket { position: relative; background: #fff7fb; border: 2px dashed var(--pink); padding: 16px 18px; transform: rotate(-2.5deg); box-shadow: 6px 6px 0 var(--blue); }
+.d3 .ticket .k { font: 700 11px 'Space Grotesk'; letter-spacing: .14em; text-transform: uppercase; color: var(--blue); }
+.d3 .ticket .n { font: 400 84px/.9 'Archivo Black'; color: var(--pink); mix-blend-mode: multiply; text-shadow: 3px 2px 0 rgba(0, 120, 191, .55); }
+.d3 .ticket .s { font-weight: 500; }
+.d3 .ticket button { all: unset; cursor: pointer; margin-top: 10px; display: inline-block; background: #1a1a1a; color: #f5f0e6; font: 700 13px 'Space Grotesk'; padding: 8px 16px; border-radius: 999px; text-transform: uppercase; }
+.d3 .neck { position: relative; z-index: 1; margin-top: 26px; border: 3px solid #1a1a1a; border-radius: 14px; background: #fbf8f2; padding: 10px 14px 4px; }
+.d3 .neck svg { mix-blend-mode: multiply; }
+.d3 .foot { position: relative; z-index: 1; display: flex; justify-content: space-between; margin-top: 12px; font: 700 12px 'Space Grotesk'; text-transform: uppercase; letter-spacing: .1em; }
+
+
+/* =========================================================
+   4 · BENTO STUDIO (richer): more layers, more to touch.
+   Lit tiles with depth, icons, a mode switcher, a live mic
+   wave, an interval ruler, a chord box and a chord-map peek.
+   ========================================================= */
+.d4 { --lime: #c8f53a; --lime-ink: #1b2400; --tile: #1e1f23; --tile-2: #27282d; --line: #33343a; --muted: #9d9ea6; background: #121316; color: #f2f2f0; font-family: 'Inter Tight', sans-serif; padding: 20px 22px 24px; position: relative; }
+.d4::before { content: ''; position: absolute; left: 30%; top: -120px; width: 620px; height: 380px; background: radial-gradient(closest-side, rgba(200, 245, 58, .10), transparent); pointer-events: none; }
+.d4 .bar { position: relative; display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.d4 .brand { display: flex; align-items: center; gap: 10px; font: 700 18px 'Inter Tight'; letter-spacing: -.02em; }
+.d4 .brand i { width: 28px; height: 28px; border-radius: 9px; background: var(--lime); display: grid; place-items: center; box-shadow: 0 0 20px rgba(200, 245, 58, .4); }
+.d4 .seg { display: flex; padding: 4px; background: var(--tile); border-radius: 999px; gap: 2px; border: 1px solid var(--line); }
+.d4 .seg span { padding: 8px 16px; border-radius: 999px; font-size: 14px; font-weight: 500; color: var(--muted); display: flex; align-items: center; gap: 7px; }
+.d4 .seg span.on { background: #f2f2f0; color: #121316; }
+.d4 .me { display: flex; gap: 10px; align-items: center; font-size: 13px; color: var(--muted); }
+.d4 .me .search { border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; display: flex; gap: 8px; align-items: center; }
+.d4 .me .search kbd { font: 500 11px 'JetBrains Mono'; border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
+.d4 .me b { width: 34px; height: 34px; border-radius: 50%; background: conic-gradient(var(--lime) 0 78%, var(--line) 78%); display: grid; place-items: center; }
+.d4 .me b::after { content: '12'; width: 26px; height: 26px; border-radius: 50%; background: #121316; display: grid; place-items: center; font: 700 11px 'Inter Tight'; color: #f2f2f0; }
+.d4 .grid { position: relative; display: grid; grid-template-columns: 1.15fr 1fr 1fr 1fr; gap: 12px; }
+.d4 .tile { background: linear-gradient(180deg, #222328, var(--tile)); border: 1px solid #2a2b31; border-radius: 24px; padding: 16px 18px; position: relative; overflow: hidden; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05); }
+.d4 .tile h3 { margin: 0; display: flex; align-items: center; gap: 8px; font: 500 13px 'Inter Tight'; color: var(--muted); }
+.d4 .tile h3 svg { opacity: .8; }
+.d4 .tile h3 svg, .d4 .seg svg, .d4 .brand svg, .d4 .prac button svg { width: auto; height: auto; display: inline-block; flex: none; }
+.d4 .seg span { white-space: nowrap; }
+.d4 .tile h3 em { margin-left: auto; font-style: normal; font: 500 11px 'JetBrains Mono'; color: #6f7078; }
+.d4 .key { grid-row: span 2; display: flex; flex-direction: column; }
+.d4 .key .big { font: 800 128px/.82 'Inter Tight'; letter-spacing: -.06em; margin-top: 16px; background: linear-gradient(180deg, #fff, #b9bac0); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.d4 .key .modes { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.d4 .key .modes span { font-size: 12.5px; font-weight: 600; padding: 6px 11px; border-radius: 999px; background: var(--tile-2); color: var(--muted); }
+.d4 .key .modes span.on { background: var(--lime); color: var(--lime-ink); }
+.d4 .key .ring { margin-top: auto; }
+.d4 .prac { background: radial-gradient(120% 100% at 100% 0%, #e2ff7a, var(--lime) 55%, #a8d61c); color: var(--lime-ink); border: 0; }
+.d4 .prac h3 { color: #3b4a07; }
+.d4 .prac .n { font: 800 66px/.9 'Inter Tight'; letter-spacing: -.04em; margin-top: 8px; }
+.d4 .prac .s { font-weight: 600; }
+.d4 .prac .wave { position: absolute; left: 18px; right: 78px; bottom: 18px; height: 28px; }
+.d4 .prac button { all: unset; cursor: pointer; position: absolute; right: 16px; bottom: 14px; width: 48px; height: 48px; border-radius: 50%; background: #121316; color: var(--lime); display: grid; place-items: center; box-shadow: 0 8px 18px rgba(27, 36, 0, .35); }
+.d4 .streak .n { font: 700 46px/1 'Inter Tight'; margin-top: 10px; }
+.d4 .streak .n small { font-size: 15px; color: var(--muted); font-weight: 500; }
+.d4 .streak .bars { display: flex; gap: 5px; align-items: end; height: 46px; margin-top: 12px; }
+.d4 .streak .bars i { flex: 1; border-radius: 5px; background: var(--tile-2); }
+.d4 .streak .bars i.on { background: linear-gradient(180deg, var(--lime), #8fbf12); }
+.d4 .streak .days { display: flex; gap: 5px; margin-top: 5px; font: 500 10px 'JetBrains Mono'; color: #6f7078; }
+.d4 .streak .days span { flex: 1; text-align: center; }
+.d4 .toggles { display: flex; flex-direction: column; gap: 9px; }
+.d4 .tg { display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+.d4 .tg u { width: 38px; height: 22px; border-radius: 999px; background: #3a3b41; position: relative; text-decoration: none; }
+.d4 .tg u::after { content: ''; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: #f2f2f0; }
+.d4 .tg u.on { background: var(--lime); }
+.d4 .tg u.on::after { left: 19px; background: #121316; }
+.d4 .neck { grid-column: 2 / -1; padding: 14px 18px 8px; }
+.d4 .neck .h { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.d4 .neck .h .vs { display: flex; gap: 4px; margin-left: 10px; }
+.d4 .neck .h .vs span { font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 999px; background: var(--tile-2); color: var(--muted); }
+.d4 .neck .h .vs span.on { background: #f2f2f0; color: #121316; }
+.d4 .neck .h .lg { margin-left: auto; display: flex; gap: 14px; font-size: 12px; color: var(--muted); }
+.d4 .neck .h .lg i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+.d4 .ruler { grid-column: span 2; }
+.d4 .ruler .steps { display: flex; gap: 4px; margin-top: 14px; height: 54px; }
+.d4 .ruler .steps div { border-radius: 12px; background: var(--tile-2); display: flex; flex-direction: column; justify-content: center; align-items: center; font: 700 16px 'Inter Tight'; }
+.d4 .ruler .steps div small { font: 500 10.5px 'JetBrains Mono'; color: var(--muted); }
+.d4 .ruler .steps div.root { background: var(--lime); color: var(--lime-ink); }
+.d4 .ruler .steps div.root small { color: #3b4a07; }
+.d4 .ruler .gaps { display: flex; gap: 4px; margin-top: 6px; font: 500 11px 'JetBrains Mono'; color: #6f7078; }
+.d4 .chord { display: flex; flex-direction: column; }
+.d4 .chord .row { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
+.d4 .chord .row b { font: 800 34px 'Inter Tight'; letter-spacing: -.03em; }
+.d4 .chord .row small { color: var(--muted); font-size: 12px; display: block; }
+.d4 .map svg { margin-top: 4px; }
+/* =========================================================
+   7 · NEO-BRUTALIST — chunky borders, hard shadows, flat
+   bright blocks, a ticker of scale notes.
+   ========================================================= */
+.d7 { --y: #ffd400; --c: #3de0ff; --s: #ff7a59; --g: #9cff6b; background: #fff8e7; color: #111; font-family: 'Space Grotesk', sans-serif; }
+.d7 .b { border: 3px solid #111; box-shadow: 6px 6px 0 #111; border-radius: 10px; }
+.d7 .bar { display: flex; align-items: center; gap: 12px; padding: 18px 24px; }
+.d7 .logo { font: 700 22px 'Space Grotesk'; background: var(--y); padding: 6px 12px; }
+.d7 .tab { padding: 8px 16px; font-weight: 700; background: #fff; }
+.d7 .tab.on { background: var(--c); transform: translate(-2px, -2px); box-shadow: 8px 8px 0 #111; }
+.d7 .ticker { border-top: 3px solid #111; border-bottom: 3px solid #111; background: #111; color: var(--y); overflow: hidden; white-space: nowrap; font: 700 18px 'Space Grotesk'; padding: 8px 0; }
+.d7 .ticker div { display: inline-block; animation: tick 18s linear infinite; }
+@keyframes tick { to { transform: translateX(-50%); } }
+.d7 .main { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 20px; padding: 24px; }
+.d7 .key { background: var(--s); padding: 18px 22px; }
+.d7 .key .k { font-weight: 700; text-transform: uppercase; font-size: 13px; }
+.d7 .key .big { font: 700 120px/.85 'Space Grotesk'; letter-spacing: -.05em; }
+.d7 .key .sub { font: 700 22px 'Space Grotesk'; }
+.d7 .opts { background: #fff; padding: 16px 18px; display: flex; flex-wrap: wrap; gap: 8px; align-content: start; }
+.d7 .opts h4 { flex-basis: 100%; margin: 0 0 4px; font-size: 13px; text-transform: uppercase; }
+.d7 .opts span { border: 2.5px solid #111; border-radius: 8px; padding: 6px 12px; font-weight: 700; font-size: 14px; background: #fff; box-shadow: 3px 3px 0 #111; }
+.d7 .opts span.on { background: var(--g); }
+.d7 .prac { background: var(--c); padding: 16px 20px; position: relative; }
+.d7 .prac .n { font: 700 86px/.9 'Space Grotesk'; }
+.d7 .prac button { all: unset; cursor: pointer; position: absolute; right: 16px; bottom: 16px; background: var(--y); border: 3px solid #111; box-shadow: 4px 4px 0 #111; padding: 8px 16px; font-weight: 700; border-radius: 8px; }
+.d7 .neck { grid-column: 1 / -1; background: #fff; padding: 12px 16px 6px; }
+
+/* =========================================================
+   N1 · STUDIO CONSOLE: the app as a piece of hardware.
+   A warm grey device, an LCD, knobs, rubber keys with LEDs,
+   and the neck set into the panel like a control strip.
+   ========================================================= */
+.dn1 { --body: #e4e1da; --dark: #232323; --org: #ff5a1f; background: #cfcbc2; padding: 28px; font-family: 'Inter Tight', sans-serif; color: var(--dark); }
+.dn1 .dev { position: relative; background: linear-gradient(180deg, #ecE9e2, var(--body)); border-radius: 26px; padding: 26px 30px 26px; box-shadow: 0 2px 0 #fff inset, 0 -3px 0 rgba(0, 0, 0, .08) inset, 0 30px 60px -24px rgba(0, 0, 0, .45); }
+.dn1 .dev > .screw { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #f5f3ee, #b8b3a8); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .15); }
+.dn1 .dev > .screw::after { content: ''; position: absolute; left: 2px; right: 2px; top: 5.5px; height: 1px; background: rgba(0, 0, 0, .35); transform: rotate(35deg); }
+.dn1 .top { display: flex; align-items: center; gap: 14px; }
+.dn1 .brand { font: 800 15px 'Inter Tight'; letter-spacing: .02em; text-transform: lowercase; }
+.dn1 .brand i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--org); margin-right: 6px; box-shadow: 0 0 8px var(--org); }
+.dn1 .modes { display: flex; gap: 6px; margin-left: 20px; }
+.dn1 .modes span { font: 600 11px 'JetBrains Mono'; text-transform: uppercase; letter-spacing: .08em; padding: 6px 10px; border-radius: 7px; background: #d6d2c9; box-shadow: inset 0 -2px 0 rgba(0, 0, 0, .12); }
+.dn1 .modes span.on { background: var(--dark); color: #f3f1ec; }
+.dn1 .model { margin-left: auto; font: 500 11px 'JetBrains Mono'; color: #7b776e; letter-spacing: .1em; }
+.dn1 .row { display: grid; grid-template-columns: 1.3fr auto auto 1fr; gap: 22px; align-items: center; margin-top: 18px; }
+.dn1 .lcd { background: #1f2a22; border-radius: 12px; padding: 14px 18px; box-shadow: inset 0 3px 8px rgba(0, 0, 0, .6), 0 1px 0 #fff; color: #b9f5a6; font-family: 'Share Tech Mono', monospace; text-shadow: 0 0 6px rgba(185, 245, 166, .55); }
+.dn1 .lcd .big { font-size: 46px; line-height: 1; letter-spacing: .04em; }
+.dn1 .lcd .sm { font-size: 14px; opacity: .75; margin-top: 4px; }
+.dn1 .knob { text-align: center; font: 600 10px 'JetBrains Mono'; letter-spacing: .1em; text-transform: uppercase; color: #6e6a62; }
+.dn1 .knob .k { width: 76px; height: 76px; border-radius: 50%; margin: 0 auto 8px; position: relative; background: radial-gradient(circle at 40% 30%, #4a4a4a, #1d1d1d 70%); box-shadow: 0 6px 12px rgba(0, 0, 0, .35), inset 0 2px 1px rgba(255, 255, 255, .18); }
+.dn1 .knob .k::after { content: ''; position: absolute; left: 50%; top: 8px; width: 3px; height: 18px; margin-left: -1.5px; border-radius: 2px; background: var(--org); transform-origin: 50% 30px; transform: rotate(var(--r, 0deg)); }
+.dn1 .knob .k::before { content: ''; position: absolute; inset: -9px; border-radius: 50%; background: repeating-conic-gradient(from -135deg, #8d897f 0 1.2deg, transparent 1.2deg 22.5deg); -webkit-mask: radial-gradient(circle, transparent 46px, #000 47px); mask: radial-gradient(circle, transparent 46px, #000 47px); }
+.dn1 .knob b { display: block; font: 700 15px 'Inter Tight'; color: var(--dark); letter-spacing: 0; text-transform: none; }
+.dn1 .keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.dn1 .keys span { position: relative; font: 600 11px 'JetBrains Mono'; text-transform: uppercase; text-align: center; padding: 16px 0 8px; border-radius: 10px; background: #f3f1ec; box-shadow: 0 3px 0 #bdb8ad, 0 4px 6px rgba(0, 0, 0, .15); }
+.dn1 .keys span::before { content: ''; position: absolute; top: 6px; left: 50%; margin-left: -3px; width: 6px; height: 6px; border-radius: 50%; background: #c9c4b9; }
+.dn1 .keys span.on::before { background: var(--org); box-shadow: 0 0 8px var(--org); }
+.dn1 .strip { margin-top: 22px; background: #1e1d1b; border-radius: 16px; padding: 12px 14px 4px; box-shadow: inset 0 3px 10px rgba(0, 0, 0, .7), 0 1px 0 #fff; }
+.dn1 .bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 18px; align-items: center; }
+.dn1 .oled { background: #0e0e0e; color: #fff; border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; gap: 18px; box-shadow: inset 0 3px 8px rgba(0, 0, 0, .7); font-family: 'Share Tech Mono'; }
+.dn1 .oled .n { font-size: 40px; color: var(--org); text-shadow: 0 0 10px rgba(255, 90, 31, .6); }
+.dn1 .vu { display: flex; gap: 3px; align-items: end; height: 30px; margin-left: auto; }
+.dn1 .vu i { width: 6px; background: #3a3a3a; border-radius: 2px; }
+.dn1 .vu i.on { background: #b9f5a6; } .dn1 .vu i.hot { background: var(--org); }
+.dn1 .big-btn { justify-self: end; display: flex; align-items: center; gap: 14px; font: 600 11px 'JetBrains Mono'; text-transform: uppercase; letter-spacing: .1em; color: #6e6a62; }
+.dn1 .big-btn b { width: 64px; height: 64px; border-radius: 50%; background: radial-gradient(circle at 40% 30%, #ff8a5c, var(--org) 60%, #d63d06); box-shadow: 0 5px 0 #b33300, 0 10px 16px rgba(0, 0, 0, .3); display: grid; place-items: center; color: #fff; font: 800 13px 'Inter Tight'; }
+
+
+/* ---- Neo-Brutalist, dark mode ---- */
+.d7--dark { --y: #f2c400; --c: #2fc4e0; --s: #f06a4b; --g: #86e05a; --edge: #f1ead8; background: #16151a; color: var(--edge); }
+.d7--dark .b { border-color: var(--edge); box-shadow: 6px 6px 0 var(--edge); }
+.d7--dark .tab { background: #24232a; color: var(--edge); }
+.d7--dark .tab.on { background: var(--c); color: #111; box-shadow: 8px 8px 0 var(--edge); }
+.d7--dark .logo { color: #111; }
+.d7--dark .ticker { background: var(--y); color: #111; border-color: var(--edge); }
+.d7--dark .key, .d7--dark .prac { color: #111; }
+.d7--dark .opts { background: #24232a; }
+.d7--dark .opts span { background: #2e2d35; color: var(--edge); border-color: var(--edge); box-shadow: 3px 3px 0 var(--edge); }
+.d7--dark .opts span.on { background: var(--g); color: #111; }
+.d7--dark .prac button { border-color: #111; box-shadow: 4px 4px 0 #111; color: #111; }
+.d7--dark .neck { background: #1f1e24; }
+
+/* ---- shared bits for the three combinations ---- */
+.cx-strip { background: #1c1b19; border-radius: 16px; padding: 12px 14px 4px; }
+.cx-knob { text-align: center; font: 700 10px 'Space Grotesk'; letter-spacing: .12em; text-transform: uppercase; }
+.cx-knob .k { width: 70px; height: 70px; border-radius: 50%; margin: 0 auto 8px; position: relative; }
+.cx-knob .k::after { content: ''; position: absolute; left: 50%; top: 7px; width: 4px; height: 18px; margin-left: -2px; border-radius: 2px; transform-origin: 50% 28px; transform: rotate(var(--r, 0deg)); }
+.cx-knob b { display: block; font: 700 16px 'Space Grotesk'; letter-spacing: 0; text-transform: none; }
+.cx-vu { display: flex; gap: 3px; align-items: end; height: 30px; }
+.cx-vu i { width: 7px; border-radius: 2px; }
+
+/* =========================================================
+   C1 · BRUTAL PRINT: Neo-Brutalist's structure and colours,
+   Riso's print details, the console neck as the centre.
+   ========================================================= */
+.c1 { --y: #ffd400; --c: #3de0ff; --s: #ff7a59; --g: #9cff6b; --pink: #ff48b0; --blue: #0078bf; background: #fff8e7; color: #111; font-family: 'Space Grotesk', sans-serif; padding: 22px 24px 26px; position: relative; overflow: hidden; }
+.c1::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .35; mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 .3  0 0 0 0 .3  0 0 0 0 .3  0 0 0 .16 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+.c1 > * { position: relative; z-index: 1; }
+.c1 .b { border: 3px solid #111; box-shadow: 6px 6px 0 #111; border-radius: 12px; }
+.c1 .bar { display: flex; align-items: center; gap: 12px; }
+.c1 .mast { font: 400 28px/1 'Archivo Black'; color: var(--blue); text-shadow: 2.5px 2px 0 var(--pink); letter-spacing: -.02em; margin-right: 10px; }
+.c1 .stk { font: 700 13px 'Space Grotesk'; text-transform: uppercase; padding: 7px 15px; border-radius: 999px; border: 3px solid #111; background: #fff; box-shadow: 3px 3px 0 #111; }
+.c1 .stk.on { background: var(--c); transform: rotate(-3deg); }
+.c1 .stk:nth-of-type(3) { transform: rotate(2deg); }
+.c1 .issue { margin-left: auto; font: 700 12px 'Space Grotesk'; text-transform: uppercase; letter-spacing: .14em; }
+.c1 .row { display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 20px; margin-top: 20px; }
+.c1 .key { background: var(--y); padding: 14px 20px; display: flex; align-items: center; gap: 18px; }
+.c1 .giant { font: 400 150px/.8 'Archivo Black'; letter-spacing: -.06em; color: transparent; -webkit-text-stroke: 3px #111; position: relative; }
+.c1 .giant::after { content: 'C'; position: absolute; left: 8px; top: 6px; color: var(--pink); -webkit-text-stroke: 0; mix-blend-mode: multiply; z-index: -1; }
+.c1 .key h2 { margin: 0; font: 400 30px/1 'Archivo Black'; text-transform: uppercase; }
+.c1 .key p { margin: 6px 0 0; font-weight: 700; }
+.c1 .opts { background: #fff; padding: 16px 18px; display: flex; flex-wrap: wrap; gap: 8px; align-content: start; }
+.c1 .opts h4 { flex-basis: 100%; margin: 0 0 4px; font-size: 13px; text-transform: uppercase; }
+.c1 .opts span { border: 2.5px solid #111; border-radius: 999px; padding: 6px 13px; font-weight: 700; font-size: 14px; background: #fff; box-shadow: 3px 3px 0 #111; }
+.c1 .opts span.on { background: var(--g); }
+.c1 .ticket { padding: 16px 20px; position: relative; background: radial-gradient(circle, rgba(255, 72, 176, .5) 1.6px, transparent 1.9px) 0 0 / 8px 8px, #ffe3f2; transform: rotate(-1.5deg); }
+.c1 .ticket .k { font: 700 11px 'Space Grotesk'; letter-spacing: .16em; text-transform: uppercase; }
+.c1 .ticket .n { font: 400 84px/.9 'Archivo Black'; color: var(--pink); mix-blend-mode: multiply; text-shadow: 3px 2px 0 rgba(0, 120, 191, .55); }
+.c1 .ticket button { all: unset; cursor: pointer; position: absolute; right: 16px; bottom: 16px; background: var(--y); border: 3px solid #111; box-shadow: 4px 4px 0 #111; padding: 8px 16px; font-weight: 700; border-radius: 10px; }
+.c1 .neck { margin-top: 22px; padding: 6px; background: #fff; }
+.c1 .ticker { margin-top: 18px; border: 3px solid #111; border-radius: 10px; background: #111; color: var(--y); overflow: hidden; white-space: nowrap; font: 700 16px 'Space Grotesk'; padding: 7px 0; }
+.c1 .ticker div { display: inline-block; animation: tick 18s linear infinite; }
+
+/* =========================================================
+   C2 · PRINTED HARDWARE: Studio Console's device layout,
+   printed on paper in Riso's two inks, Neo-Brutalist edges.
+   ========================================================= */
+.c2 { --pink: #ff48b0; --blue: #0078bf; --ink: #1a1a1a; --paper: #f5f0e6; background: #e9e2d2; color: var(--ink); font-family: 'Space Grotesk', sans-serif; padding: 26px; }
+.c2 .dev { position: relative; background: var(--paper); border: 3px solid var(--ink); border-radius: 26px; box-shadow: 8px 8px 0 var(--blue); padding: 22px 26px 24px; overflow: hidden; }
+.c2 .dev::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .5; mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 .3  0 0 0 0 .3  0 0 0 0 .3  0 0 0 .16 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+.c2 .dev > * { position: relative; z-index: 1; }
+.c2 .screw { position: absolute !important; width: 13px; height: 13px; border-radius: 50%; border: 2.5px solid var(--ink); background: var(--paper); }
+.c2 .screw::after { content: ''; position: absolute; left: 1px; right: 1px; top: 3.5px; height: 2px; background: var(--ink); transform: rotate(35deg); }
+.c2 .top { display: flex; align-items: center; gap: 12px; }
+.c2 .mast { font: 400 22px 'Archivo Black'; color: var(--blue); text-shadow: 2px 1.5px 0 var(--pink); margin-right: 12px; }
+.c2 .top span.m { font: 700 12px 'Space Grotesk'; text-transform: uppercase; letter-spacing: .08em; padding: 6px 12px; border: 2.5px solid var(--ink); border-radius: 8px; background: var(--paper); }
+.c2 .top span.m.on { background: var(--pink); box-shadow: 3px 3px 0 var(--ink); }
+.c2 .top .model { margin-left: auto; font: 700 11px 'Space Grotesk'; letter-spacing: .16em; }
+.c2 .row { display: grid; grid-template-columns: 1.25fr auto auto 1fr; gap: 24px; align-items: center; margin-top: 18px; }
+.c2 .lcd { border: 3px solid var(--ink); border-radius: 14px; padding: 12px 18px; background: radial-gradient(circle, rgba(0, 120, 191, .35) 1.4px, transparent 1.7px) 0 0 / 7px 7px, #dcecf7; }
+.c2 .lcd .big { font: 400 54px/1 'Archivo Black'; color: var(--blue); text-shadow: 3px 2px 0 rgba(255, 72, 176, .6); letter-spacing: -.02em; }
+.c2 .lcd .sm { font: 700 13px 'Space Grotesk'; margin-top: 4px; }
+.c2 .cx-knob .k { background: var(--paper); border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--blue); }
+.c2 .cx-knob .k::after { background: var(--pink); }
+.c2 .cx-knob .k::before { content: ''; position: absolute; inset: 14px; border-radius: 50%; border: 2px dashed var(--ink); opacity: .3; }
+.c2 .keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.c2 .keys span { position: relative; text-align: center; font: 700 12px 'Space Grotesk'; text-transform: uppercase; padding: 16px 0 8px; border: 2.5px solid var(--ink); border-radius: 10px; background: var(--paper); box-shadow: 3px 3px 0 var(--ink); }
+.c2 .keys span::before { content: ''; position: absolute; top: 5px; left: 50%; margin-left: -4px; width: 8px; height: 8px; border-radius: 50%; border: 2px solid var(--ink); }
+.c2 .keys span.on::before { background: var(--pink); }
+.c2 .cx-strip { margin-top: 20px; border: 3px solid var(--ink); }
+.c2 .bottom { display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: center; margin-top: 18px; }
+.c2 .slip { display: flex; align-items: center; gap: 18px; border: 2.5px dashed var(--pink); padding: 10px 18px; transform: rotate(-1deg); background: #fff7fb; }
+.c2 .slip .n { font: 400 52px/1 'Archivo Black'; color: var(--pink); mix-blend-mode: multiply; text-shadow: 3px 2px 0 rgba(0, 120, 191, .55); }
+.c2 .slip .cx-vu { margin-left: auto; }
+.c2 .slip .cx-vu i { background: #d8cfbd; border: 1.5px solid var(--ink); }
+.c2 .slip .cx-vu i.on { background: var(--blue); }
+.c2 .slip .cx-vu i.hot { background: var(--pink); }
+.c2 .rec { display: flex; align-items: center; gap: 12px; font: 700 11px 'Space Grotesk'; letter-spacing: .14em; text-transform: uppercase; }
+.c2 .rec b { width: 66px; height: 66px; border-radius: 50%; border: 3px solid var(--ink); background: var(--pink); box-shadow: 5px 5px 0 var(--ink); display: grid; place-items: center; font: 400 15px 'Archivo Black'; color: #fff; }
+
+/* =========================================================
+   C3 · NIGHT SESSION: dark. Neo-Brutalist's off-white outlines
+   and hard shadows, Riso's fluoro inks and halftone, Studio
+   Console's knobs, meter and REC button.
+   ========================================================= */
+.c3 { --edge: #f1ead8; --pink: #ff4fb4; --blue: #3a8fdc; --sun: #ffd23f; --org: #ff5a1f; background: #141317; color: var(--edge); font-family: 'Space Grotesk', sans-serif; padding: 22px 24px 26px; position: relative; overflow: hidden; }
+.c3::before { content: ''; position: absolute; right: -120px; top: -160px; width: 480px; height: 480px; border-radius: 50%; background: radial-gradient(circle, var(--pink) 1.6px, transparent 1.9px) 0 0 / 10px 10px; opacity: .25; }
+.c3 > * { position: relative; z-index: 1; }
+.c3 .b { border: 3px solid var(--edge); box-shadow: 6px 6px 0 var(--edge); border-radius: 14px; }
+.c3 .bar { display: flex; align-items: center; gap: 12px; }
+.c3 .mast { font: 400 26px/1 'Archivo Black'; color: var(--pink); text-shadow: 2.5px 2px 0 var(--blue); margin-right: 10px; }
+.c3 .tab { font-weight: 700; font-size: 14px; padding: 8px 16px; background: #222127; }
+.c3 .tab.on { background: var(--sun); color: #141317; transform: rotate(-2deg); }
+.c3 .live { margin-left: auto; display: flex; align-items: center; gap: 8px; font: 700 12px 'Space Grotesk'; letter-spacing: .14em; text-transform: uppercase; }
+.c3 .live i { width: 10px; height: 10px; border-radius: 50%; background: var(--org); box-shadow: 0 0 10px var(--org); animation: blink 1.2s steps(1) infinite; }
+.c3 .row { display: grid; grid-template-columns: 1.3fr auto 1fr; gap: 20px; margin-top: 20px; align-items: stretch; }
+.c3 .key { background: #222127; padding: 14px 20px; }
+.c3 .key .k { font: 700 12px 'Space Grotesk'; text-transform: uppercase; letter-spacing: .14em; color: var(--sun); }
+.c3 .key h2 { margin: 2px 0 0; font: 400 86px/.85 'Archivo Black'; letter-spacing: -.04em; text-transform: uppercase; color: var(--pink); text-shadow: 4px 3px 0 rgba(58, 143, 220, .9); }
+.c3 .key .chips { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.c3 .key .chips span { font: 700 12px 'Space Grotesk'; text-transform: uppercase; padding: 5px 11px; border: 2px solid var(--edge); border-radius: 999px; }
+.c3 .key .chips span.on { background: var(--edge); color: #141317; }
+.c3 .knobs { background: #222127; padding: 14px 18px; display: flex; gap: 18px; align-items: center; }
+.c3 .cx-knob { color: #bdb6a6; }
+.c3 .cx-knob b { color: var(--edge); }
+.c3 .cx-knob .k { background: radial-gradient(circle at 40% 30%, #4a4950, #1b1a1f 70%); border: 3px solid var(--edge); box-shadow: 4px 4px 0 var(--edge); }
+.c3 .cx-knob .k::after { background: var(--org); }
+.c3 .prac { padding: 14px 18px; background: radial-gradient(circle, rgba(255, 79, 180, .4) 1.5px, transparent 1.8px) 0 0 / 8px 8px, #2a1c27; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px 14px; }
+.c3 .prac .k { grid-column: 1 / -1; font: 700 12px 'Space Grotesk'; letter-spacing: .14em; text-transform: uppercase; color: var(--sun); }
+.c3 .prac .n { font: 400 72px/.9 'Archivo Black'; color: var(--sun); }
+.c3 .prac .rec { width: 62px; height: 62px; border-radius: 50%; background: var(--org); border: 3px solid var(--edge); box-shadow: 4px 4px 0 var(--edge); display: grid; place-items: center; font: 400 13px 'Archivo Black'; color: #fff; }
+.c3 .prac .cx-vu i { background: #3a3940; } .c3 .prac .cx-vu i.on { background: var(--sun); } .c3 .prac .cx-vu i.hot { background: var(--org); }
+.c3 .cx-strip { margin-top: 22px; background: #0e0d10; }
+
+.acc { font-size: .5em; vertical-align: .7em; margin-left: .03em; line-height: 0; }
+</style>
+</head>
+<body>
+<header class="sheet">
+  <h1>Three combinations, then the keepers</h1>
+  <p>Riso Zine, Bento Studio (richer now), Neo-Brutalist (round notes) and Studio Console (new neck). Every neck now follows one rule: <b style="color:#e9e8ec;font-weight:500">two colours</b>, the root in one that pops (bigger, ringed, glowing) and every other note in a second, calm one. All four also use the readable layout: real-guitar inlays, strings named and numbered and drawn to gauge, a clear nut, and a number under every fret.</p>
+  <nav class="toc"><a href="#oc1">C1 Brutal Print</a><a href="#oc2">C2 Printed Hardware</a><a href="#oc3">C3 Night Session</a><a href="#o3">01 Riso Zine</a><a href="#o4">02 Bento Studio</a><a href="#o7">03 Neo-Brutalist</a><a href="#o7d">03b Neo-Brutalist · dark</a><a href="#on1">04 Studio Console</a></nav>
+</header>
+
+<section class="opt" id="oc1">
+  <div class="opt__head"><span class="opt__n">C1</span><span class="opt__name">Brutal Print <small>combination · light</small></span>
+    <p class="opt__pitch"><b>Neo-Brutalist is the base</b>: cream page, chunky black borders, hard shadows, flat yellow, cyan and green, the ticker. <b>Riso adds the print details</b>: the misregistered pink-and-blue wordmark, sticker navigation, a giant outlined "C" with a pink offset, a halftone practice ticket and a light paper grain. <b>The Studio Console neck</b> sits in the middle as the dark, calm anchor.</p></div>
+  <div class="screen wide"><div class="c1">
+    <div class="bar"><span class="mast">FRETBOARD</span><span class="stk on">Explorer</span><span class="stk">Practice</span><span class="stk">Chord Map</span><span class="issue">Issue 01 · Scales</span></div>
+    <div class="row">
+      <div class="key b"><div class="giant">C</div><div><h2>Major</h2><p>7 notes · 0 sharps<br>W W H W W W H</p></div></div>
+      <div class="opts b"><h4>Show me</h4><span class="on">Full neck</span><span>Vertical</span><span>Diagonal</span><span>Triads</span><span>TAB</span><span class="on">CAGED</span></div>
+      <div class="ticket b"><div class="k">Admit one · practice</div><div class="n">F<span class="acc">♯</span></div><div style="font-weight:700">string 3 · play it loud</div><button>GO →</button></div>
+    </div>
+    <div class="neck b"><div class="cx-strip" id="bc1"></div></div>
+    <div class="ticker"><div id="tickc1"></div></div>
+  </div></div>
+</section>
+
+<section class="opt" id="oc2">
+  <div class="opt__head"><span class="opt__n">C2</span><span class="opt__name">Printed Hardware <small>combination · light</small></span>
+    <p class="opt__pitch"><b>Studio Console is the base</b>: the app is a device, with screws, a display, knobs for root and scale, LED keys for the views, a practice slip with a mic meter, and a REC button. <b>It's printed in Riso's two inks on paper</b>: the display is a blue halftone panel with a pink-offset "C MAJ", and the LEDs are pink dots. <b>Neo-Brutalist provides the construction</b>, with ink outlines and hard shadows on every control. The neck is the console neck, set into the paper device.</p></div>
+  <div class="screen wide"><div class="c2"><div class="dev">
+    <i class="screw" style="left:12px;top:12px"></i><i class="screw" style="right:12px;top:12px"></i><i class="screw" style="left:12px;bottom:12px"></i><i class="screw" style="right:12px;bottom:12px"></i>
+    <div class="top"><span class="mast">FRETBOARD</span><span class="m on">Explorer</span><span class="m">Practice</span><span class="m">Chord Map</span><span class="model">FB-1 · PRINTED IN TWO INKS</span></div>
+    <div class="row">
+      <div class="lcd"><div class="big">C MAJ</div><div class="sm">7 notes · W W H W W W H · 0 sharps</div></div>
+      <div class="cx-knob"><div class="k" style="--r:-120deg"></div>root<b>C</b></div>
+      <div class="cx-knob"><div class="k" style="--r:-60deg"></div>scale<b>Major</b></div>
+      <div class="keys"><span class="on">full</span><span>vert</span><span>diag</span><span>triad</span><span>tab</span><span class="on">caged</span></div>
+    </div>
+    <div class="cx-strip" id="bc2"></div>
+    <div class="bottom">
+      <div class="slip"><span class="n">F<span class="acc">♯</span></span><span style="font-weight:700">FIND IT ON<br>STRING 3</span><div class="cx-vu"><i class="on" style="height:30%"></i><i class="on" style="height:45%"></i><i class="on" style="height:60%"></i><i class="on" style="height:72%"></i><i class="hot" style="height:86%"></i><i style="height:95%"></i><i style="height:100%"></i></div></div>
+      <div class="rec">hold to listen <b>REC</b></div>
+    </div>
+  </div></div></div>
+</section>
+
+<section class="opt" id="oc3">
+  <div class="opt__head"><span class="opt__n">C3</span><span class="opt__name">Night Session <small>combination · dark</small></span>
+    <p class="opt__pitch">The dark one. <b>Neo-Brutalist's dark mode</b> provides the structure: off-white chunky outlines and hard shadows on near-black. <b>Riso adds the inks</b>: the fluoro-pink "C MAJOR" with a blue offset, a halftone glow behind the header, and a halftone practice card. <b>Studio Console adds the hardware</b>: real knobs, a mic level meter, an orange REC button, a blinking "live" light, and its neck. A practice room at night.</p></div>
+  <div class="screen wide"><div class="c3">
+    <div class="bar"><span class="mast">FRETBOARD</span><span class="tab b on">Explorer</span><span class="tab b">Practice</span><span class="tab b">Chord Map</span><span class="live"><i></i>mic live</span></div>
+    <div class="row">
+      <div class="key b"><div class="k">Now playing</div><h2>C Major</h2><div class="chips"><span class="on">Full</span><span>Vertical</span><span>Diagonal</span><span>Triads</span><span>TAB</span><span class="on">CAGED</span></div></div>
+      <div class="knobs b"><div class="cx-knob"><div class="k" style="--r:-120deg"></div>root<b>C</b></div><div class="cx-knob"><div class="k" style="--r:-60deg"></div>scale<b>Major</b></div></div>
+      <div class="prac b"><div class="k">Practice</div><div><div class="n">F<span class="acc">♯</span></div><div style="font-weight:700">string 3</div></div><div class="rec">REC</div><div class="cx-vu" style="grid-column:1/-1"><i class="on" style="height:30%"></i><i class="on" style="height:45%"></i><i class="on" style="height:60%"></i><i class="on" style="height:72%"></i><i class="on" style="height:80%"></i><i class="hot" style="height:90%"></i><i style="height:95%"></i><i style="height:100%"></i></div></div>
+    </div>
+    <div class="cx-strip b" id="bc3"></div>
+  </div></div>
+</section>
+
+<section class="opt" id="o3">
+  <div class="opt__head"><span class="opt__n">01</span><span class="opt__name">Riso Zine <small>darker notes</small></span>
+    <p class="opt__pitch">Fluoro pink and blue on paper, misregistered, with halftone dots and grain. Sticker navigation, a giant outlined key letter and a ticket-stub practice prompt. <b>The scale notes are now solid mid-blue discs with cream letters</b> (with a faint pink offset, like a real two-ink print), so they read clearly against the paper. The pink root still pops: bigger, with a halftone halo.</p></div>
+  <div class="screen wide"><div class="d3">
+    <div class="top"><span class="mast">FRETBOARD</span><span class="sticker on">Explorer</span><span class="sticker">Practice</span><span class="sticker">Chord Map</span><span class="issue">Issue 01 · Scales</span></div>
+    <div class="hero">
+      <div class="giant">C</div>
+      <div class="blurb"><h2>Major,<br><span>all over</span> the neck</h2>
+        <p>Seven notes, twelve frets, one shape that slides. Light up the scale, then go hunt it down by ear.</p>
+        <div class="pills"><span class="on">FULL</span><span>VERTICAL</span><span>DIAGONAL</span><span>TRIADS</span><span>TAB</span><span>CAGED</span></div></div>
+      <div class="ticket"><div class="k">Admit one · practice</div><div class="n">F<span class="acc">♯</span></div><div class="s">string 3 · play it loud</div><button>Start ▸</button></div>
+    </div>
+    <div class="neck" id="b3"></div>
+    <div class="foot"><span>● root &nbsp; ○ scale note</span><span>printed in two inks</span></div>
+  </div></div>
+</section>
+<section class="opt" id="o4">
+  <div class="opt__head"><span class="opt__n">02</span><span class="opt__name">Bento Studio <small>now richer</small></span>
+    <p class="opt__pitch">Same idea, a lot more going on. The tiles have depth and light, with icons and small mono labels. <b>The key tile adds a mode switcher</b>, the practice tile shows a <b>live mic waveform</b>, and the streak shows the days of the week. The neck tile gets its own view controls and legend, plus three new tiles: an <b>interval ruler</b> (steps drawn to scale), <b>the C chord box</b>, and a chord-map peek. A command-search pill and a streak ring sit in the header.</p></div>
+  <div class="screen wide"><div class="d4">
+    <div class="bar"><div class="brand"><i><svg width="14" height="14" viewBox="0 0 24 24" fill="#121316"><circle cx="12" cy="12" r="6"/></svg></i>Fretboard</div>
+      <div class="seg"><span class="on"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M3 14h18M9 5v14M15 5v14"/></svg>Explorer</span><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h2l2-6 4 12 3-9 2 3h3"/></svg>Practice</span><span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="2.5"/><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><path d="M10 10.5 6.5 7.5M14 10.5l3.5-3"/></svg>Chord Map</span></div>
+      <div class="me"><span class="search">Jump to a key or scale <kbd>⌘K</kbd></span><b title="12-day streak"></b></div></div>
+    <div class="grid">
+      <div class="tile key"><h3><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Key<em>0 sharps</em></h3><div class="big">C</div>
+        <div class="modes"><span class="on">Major</span><span>Minor</span><span>Dorian</span><span>Mixolydian</span><span>Pentatonic</span><span>+19</span></div>
+        <div class="ring" id="ring4"></div></div>
+      <div class="tile prac"><h3>Practice now<em style="color:#3b4a07">mic ready</em></h3><div class="n">F<span class="acc">♯</span></div><div class="s">on string 3</div><svg class="wave" id="wave4" viewBox="0 0 200 28" preserveAspectRatio="none"></svg><button><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg></button></div>
+      <div class="tile streak"><h3>This week<em>first try</em></h3><div class="n">86<small>%</small></div><div class="bars"><i style="height:40%"></i><i class="on" style="height:70%"></i><i class="on" style="height:55%"></i><i class="on" style="height:90%"></i><i style="height:30%"></i><i class="on" style="height:80%"></i><i class="on" style="height:100%"></i></div><div class="days"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div></div>
+      <div class="tile toggles"><h3>Overlays</h3><div class="tg">Triads <u></u></div><div class="tg">TAB <u></u></div><div class="tg">CAGED <u class="on"></u></div><div class="tg">Degrees <u></u></div></div>
+      <div class="tile neck"><div class="h"><h3>Neck</h3><div class="vs"><span class="on">Full</span><span>Vertical</span><span>Diagonal</span></div><div class="lg"><span><i style="background:#c8f53a;box-shadow:0 0 8px #c8f53a"></i>Root</span><span><i style="background:#2c2d33;border:1.5px solid #e6e6e2"></i>Scale note</span><span style="font-family:JetBrains Mono">frets 0–12</span></div></div><div id="b4"></div></div>
+      <div class="tile ruler"><h3>Interval ruler<em>W W H W W W H</em></h3><div class="steps" id="steps4"></div></div>
+      <div class="tile chord"><h3>Chord I<em>open</em></h3><div class="row"><div id="chord4"></div><div><b>C</b><small>C · E · G</small><small>x32010</small></div></div></div>
+      <div class="tile map"><h3>Chord map<em>from C</em></h3><svg viewBox="0 0 200 104"><g stroke="#3a3b41" stroke-width="1.5"><line x1="100" y1="56" x2="100" y2="16"/><line x1="100" y1="56" x2="46" y2="88"/><line x1="100" y1="56" x2="154" y2="88"/></g><circle cx="100" cy="56" r="17" fill="#c8f53a"/><text x="100" y="61" text-anchor="middle" font-size="14" font-weight="800" fill="#121316" font-family="Inter Tight">C</text><g font-family="Inter Tight" font-size="11" font-weight="600" fill="#f2f2f0" text-anchor="middle"><circle cx="100" cy="16" r="13" fill="#2c2d33"/><text x="100" y="20">Cm</text><circle cx="46" cy="88" r="13" fill="#2c2d33"/><text x="46" y="92">Am</text><circle cx="154" cy="88" r="13" fill="#2c2d33"/><text x="154" y="92">Em</text></g></svg></div>
+    </div>
+  </div></div>
+</section>
+
+<section class="opt" id="o7">
+  <div class="opt__head"><span class="opt__n">03</span><span class="opt__name">Neo-Brutalist <small>round notes now</small></span>
+    <p class="opt__pitch">The colours you loved are untouched: chunky borders, hard shadows, flat yellow, cyan and salmon, and the note ticker. <b>The notes are round now</b>, and the neck follows the new two-colour rule: <b>the root is a big salmon disc</b> with a thick ink outline and a hard shadow, and every other note is a cyan disc. The pattern reads instantly and the root jumps out.</p></div>
+  <div class="screen wide"><div class="d7">
+    <div class="bar"><span class="logo b">FRETBOARD</span><span class="tab b on">Explorer</span><span class="tab b">Practice</span><span class="tab b">Chord Map</span></div>
+    <div class="ticker"><div id="tick7"></div></div>
+    <div class="main">
+      <div class="key b"><div class="k">Current key</div><div class="big">C</div><div class="sub">MAJOR · 0 sharps</div></div>
+      <div class="opts b"><h4>Show me</h4><span class="on">Full neck</span><span>Vertical</span><span>Diagonal</span><span>Triads</span><span>TAB</span><span class="on">CAGED</span></div>
+      <div class="prac b"><div style="font-weight:700;text-transform:uppercase;font-size:13px">Practice</div><div class="n">F<span class="acc">♯</span></div><div style="font-weight:700">string 3</div><button>GO →</button></div>
+      <div class="neck b" id="b7"></div>
+    </div>
+  </div></div>
+</section>
+<section class="opt" id="o7d">
+  <div class="opt__head"><span class="opt__n">03b</span><span class="opt__name">Neo-Brutalist · dark <small>dark mode</small></span>
+    <p class="opt__pitch">The same layout at night. The page goes near-black, the borders and hard shadows switch to a warm off-white so the chunky outlines still read, and the blocks keep their flat colours (yellow, cyan, salmon, green), slightly deepened so they don't glare. On the neck, the strings and frets are light lines on a dark board, the scale notes stay cyan, and the root stays a big salmon disc. Same punch, easier on the eyes in a dim room.</p></div>
+  <div class="screen wide"><div class="d7 d7--dark">
+    <div class="bar"><span class="logo b">FRETBOARD</span><span class="tab b on">Explorer</span><span class="tab b">Practice</span><span class="tab b">Chord Map</span></div>
+    <div class="ticker"><div id="tick7d"></div></div>
+    <div class="main">
+      <div class="key b"><div class="k">Current key</div><div class="big">C</div><div class="sub">MAJOR · 0 sharps</div></div>
+      <div class="opts b"><h4>Show me</h4><span class="on">Full neck</span><span>Vertical</span><span>Diagonal</span><span>Triads</span><span>TAB</span><span class="on">CAGED</span></div>
+      <div class="prac b"><div style="font-weight:700;text-transform:uppercase;font-size:13px">Practice</div><div class="n">F<span class="acc">♯</span></div><div style="font-weight:700">string 3</div><button>GO →</button></div>
+      <div class="neck b" id="b7d"></div>
+    </div>
+  </div></div>
+</section>
+<section class="opt" id="on1">
+  <div class="opt__head"><span class="opt__n">04</span><span class="opt__name">Studio Console <small>new neck</small></span>
+    <p class="opt__pitch">Same hardware idea: a warm grey device, green LCD, knobs for root and scale, rubber keys with LED dots, and a practice screen with a mic meter. <b>The neck is built like Neo-Brutalist's</b> (flat, crisp lines, round notes with a hard offset shadow) but in the console's palette. It sits in a matte black strip with warm-grey strings and frets, and small orange LED inlays. Every note is a flat panel key the colour of the device body, and <b>the root is the one orange key</b>: bigger, with a soft LED glow.</p></div>
+  <div class="screen wide"><div class="dn1"><div class="dev">
+    <i class="screw" style="left:12px;top:12px"></i><i class="screw" style="right:12px;top:12px"></i><i class="screw" style="left:12px;bottom:12px"></i><i class="screw" style="right:12px;bottom:12px"></i>
+    <div class="top"><span class="brand"><i></i>fretboard</span><div class="modes"><span class="on">explorer</span><span>practice</span><span>chord map</span></div><span class="model">FB-1 · SCALE UNIT</span></div>
+    <div class="row">
+      <div class="lcd"><div class="big">C MAJ</div><div class="sm">7 NOTES · W W H W W W H · 0♯</div></div>
+      <div class="knob"><div class="k" style="--r:-120deg"></div>root<b>C</b></div>
+      <div class="knob"><div class="k" style="--r:-60deg"></div>scale<b>Major</b></div>
+      <div class="keys"><span class="on">full</span><span>vert</span><span>diag</span><span>triad</span><span>tab</span><span class="on">caged</span></div>
+    </div>
+    <div class="strip" id="bn1"></div>
+    <div class="bottom">
+      <div class="oled"><span class="n">F<span class="acc">♯</span></span><span>FIND ON<br>STRING 3</span><div class="vu"><i class="on" style="height:30%"></i><i class="on" style="height:45%"></i><i class="on" style="height:60%"></i><i class="on" style="height:70%"></i><i class="on" style="height:78%"></i><i class="hot" style="height:88%"></i><i style="height:95%"></i><i style="height:100%"></i></div></div>
+      <div class="big-btn">hold to listen <b>REC</b></div>
+    </div>
+  </div></div></div>
+</section>
+<footer class="sheet">Pick the one to build (or a mix), and I'll bring it into the real app, with a backup first.</footer>
+<script>
+// Shared data: C major on frets 0–12, strings high E → low E.
+const NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
+const OPEN = [4, 11, 7, 2, 9, 4], LABELS = ['E', 'B', 'G', 'D', 'A', 'E'];
+const SCALE = [0, 2, 4, 5, 7, 9, 11];
+const DEG_NAMES = ['Root', 'Major 2nd', 'Major 3rd', 'Perfect 4th', 'Perfect 5th', 'Major 6th', 'Major 7th'];
+const SPECTRUM = ['#ffffff', '#f6c453', '#7bd389', '#4cc9f0', '#9b87ff', '#f78fb3', '#ff9a5a'];
+const FRETS = 13, MARKS = [3, 5, 7, 9, 12];
+const cells = [];
+for (let s = 0; s < 6; s++) for (let f = 0; f < FRETS; f++) {
+  const pc = (OPEN[s] + f) % 12;
+  cells.push({ s, f, pc, name: NAMES[pc], d: SCALE.indexOf(pc) });
+}
+
+// A neck drawn by callbacks, so each design paints its own strings, frets and notes.
+function neck(o) {
+  const W = o.W || 1100, H = o.H || 220, T = o.top ?? 26, B = o.bot ?? 26, N = o.nut ?? 64;
+  const fx = (n) => N + (W - N - 14) * (1 - Math.pow(2, -n / 12)) / (1 - Math.pow(2, -(FRETS - 1) / 12));
+  const nx = (f) => (f === 0 ? N - 28 : (fx(f - 1) + fx(f)) / 2);
+  const sy = (s) => T + s * (H - T - B) / 5;
+  const k = { W, H, T, B, N, fx, nx, sy };
+  let g = `<svg viewBox="0 0 ${W} ${H}">${o.defs || ''}${o.under ? o.under(k) : ''}`;
+  for (let n = 1; n < FRETS; n++) g += o.fret(fx(n), n, k);
+  g += o.nutLine ? o.nutLine(k) : '';
+  for (let s = 0; s < 6; s++) g += o.string(sy(s), s, k);
+  if (o.mark) for (const f of MARKS) g += o.mark(nx(f), f, k);
+  for (const c of cells) if (c.d >= 0) g += o.note(c, nx(c.f), sy(c.s), k);
+  return g + '</svg>';
+}
+
+
+// ---- the four keepers ---------------------------------------------------------
+// One rule for every neck: two colours only. The root pops (bigger, ringed,
+// glowing), every other scale note shares one calm colour. Plus the readable
+// layout: real-guitar inlays, strings named and numbered, gauge-true
+// thickness, a clear nut and a number under every fret.
+const put = (id, html) => { document.getElementById(id).innerHTML = html; };
+const tx = (x, y, s, o = {}) => `<text x="${x}" y="${y}" text-anchor="${o.anchor || 'middle'}" font-family="${o.font || 'Inter'}" font-size="${o.size || 13}" font-weight="${o.weight || 600}" fill="${o.fill || '#000'}"${o.opacity ? ` fill-opacity="${o.opacity}"` : ''}>${s}</text>`;
+const STR_NUM = ['1', '2', '3', '4', '5', '6'];
+const STR_NAME = ['e', 'B', 'G', 'D', 'A', 'E'];
+const GAUGE = [1.0, 1.3, 1.7, 2.2, 2.7, 3.2];
+function inlays(k, draw) {
+  let g = '';
+  for (const f of [3, 5, 7, 9]) g += draw(k.nx(f), (k.sy(2) + k.sy(3)) / 2);
+  return g + draw(k.nx(12), (k.sy(1) + k.sy(2)) / 2) + draw(k.nx(12), (k.sy(3) + k.sy(4)) / 2);
+}
+function readable(o) {
+  return neck({
+    H: o.H || 250, W: o.W || 1100, nut: 98, top: 26, bot: 40, defs: o.defs,
+    under: (k) => (o.under ? o.under(k) : '') + inlays(k, o.inlay),
+    fret: (x, n, k) => o.fret(x, n, k) + tx(k.nx(n), k.H - 12, n, { font: o.font, size: 12, weight: [3, 5, 7, 9, 12].includes(n) ? 700 : 500, fill: o.num, opacity: [3, 5, 7, 9, 12].includes(n) ? 1 : 0.55 }),
+    nutLine: o.nut,
+    string: (y, s, k) => o.string(y, s, k) + tx(10, y + 4.5, STR_NUM[s], { anchor: 'start', font: o.font, size: 11, weight: 500, fill: o.label, opacity: 0.6 }) + tx(26, y + 5, STR_NAME[s], { anchor: 'start', font: o.font, size: 14, weight: 700, fill: o.label }),
+    note: o.note,
+  });
+}
+function fifthsRing(o) {
+  const keys = ['C', 'G', 'D', 'A', 'E', 'B', 'F♯', 'D♭', 'A♭', 'E♭', 'B♭', 'F'];
+  let g = `<svg viewBox="0 0 220 220" style="max-width:${o.max || 220}px">` + o.track;
+  keys.forEach((key, i) => {
+    const a = (i / 12) * Math.PI * 2 - Math.PI / 2, x = 110 + 82 * Math.cos(a), y = 110 + 82 * Math.sin(a);
+    g += o.dot(x, y, i) + tx(x, y + 4.5, key, { font: o.font, size: 12, weight: 700, fill: i === 0 ? o.onText : o.text });
+  });
+  return g + tx(110, 106, 'circle of', { font: o.font, size: 11, weight: 600, fill: o.mid }) + tx(110, 121, 'fifths', { font: o.font, size: 11, weight: 600, fill: o.mid }) + '</svg>';
+}
+
+// 01 · Riso Zine: root = big fluoro-pink print with a blue misregistration and
+// a halftone halo; every other note = paper with a blue ring.
+put('b3', readable({ font: 'Space Grotesk', num: '#ff48b0', label: '#1a1a1a',
+  defs: '<defs><pattern id="ht3" width="5" height="5" patternUnits="userSpaceOnUse"><circle cx="2.5" cy="2.5" r="1.1" fill="#ff48b0"/></pattern></defs>',
+  inlay: (x, y) => `<circle cx="${x}" cy="${y}" r="5.5" fill="#0078bf" fill-opacity=".35"/>`,
+  fret: (x, n, k) => `<line x1="${x}" x2="${x}" y1="${k.T - 10}" y2="${k.H - k.B + 10}" stroke="#0078bf" stroke-width="${n === 12 ? 3 : 1.6}"/>`,
+  nut: (k) => `<rect x="${k.N - 4}" y="${k.T - 12}" width="8" height="${k.H - k.T - k.B + 24}" fill="#1a1a1a"/>`,
+  string: (y, s, k) => `<line x1="${k.N - 52}" x2="${k.W - 14}" y1="${y}" y2="${y}" stroke="#1a1a1a" stroke-width="${GAUGE[s]}"/>`,
+  note: (c, x, y) => c.d === 0
+    ? `<circle cx="${x}" cy="${y}" r="23" fill="url(#ht3)" opacity=".7"/><circle cx="${x + 2.5}" cy="${y + 2}" r="16" fill="#0078bf" style="mix-blend-mode:multiply"/><circle cx="${x}" cy="${y}" r="16" fill="#ff48b0" stroke="#1a1a1a" stroke-width="2"/>${tx(x, y + 5.5, c.name, { font: 'Archivo Black', size: 15, weight: 400, fill: '#fff' })}`
+    : `<circle cx="${x + 1.5}" cy="${y + 1.5}" r="12.5" fill="#ff48b0" fill-opacity=".45" style="mix-blend-mode:multiply"/><circle cx="${x}" cy="${y}" r="12.5" fill="#1f5f9e"/>${tx(x, y + 4.5, c.name, { font: 'Space Grotesk', size: 13, weight: 700, fill: '#f5f0e6' })}`,
+}));
+
+// 02 · Bento Studio: root = lime with a glow ring; other notes = graphite with a light rim.
+put('ring4', fifthsRing({ font: 'Inter Tight', text: '#c9cacf', onText: '#121316', mid: '#9d9ea6', max: 230,
+  track: '<circle cx="110" cy="110" r="82" fill="none" stroke="#2c2d33" stroke-width="28"/>',
+  dot: (x, y, i) => i === 0 ? `<circle cx="${x}" cy="${y}" r="15" fill="#c8f53a" style="filter:drop-shadow(0 0 8px rgba(200,245,58,.6))"/>` : (i === 1 || i === 11) ? `<circle cx="${x}" cy="${y}" r="14" fill="#3a3b41"/>` : '' }));
+put('wave4', (() => {
+  let d = 'M0 14';
+  for (let x = 0; x <= 200; x += 4) d += ` L${x} ${14 + Math.sin(x / 7) * (4 + 7 * Math.abs(Math.sin(x / 31))) * (x > 150 ? 0.35 : 1)}`;
+  return `<path d="${d}" fill="none" stroke="#1b2400" stroke-width="2" stroke-linecap="round" opacity=".8"/>`;
+})());
+put('steps4', SCALE.map((pc, i) => `<div class="${i ? '' : 'root'}" style="flex:${[2, 2, 1, 2, 2, 2, 1][i]}">${NAMES[pc]}<small>${i + 1}</small></div>`).join(''));
+put('chord4', (() => {
+  const frets = [-1, 3, 2, 0, 1, 0];               // C, low E → high E
+  const sx = (i) => 10 + i * 13, fy = (f) => 14 + (f - 0.5) * 16;
+  let g = '<svg viewBox="0 0 86 90" width="86" height="90">';
+  g += '<rect x="9" y="12" width="67" height="4" rx="1" fill="#e6e6e2"/>';
+  for (let f = 1; f <= 4; f++) g += `<line x1="10" x2="75" y1="${14 + f * 16}" y2="${14 + f * 16}" stroke="#3a3b41"/>`;
+  for (let i = 0; i < 6; i++) g += `<line x1="${sx(i)}" x2="${sx(i)}" y1="14" y2="78" stroke="#6f7078"/>`;
+  frets.forEach((f, i) => {
+    if (f < 0) g += tx(sx(i), 9, '×', { size: 10, fill: '#6f7078' });
+    else if (f === 0) g += `<circle cx="${sx(i)}" cy="6" r="3.5" fill="none" stroke="#e6e6e2" stroke-width="1.3"/>`;
+    else g += `<circle cx="${sx(i)}" cy="${fy(f)}" r="5.5" fill="${i === 1 ? '#c8f53a' : '#e6e6e2'}"/>`;
+  });
+  return g + '</svg>';
+})());
+put('b4', readable({ W: 1000, H: 240, font: 'Inter Tight', num: '#c9cacf', label: '#e6e6e2',
+  inlay: (x, y) => `<circle cx="${x}" cy="${y}" r="5" fill="#3a3b41"/>`,
+  fret: (x, n, k) => `<line x1="${x}" x2="${x}" y1="${k.T - 10}" y2="${k.H - k.B + 10}" stroke="#3a3b41" stroke-width="${n === 12 ? 3 : 1.6}"/>`,
+  nut: (k) => `<rect x="${k.N - 4}" y="${k.T - 12}" width="8" height="${k.H - k.T - k.B + 24}" rx="3" fill="#c9cacf"/>`,
+  string: (y, s, k) => `<line x1="${k.N - 52}" x2="${k.W - 14}" y1="${y}" y2="${y}" stroke="#6b6c74" stroke-width="${GAUGE[s]}"/>`,
+  note: (c, x, y) => c.d === 0
+    ? `<circle cx="${x}" cy="${y}" r="20" fill="#c8f53a" fill-opacity=".18"/><circle cx="${x}" cy="${y}" r="15" fill="#c8f53a" style="filter:drop-shadow(0 0 8px rgba(200,245,58,.55))"/>${tx(x, y + 5, c.name, { font: 'Inter Tight', size: 14, weight: 800, fill: '#121316' })}`
+    : `<circle cx="${x}" cy="${y}" r="12.5" fill="#2c2d33" stroke="#e6e6e2" stroke-opacity=".75" stroke-width="1.4"/>${tx(x, y + 4.5, c.name, { font: 'Inter Tight', size: 12.5, weight: 600, fill: '#f2f2f0' })}`,
+}));
+
+// 03 · Neo-Brutalist: round notes now. Root = salmon, bigger, thick ink and a
+// hard shadow; every other note = cyan with an ink outline.
+put('tick7', ('C MAJOR ★ C · D · E · F · G · A · B ★ W W H W W W H ★ ROOT ON 6 SPOTS ★ PRACTICE: F♯ ON STRING 3 ★ ').repeat(4));
+put('b7', readable({ font: 'Space Grotesk', num: '#111', label: '#111',
+  inlay: (x, y) => `<circle cx="${x}" cy="${y}" r="6" fill="#ffd400" stroke="#111" stroke-width="2"/>`,
+  fret: (x, n, k) => `<line x1="${x}" x2="${x}" y1="${k.T - 10}" y2="${k.H - k.B + 10}" stroke="#111" stroke-width="${n === 12 ? 4 : 2}"/>`,
+  nut: (k) => `<rect x="${k.N - 5}" y="${k.T - 12}" width="10" height="${k.H - k.T - k.B + 24}" fill="#111"/>`,
+  string: (y, s, k) => `<line x1="${k.N - 52}" x2="${k.W - 14}" y1="${y}" y2="${y}" stroke="#111" stroke-width="${GAUGE[s] + 0.3}"/>`,
+  note: (c, x, y) => c.d === 0
+    ? `<circle cx="${x + 4}" cy="${y + 4}" r="16.5" fill="#111"/><circle cx="${x}" cy="${y}" r="16.5" fill="#ff7a59" stroke="#111" stroke-width="3"/>${tx(x, y + 5.5, c.name, { font: 'Space Grotesk', size: 15, weight: 700, fill: '#111' })}`
+    : `<circle cx="${x + 2}" cy="${y + 2}" r="12.5" fill="#111"/><circle cx="${x}" cy="${y}" r="12.5" fill="#3de0ff" stroke="#111" stroke-width="2.2"/>${tx(x, y + 4.5, c.name, { font: 'Space Grotesk', size: 13, weight: 700, fill: '#111' })}`,
+}));
+
+// 04 · Studio Console: a new neck. A light maple fingerboard set into the
+// device like a wood panel, black dot inlays (as on maple necks), nickel
+// frets, and notes as rubber key caps; the root key is lit orange.
+put('bn1', readable({ font: 'Inter Tight', num: '#cfc8b8', label: '#ece6d8',
+  // Neo-Brutalist's flat, outlined construction in the console's palette:
+  // a matte black strip, crisp warm-grey lines, notes as flat panel keys with
+  // a hard shadow; the root is the one orange key, bigger, with its LED glow.
+  inlay: (x, y) => `<circle cx="${x}" cy="${y}" r="5.5" fill="#ff5a1f" fill-opacity=".85" stroke="#0e0e0d" stroke-width="2"/>`,
+  fret: (x, n, k) => `<line x1="${x}" x2="${x}" y1="${k.T - 10}" y2="${k.H - k.B + 10}" stroke="#6f6b63" stroke-width="${n === 12 ? 4 : 2}"/>`,
+  nut: (k) => `<rect x="${k.N - 5}" y="${k.T - 12}" width="10" height="${k.H - k.T - k.B + 24}" fill="#e4e1da"/>`,
+  string: (y, s, k) => `<line x1="${k.N - 52}" x2="${k.W - 14}" y1="${y}" y2="${y}" stroke="#d6d1c6" stroke-width="${GAUGE[s] + 0.3}"/>`,
+  note: (c, x, y) => c.d === 0
+    ? `<circle cx="${x}" cy="${y}" r="22" fill="#ff5a1f" fill-opacity=".18"/><circle cx="${x + 4}" cy="${y + 4}" r="16.5" fill="#0e0e0d"/><circle cx="${x}" cy="${y}" r="16.5" fill="#ff5a1f" stroke="#0e0e0d" stroke-width="3"/>${tx(x, y + 5.5, c.name, { font: 'Inter Tight', size: 15, weight: 800, fill: '#fff' })}`
+    : `<circle cx="${x + 2.5}" cy="${y + 2.5}" r="12.5" fill="#0e0e0d"/><circle cx="${x}" cy="${y}" r="12.5" fill="#e4e1da" stroke="#0e0e0d" stroke-width="2.2"/>${tx(x, y + 4.5, c.name, { font: 'Inter Tight', size: 13, weight: 800, fill: '#232323' })}`,
+}));
+
+// 03b · Neo-Brutalist dark
+put('tick7d', ('C MAJOR ★ C · D · E · F · G · A · B ★ W W H W W W H ★ ROOT ON 6 SPOTS ★ PRACTICE: F♯ ON STRING 3 ★ ').repeat(4));
+put('b7d', readable({ font: 'Space Grotesk', num: '#f1ead8', label: '#f1ead8',
+  inlay: (x, y) => `<circle cx="${x}" cy="${y}" r="6" fill="#f2c400" stroke="#111" stroke-width="2"/>`,
+  fret: (x, n, k) => `<line x1="${x}" x2="${x}" y1="${k.T - 10}" y2="${k.H - k.B + 10}" stroke="#8d877a" stroke-width="${n === 12 ? 4 : 2}"/>`,
+  nut: (k) => `<rect x="${k.N - 5}" y="${k.T - 12}" width="10" height="${k.H - k.T - k.B + 24}" fill="#f1ead8"/>`,
+  string: (y, s, k) => `<line x1="${k.N - 52}" x2="${k.W - 14}" y1="${y}" y2="${y}" stroke="#d8d1bf" stroke-width="${GAUGE[s] + 0.3}"/>`,
+  note: (c, x, y) => c.d === 0
+    ? `<circle cx="${x + 4}" cy="${y + 4}" r="16.5" fill="#f1ead8"/><circle cx="${x}" cy="${y}" r="16.5" fill="#f06a4b" stroke="#111" stroke-width="3"/>${tx(x, y + 5.5, c.name, { font: 'Space Grotesk', size: 15, weight: 700, fill: '#111' })}`
+    : `<circle cx="${x + 2}" cy="${y + 2}" r="12.5" fill="#0c0c0f"/><circle cx="${x}" cy="${y}" r="12.5" fill="#2fc4e0" stroke="#111" stroke-width="2.2"/>${tx(x, y + 4.5, c.name, { font: 'Space Grotesk', size: 13, weight: 700, fill: '#111' })}`,
+}));
+
+// ---- the three combinations: one console neck, three palettes ----
+function consoleNeck(id, o) {
+  put(id, readable({ font: o.font || 'Inter Tight', num: o.num, label: o.label,
+    inlay: (x, y) => `<circle cx="${x}" cy="${y}" r="5.5" fill="${o.inlay}" stroke="#0e0e0d" stroke-width="2"/>`,
+    fret: (x, n, k) => `<line x1="${x}" x2="${x}" y1="${k.T - 10}" y2="${k.H - k.B + 10}" stroke="${o.fret}" stroke-width="${n === 12 ? 4 : 2}"/>`,
+    nut: (k) => `<rect x="${k.N - 5}" y="${k.T - 12}" width="10" height="${k.H - k.T - k.B + 24}" fill="${o.nut}"/>`,
+    string: (y, s, k) => `<line x1="${k.N - 52}" x2="${k.W - 14}" y1="${y}" y2="${y}" stroke="${o.string}" stroke-width="${GAUGE[s] + 0.3}"/>`,
+    note: (c, x, y) => c.d === 0
+      ? `<circle cx="${x}" cy="${y}" r="22" fill="${o.root}" fill-opacity=".2"/>${o.offset ? `<circle cx="${x + 2.5}" cy="${y + 2}" r="16.5" fill="${o.offset}"/>` : ''}<circle cx="${x + 4}" cy="${y + 4}" r="16.5" fill="#0e0e0d"/><circle cx="${x}" cy="${y}" r="16.5" fill="${o.root}" stroke="#0e0e0d" stroke-width="3"/>${tx(x, y + 5.5, c.name, { font: o.font || 'Inter Tight', size: 15, weight: 800, fill: o.rootText })}`
+      : `<circle cx="${x + 2.5}" cy="${y + 2.5}" r="12.5" fill="#0e0e0d"/><circle cx="${x}" cy="${y}" r="12.5" fill="${o.note}" stroke="#0e0e0d" stroke-width="2.2"/>${tx(x, y + 4.5, c.name, { font: o.font || 'Inter Tight', size: 13, weight: 800, fill: o.noteText })}`,
+  }));
+}
+consoleNeck('bc1', { font: 'Space Grotesk', num: '#cfc8b8', label: '#f1ead8', inlay: '#ffd400', fret: '#6f6b63', nut: '#f1ead8', string: '#d6d1c6', root: '#ff48b0', rootText: '#fff', note: '#3de0ff', noteText: '#111' });
+put('tickc1', ('C MAJOR ★ C · D · E · F · G · A · B ★ W W H W W W H ★ ROOT ON 6 SPOTS ★ PRACTICE: F♯ ON STRING 3 ★ ').repeat(4));
+consoleNeck('bc2', { font: 'Space Grotesk', num: '#cfc8b8', label: '#f1ead8', inlay: '#ff48b0', fret: '#6f6b63', nut: '#f5f0e6', string: '#d6d1c6', root: '#ff48b0', rootText: '#fff', note: '#f5f0e6', noteText: '#0078bf' });
+consoleNeck('bc3', { font: 'Space Grotesk', num: '#bdb6a6', label: '#f1ead8', inlay: '#ff5a1f', fret: '#5d5a54', nut: '#f1ead8', string: '#cfc8b8', root: '#ff4fb4', rootText: '#fff', note: '#f1ead8', noteText: '#141317' });
+</script>
+</body>
+</html>

@@ -13,12 +13,14 @@ const $ = (id) => document.getElementById(id);
 const LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
+// Raise ♯/♭ like a chord chart does, for the big display names.
+const acc = (name) => name.replace(/([♯♭]+)/g, '<span class="acc">$1</span>');
 
 // ---- persisted state ---------------------------------------------------------
 
 const KEY = 'practice.chords';
 const saved = (() => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } })();
-const prefs = { deck: 'major', boxes: {}, best: 0, sound: true, ...saved };
+const prefs = { deck: 'major', boxes: {}, best: 0, sound: true, rare: false, ...saved };
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(prefs)); } catch { /* private mode */ } };
 
 // ---- round state -------------------------------------------------------------
@@ -46,14 +48,38 @@ function strum(midis, gap = 45) {
 
 // ---- keypad ------------------------------------------------------------------
 
+// E♯, B♯, C♭ and F♭ are real spellings (C♯ major is C♯–E♯–G♯) but answers are
+// checked by pitch, so F works for E♯. Hidden unless asked for, which leaves
+// the keypad with gaps where a piano has no black keys.
+const RARE = new Set(['E♯', 'B♯', 'C♭', 'F♭']);
+
 function buildKeypad() {
   const pad = $('keypad');
   const rows = [['♯', 'sharp'], ['', 'natural'], ['♭', 'flat']];
   pad.innerHTML = rows.map(([acc, kind]) => LETTERS.map((l) => {
     const name = l + acc;
-    return `<button class="key key--${kind}" data-note="${name}" aria-pressed="false">${l}<span>${acc}</span></button>`;
+    const rare = RARE.has(name) ? ' key--rare' : '';
+    return `<button class="key key--${kind}${rare}" data-note="${name}" aria-pressed="false">${l}<span>${acc}</span></button>`;
   }).join('')).join('');
+  syncRare();
 }
+
+function syncRare() {
+  $('keypad').classList.toggle('hide-rare', !prefs.rare);
+  $('rare-toggle').checked = prefs.rare;
+}
+
+$('rare-toggle').addEventListener('change', (ev) => {
+  prefs.rare = ev.target.checked;
+  save();
+  if (!prefs.rare && step === 'notes' && !busy && picked.some(n => RARE.has(n))) {
+    picked = picked.map(n => (RARE.has(n) ? null : n));
+    while (picked.length && picked[picked.length - 1] === null) picked.pop();
+    renderSlots();
+    renderKeypad();
+  }
+  syncRare();
+});
 
 $('keypad').addEventListener('click', (ev) => {
   const b = ev.target.closest('[data-note]');
@@ -242,7 +268,7 @@ async function finishFretboard() {
 }
 
 function buildFound() {
-  $('found').innerHTML = card.notes.map((n) => `<span class="found found--${card.quality}" data-pc="${pitchClass(n)}">${n}</span>`).join('')
+  $('found').innerHTML = card.notes.map((n) => `<span class="found found--${card.quality}" data-pc="${pitchClass(n)}">${acc(n)}</span>`).join('')
     + '<span class="found__hint">Tap each note somewhere on the neck</span>';
 }
 
@@ -321,13 +347,13 @@ async function nextCard({ first = false } = {}) {
 function renderCard() {
   cardEl.dataset.quality = card.quality;
   $('card-tag').textContent = card.quality === 'min' ? 'Minor chord' : 'Major chord';
-  $('card-name').textContent = card.name;
+  $('card-name').innerHTML = acc(card.name);
   $('card-ask').textContent = 'Which three notes?';
   const degrees = card.quality === 'min' ? ['1', '♭3', '5'] : ['1', '3', '5'];
   const order = card.signature >= 0 ? ORDER_OF_SHARPS : ORDER_OF_FLATS;
   $('card-back').innerHTML = `
     <div class="card__tag">${card.keyName}</div>
-    <div class="back__notes">${card.notes.map((n, i) => `<div class="back__note"><b>${n}</b><span>${degrees[i]}</span></div>`).join('')}</div>
+    <div class="back__notes">${card.notes.map((n, i) => `<div class="back__note"><b>${acc(n)}</b><span>${degrees[i]}</span></div>`).join('')}</div>
     <div class="back__sig">
       <div class="back__count">${signatureLabel(card.signature)}</div>
       ${card.signature === 0 ? '' : `<div class="back__order">${order.map((a, i) => `<span class="${i < card.accidentals.length ? 'on' : ''}">${a}</span>`).join('')}</div>`}
