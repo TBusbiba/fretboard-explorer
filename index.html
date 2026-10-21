@@ -7,7 +7,7 @@
     <meta name="description" content="Map any scale across all 22 frets: roots, degrees, triads, CAGED shapes, TAB and comparisons.">
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT@0,9..144,300..700,0..100;1,9..144,300..700,0..100&family=Geist:wght@300..800&family=Geist+Mono:wght@400..600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <script>
@@ -16,17 +16,16 @@
             theme: {
                 extend: {
                     colors: {
-                        "primary": "#f0b24a",
+                        "primary": "#ff5a1f",
                         "background-light": "#f6f7f8",
-                        "background-dark": "#0c0a09",
-                        "surface-dark": "#1a1612",
+                        "background-dark": "#cbc6bc",
+                        "surface-dark": "#1c1b19",
                         "surface-darker": "#100d0b",
                     },
                     fontFamily: {
-                        "display": ["Geist", "system-ui", "sans-serif"],
-                        "body": ["Geist", "system-ui", "sans-serif"],
-                        "serif": ["Fraunces", "Georgia", "serif"],
-                        "mono": ["Geist Mono", "ui-monospace", "monospace"]
+                        "display": ["Inter Tight", "system-ui", "sans-serif"],
+                        "body": ["Inter Tight", "system-ui", "sans-serif"],
+                                                "mono": ["JetBrains Mono", "ui-monospace", "monospace"]
                     },
                     borderRadius: {
                         "DEFAULT": "0.25rem",
@@ -39,7 +38,7 @@
             },
         }
     </script>
-    <link rel="stylesheet" href="shared/night-stage.css">
+    <link rel="stylesheet" href="shared/console.css">
     <link rel="stylesheet" href="explorer.css">
 </head>
 <body class="font-display bg-background-dark text-white antialiased">
@@ -47,8 +46,7 @@
         <!-- Header -->
         <header class="ex-top">
             <a class="ns-brand" href="index.html" aria-label="Fretboard Explorer home">
-                <svg class="ns-brand__mark" viewBox="0 0 32 32" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="9" fill="#1a1612" stroke="rgba(255,236,205,.18)"/><g class="s" stroke-width="1.2"><line x1="6" x2="26" y1="9" y2="9"/><line x1="6" x2="26" y1="13.5" y2="13.5"/><line x1="6" x2="26" y1="18" y2="18"/><line x1="6" x2="26" y1="22.5" y2="22.5"/></g><line x1="12" x2="12" y1="6" y2="26" stroke="rgba(255,236,205,.35)" stroke-width="1.4"/><circle class="d" cx="18.5" cy="15.75" r="3.6"/></svg>
-                <span class="ns-brand__word">Fret<em>board</em></span>
+                <span class="ns-brand__led" aria-hidden="true"></span><span class="ns-brand__word">fretboard</span><span class="ns-brand__model">FB-1</span>
             </a>
             <nav class="ns-nav" aria-label="Sections">
                 <a href="index.html" aria-current="page"><span class="material-symbols-outlined text-[18px]">grid_on</span>Explorer</a>
@@ -66,7 +64,7 @@
         <!-- Main Content -->
         <div class="flex flex-1 flex-col overflow-y-auto fretboard-scroll">
             <div class="px-4 md:px-10 lg:px-16 flex flex-1 justify-center py-6">
-                <div class="flex flex-col w-full max-w-[1400px] flex-1 gap-6">
+                <div class="ex-unit flex flex-col w-full max-w-[1400px] flex-1 gap-6">
                     
                     <!-- Title and Controls Row -->
                     <div class="flex flex-col xl:flex-row gap-6 justify-between items-start xl:items-end">
@@ -252,15 +250,15 @@
                             <!-- Comparison Legend -->
                             <div class="flex flex-wrap gap-4 mt-4 text-sm">
                                 <div class="flex items-center gap-2">
-                                    <div class="size-3 rounded-full bg-gradient-to-br from-primary to-[#6cd3f2]"></div>
+                                    <div class="size-3 rounded-full bg-[#e4e1da] ring-2 ring-primary"></div>
                                     <span class="text-[#b9ae9c]">Shared Notes</span>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <div class="size-3 rounded-full bg-[#ff6b98]"></div>
+                                    <div class="size-3 rounded-full bg-[#ffd24a]"></div>
                                     <span class="text-[#b9ae9c]">Scale 1 Only</span>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <div class="size-3 rounded-full bg-[#9d8fbf]"></div>
+                                    <div class="size-3 rounded-full bg-[#8ec5ff]"></div>
                                     <span class="text-[#b9ae9c]">Scale 2 Only</span>
                                 </div>
                             </div>
@@ -295,11 +293,11 @@
                         <!-- Legend -->
                         <div class="flex items-center gap-4">
                             <div class="flex items-center gap-2">
-                                <div class="size-3 rounded-full bg-primary shadow-[0_0_8px_rgba(240,178,74,0.7)]"></div>
+                                <div class="size-3 rounded-full bg-primary shadow-[0_0_8px_rgba(255,90,31,0.7)]"></div>
                                 <span class="text-sm text-white font-medium" id="root-legend">Root (C)</span>
                             </div>
                             <div class="flex items-center gap-2">
-                                <div class="size-3 rounded-full bg-[#183038] border border-[#6cd3f2]"></div>
+                                <div class="size-3 rounded-full bg-[#e4e1da] border-2 border-black"></div>
                                 <span class="text-sm text-[#b9ae9c]">Scale Note</span>
                             </div>
                         </div>
@@ -571,15 +569,15 @@
                 <div class="flex flex-col gap-4">
                     <div class="flex items-center justify-between">
                         <label for="root-color" class="text-[#b9ae9c]">Root Note:</label>
-                        <input type="color" id="root-color" value="#f0b24a" class="w-12 h-8 rounded cursor-pointer">
+                        <input type="color" id="root-color" value="#ff5a1f" class="w-12 h-8 rounded cursor-pointer">
                     </div>
                     <div class="flex items-center justify-between">
                         <label for="scale-color" class="text-[#b9ae9c]">Scale Notes:</label>
-                        <input type="color" id="scale-color" value="#183038" class="w-12 h-8 rounded cursor-pointer">
+                        <input type="color" id="scale-color" value="#e4e1da" class="w-12 h-8 rounded cursor-pointer">
                     </div>
                     <div class="flex items-center justify-between">
                         <label for="comparison-color" class="text-[#b9ae9c]">Comparison Notes:</label>
-                        <input type="color" id="comparison-color" value="#9d8fbf" class="w-12 h-8 rounded cursor-pointer">
+                        <input type="color" id="comparison-color" value="#8ec5ff" class="w-12 h-8 rounded cursor-pointer">
                     </div>
                 </div>
             </div>

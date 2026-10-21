@@ -1,9 +1,10 @@
 // SVG fretboard with true proportional fret spacing. Renders once; later calls
 // only add/remove note markers and toggle classes, so the board never re-lays out.
 //
-// Drawn as an instrument: rosewood with grain, nickel fret wires, pearl
-// inlays, strings that cast shadows (the low three wound), and note markers
-// that glow. A string vibrates when a played note is marked on it.
+// Drawn as the Studio Console neck: a matte black strip, warm-grey strings
+// (thicker toward the low E), crisp frets, orange LED inlays where a real
+// neck has its dots, and notes as flat keys with an ink outline and a hard
+// shadow. A played string vibrates.
 
 import { STRINGS, FRET_COUNT } from './notes.js';
 
@@ -15,11 +16,8 @@ const PAD_R = 20;
 const TOP = 40, BOTTOM = 44;
 const LAST = FRET_COUNT - 1;
 const SINGLE_INLAYS = [3, 5, 7, 9, 15, 17, 19, 21];
-const STRING_WIDTHS = [1.2, 1.5, 1.9, 2.4, 3, 3.6];
-const WOUND = [false, false, false, true, true, true];
-const GLOWS = { hint: '#f0b24a', correct: '#5ad8a2', wrong: '#f46a54', root: '#f4ecdf' };
-
-let instances = 0;
+const STRING_WIDTHS = [1.3, 1.6, 2.0, 2.5, 3.0, 3.5];
+const INK = '#0e0e0d';
 
 function el(name, attrs = {}, parent) {
   const node = document.createElementNS(NS, name);
@@ -47,111 +45,43 @@ function noteRadius(fret) {
   return Math.min(15, (fretX(fret) - fretX(fret - 1)) * 0.42);
 }
 
-// Gradients, patterns and filters, ids prefixed so several boards can share a page.
-function buildDefs(svg, id) {
-  const defs = el('defs', {}, svg);
-  const wood = el('linearGradient', { id: id('wood'), x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
-  el('stop', { offset: '0', 'stop-color': '#3b2519' }, wood);
-  el('stop', { offset: '0.5', 'stop-color': '#2c1a12' }, wood);
-  el('stop', { offset: '1', 'stop-color': '#22140d' }, wood);
-
-  // long, stretched noise reads as rosewood grain
-  const grain = el('filter', { id: id('grain'), x: 0, y: 0, width: 1, height: 1 }, defs);
-  el('feTurbulence', { type: 'fractalNoise', baseFrequency: '0.0028 0.11', numOctaves: 3, seed: 11 }, grain);
-  el('feColorMatrix', { type: 'matrix', values: '0 0 0 0 0.05  0 0 0 0 0.02  0 0 0 0 0.01  0 0 0 -2.4 1.25' }, grain);
-  el('feComposite', { in2: 'SourceGraphic', operator: 'in' }, grain);
-
-  const sheen = el('linearGradient', { id: id('sheen'), x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
-  el('stop', { offset: '0', 'stop-color': '#fff', 'stop-opacity': 0.09 }, sheen);
-  el('stop', { offset: '0.35', 'stop-color': '#fff', 'stop-opacity': 0 }, sheen);
-  el('stop', { offset: '1', 'stop-color': '#000', 'stop-opacity': 0.35 }, sheen);
-
-  const pearl = el('radialGradient', { id: id('pearl'), cx: '35%', cy: '30%', r: '75%' }, defs);
-  el('stop', { offset: '0', 'stop-color': '#fbf6ee' }, pearl);
-  el('stop', { offset: '0.45', 'stop-color': '#d9d4e6' }, pearl);
-  el('stop', { offset: '0.75', 'stop-color': '#bfe0dc' }, pearl);
-  el('stop', { offset: '1', 'stop-color': '#a99f91' }, pearl);
-
-  const nut = el('linearGradient', { id: id('nut'), x1: 0, y1: 0, x2: 1, y2: 0 }, defs);
-  el('stop', { offset: '0', 'stop-color': '#bcae93' }, nut);
-  el('stop', { offset: '0.5', 'stop-color': '#f3ead8' }, nut);
-  el('stop', { offset: '1', 'stop-color': '#a99a7f' }, nut);
-
-  // diagonal windings for the low strings (user space, so a zero-height line still takes it)
-  const wind = el('pattern', { id: id('wind'), width: 3, height: 3, patternUnits: 'userSpaceOnUse', patternTransform: 'rotate(60)' }, defs);
-  el('rect', { width: 1.3, height: 3, fill: '#000', 'fill-opacity': 0.55 }, wind);
-
-  el('filter', { id: id('soft'), x: '-5%', y: '-200%', width: '110%', height: '500%' }, defs)
-    .appendChild(el('feGaussianBlur', { stdDeviation: 1.6 }));
-
-  for (const [kind, color] of Object.entries(GLOWS)) {
-    const g = el('radialGradient', { id: id(`glow-${kind}`) }, defs);
-    el('stop', { offset: '0', 'stop-color': color, 'stop-opacity': 0.55 }, g);
-    el('stop', { offset: '0.5', 'stop-color': color, 'stop-opacity': 0.14 }, g);
-    el('stop', { offset: '1', 'stop-color': color, 'stop-opacity': 0 }, g);
-  }
-}
-
 export function createFretboard(svg) {
-  const prefix = `fb${++instances}-`;
-  const id = (name) => prefix + name;
-  const ref = (name) => `url(#${prefix}${name})`;
-
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.setAttribute('role', 'img');
   svg.setAttribute('aria-label', 'Guitar fretboard');
   svg.innerHTML = '';
-  buildDefs(svg, id);
 
   const boardTop = TOP - 20, boardBottom = H - BOTTOM + 20;
   const boardW = W - NUT_X - PAD_R, boardH = boardBottom - boardTop;
 
-  // Wood: base colour, grain, light from above; cream binding on both edges
-  el('rect', { class: 'fb-board', x: NUT_X, y: boardTop, width: boardW, height: boardH, rx: 6, style: `fill:${ref('wood')}` }, svg);
-  el('rect', { class: 'fb-grain', x: NUT_X, y: boardTop, width: boardW, height: boardH, rx: 6, filter: ref('grain') }, svg);
-  el('rect', { class: 'fb-sheen', x: NUT_X, y: boardTop, width: boardW, height: boardH, rx: 6, fill: ref('sheen') }, svg);
-  el('line', { class: 'fb-binding', x1: NUT_X + 4, x2: W - PAD_R - 4, y1: boardTop + 0.75, y2: boardTop + 0.75 }, svg);
-  el('line', { class: 'fb-binding', x1: NUT_X + 4, x2: W - PAD_R - 4, y1: boardBottom - 0.75, y2: boardBottom - 0.75 }, svg);
+  el('rect', { class: 'fb-board', x: NUT_X, y: boardTop, width: boardW, height: boardH, rx: 4 }, svg);
 
-  // Inlays (pearl)
+  // Inlays: small orange LEDs between strings 3 and 4 (and 2–3 / 4–5 at the 12th)
   const inlays = el('g', { class: 'fb-inlays' }, svg);
-  const midY = (stringY(0) + stringY(5)) / 2;
-  const inlay = (cx, cy) => el('circle', { cx, cy, r: 5.5, style: `fill:${ref('pearl')}` }, inlays);
-  for (const f of SINGLE_INLAYS) inlay(noteX(f), midY);
-  inlay(noteX(12), (stringY(1) + stringY(2)) / 2);
-  inlay(noteX(12), (stringY(3) + stringY(4)) / 2);
+  const midY = (stringY(2) + stringY(3)) / 2;
+  for (const f of SINGLE_INLAYS) el('circle', { cx: noteX(f), cy: midY, r: 5 }, inlays);
+  el('circle', { cx: noteX(12), cy: (stringY(1) + stringY(2)) / 2, r: 5 }, inlays);
+  el('circle', { cx: noteX(12), cy: (stringY(3) + stringY(4)) / 2, r: 5 }, inlays);
 
   // Range dimming (two rects, resized by setRange)
   const dimL = el('rect', { class: 'fb-dim', x: NUT_X - 56, y: boardTop, width: 0, height: boardH }, svg);
   const dimR = el('rect', { class: 'fb-dim', x: 0, y: boardTop, width: 0, height: boardH }, svg);
 
-  // Frets: a shadow, the wire, and a glint along its crown
+  // Frets
   const frets = el('g', { class: 'fb-frets' }, svg);
   for (let n = 1; n <= LAST; n++) {
-    const x = fretX(n);
-    el('line', { class: 'fb-fret-sh', x1: x + 2.2, x2: x + 2.2, y1: boardTop + 1, y2: boardBottom - 1 }, frets);
-    el('line', { x1: x, x2: x, y1: boardTop, y2: boardBottom, class: n === 12 ? 'fb-fret fb-fret--12' : 'fb-fret' }, frets);
-    el('line', { class: 'fb-fret-hi', x1: x - 0.6, x2: x - 0.6, y1: boardTop + 1, y2: boardBottom - 1 }, frets);
+    el('line', { x1: fretX(n), x2: fretX(n), y1: boardTop, y2: boardBottom, class: n === 12 ? 'fb-fret fb-fret--12' : 'fb-fret', style: `--i:${n}` }, frets);
   }
-  el('line', { class: 'fb-nut', x1: NUT_X, x2: NUT_X, y1: boardTop - 2, y2: boardBottom + 2, style: `stroke:${ref('nut')}` }, svg);
+  el('rect', { class: 'fb-nut', x: NUT_X - 5, y: boardTop - 4, width: 10, height: boardH + 8, rx: 2 }, svg);
 
-  // String shadows on the wood, blurred once as a group
-  const shadows = el('g', { class: 'fb-string-shadows', filter: ref('soft') }, svg);
-  STRINGS.forEach((s, i) => {
-    el('line', { x1: NUT_X, x2: W - PAD_R, y1: stringY(i) + 3.5, y2: stringY(i) + 3.5, 'stroke-width': STRING_WIDTHS[i] + 0.8 }, shadows);
-  });
-
-  // Strings + labels. Each string is a group (base, windings, highlight,
-  // glint) so it can vibrate as one.
+  // Strings + labels. Each string is a group so it can vibrate as one.
   const strings = el('g', { class: 'fb-strings' }, svg);
   const labels = el('g', { class: 'fb-labels' }, svg);
   const stringLines = [], stringLabels = [], stringGroups = [], glints = [];
   STRINGS.forEach((s, i) => {
     const y = stringY(i), w = STRING_WIDTHS[i];
-    const g = stringGroups[i] = el('g', { class: 'fb-string-g' }, strings);
+    const g = stringGroups[i] = el('g', { class: 'fb-string-g', style: `--i:${i}` }, strings);
     stringLines[i] = el('line', { class: 'fb-string', x1: NUT_X - 56, x2: W - PAD_R, y1: y, y2: y, 'stroke-width': w }, g);
-    if (WOUND[i]) el('line', { class: 'fb-string-wind', x1: NUT_X - 56, x2: W - PAD_R, y1: y, y2: y, 'stroke-width': w, style: `stroke:${ref('wind')}` }, g);
-    el('line', { class: 'fb-string-hi', x1: NUT_X - 56, x2: W - PAD_R, y1: y - w * 0.28, y2: y - w * 0.28 }, g);
     glints[i] = el('line', { class: 'fb-glint', x1: NUT_X - 56, x2: W - PAD_R, y1: y, y2: y, 'stroke-width': w + 1.5 }, g);
     stringLabels[i] = el('text', { class: 'fb-label', x: LABEL_X, y: y + 5 }, labels);
     stringLabels[i].textContent = s.name;
@@ -195,10 +125,10 @@ export function createFretboard(svg) {
       const r = noteRadius(fret);
       const pos = el('g', { transform: `translate(${noteX(fret)} ${stringY(string)})` }, notes);
       const g = el('g', { class: `fb-note fb-note--${kind}` }, pos);
-      if (GLOWS[kind]) el('circle', { class: 'fb-note__glow', r: r * 2.3, style: `fill:${ref(`glow-${kind}`)}` }, g);
+      el('circle', { class: 'fb-note__glow', r: r + 7 }, g);
       el('circle', { class: 'fb-note__ripple', r }, g);
+      el('circle', { class: 'fb-note__shadow', cx: 2.5, cy: 2.5, r, fill: INK }, g);
       el('circle', { class: 'fb-note__dot', r }, g);
-      el('ellipse', { class: 'fb-note__shine', cx: -r * 0.28, cy: -r * 0.42, rx: r * 0.5, ry: r * 0.26 }, g);
       const t = el('text', { y: 1 }, g);
       t.textContent = text;
       live.set(key(string, fret), pos);
