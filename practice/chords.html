@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chord Flashcards</title>
+  <meta name="description" content="Flashcards for chord spelling: name the three notes of a chord, its key signature, then find them on the fretboard.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="chords.css">
+</head>
+<body>
+  <header class="top">
+    <a class="top__back" href="index.html" aria-label="Back to practice modes">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      <span>Practice</span>
+    </a>
+    <h1 class="top__title">Fretboard Practice · Chords</h1>
+    <button class="icon-btn" id="sound-toggle" aria-label="Sound" aria-pressed="true" title="Sound on/off">
+      <svg class="i-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>
+      <svg class="i-off" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4z"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>
+    </button>
+  </header>
+
+  <main class="stage cq">
+    <div class="mode segmented" aria-label="Practice mode">
+      <a class="mode__link" href="index.html"><span>Find the note</span></a>
+      <a class="mode__link" href="index.html"><span>Intervals</span></a>
+      <a class="mode__link" href="index.html"><span>Arpeggios</span></a>
+      <a class="mode__link" href="index.html"><span>Triads</span></a>
+      <a class="mode__link" href="vibrato.html"><span>Vibrato</span></a>
+      <a class="mode__link is-active" href="chords.html"><span>Chords</span></a>
+    </div>
+
+    <section class="cq-bar">
+      <div class="cq-deck" role="radiogroup" aria-label="Deck">
+        <label><input type="radio" name="deck" value="major"><span>Major</span></label>
+        <label><input type="radio" name="deck" value="minor"><span>Minor</span></label>
+        <label><input type="radio" name="deck" value="both"><span>Both</span></label>
+      </div>
+      <div class="cq-stats">
+        <div class="cq-stat cq-stat--streak"><span class="cq-stat__v" id="stat-streak">0</span><span class="cq-stat__l">streak</span></div>
+        <div class="cq-stat"><span class="cq-stat__v" id="stat-best">0</span><span class="cq-stat__l">best</span></div>
+        <div class="cq-stat cq-stat--mastery">
+          <div class="cq-mastery"><div class="cq-mastery__fill" id="mastery-fill"></div></div>
+          <span class="cq-stat__l"><b id="stat-mastered">0</b> / <span id="stat-total">14</span> mastered</span>
+        </div>
+      </div>
+    </section>
+
+    <ol class="cq-steps" aria-label="Steps">
+      <li class="cq-step" data-step="notes"><span class="cq-step__n">1</span>Notes</li>
+      <li class="cq-step" data-step="key"><span class="cq-step__n">2</span>Key signature</li>
+      <li class="cq-step" data-step="fret"><span class="cq-step__n">3</span>Fretboard</li>
+    </ol>
+
+    <section class="cq-table">
+      <div class="card" id="card">
+        <div class="card__inner">
+          <div class="card__face card__face--front">
+            <div class="card__tag" id="card-tag">Major chord</div>
+            <div class="card__name" id="card-name">C</div>
+            <div class="card__ask" id="card-ask">Which three notes?</div>
+            <div class="slots" id="slots">
+              <button class="slot" data-i="0" aria-label="First note"></button>
+              <button class="slot" data-i="1" aria-label="Second note"></button>
+              <button class="slot" data-i="2" aria-label="Third note"></button>
+            </div>
+          </div>
+          <div class="card__face card__face--back" id="card-back"></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="cq-feedback" id="feedback" aria-live="polite"></div>
+
+    <section class="cq-work">
+      <div class="cq-panel" id="panel-notes">
+        <div class="keypad" id="keypad" role="group" aria-label="Notes"></div>
+        <div class="cq-actions">
+          <button class="btn btn--ghost btn--small" id="btn-reveal">Show answer</button>
+          <button class="btn btn--ghost btn--small" id="btn-clear">Clear <kbd>Esc</kbd></button>
+          <button class="btn btn--primary" id="btn-go" disabled>Go <kbd>Enter</kbd></button>
+        </div>
+      </div>
+
+      <div class="cq-panel" id="panel-key" hidden>
+        <p class="cq-q" id="key-question">How many sharps or flats in the key?</p>
+        <div class="keysig" id="keysig"></div>
+      </div>
+
+      <div class="cq-panel" id="panel-fret" hidden>
+        <div class="cq-found" id="found"></div>
+        <section class="board">
+          <div class="board__scroll"><svg class="fretboard" id="fretboard"></svg></div>
+        </section>
+        <div class="cq-actions">
+          <button class="btn btn--ghost btn--small" id="btn-skip">Skip</button>
+          <button class="btn btn--primary" id="btn-next" disabled>Next card <kbd>Enter</kbd></button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="fx" id="fx" aria-hidden="true"></div>
+  <script type="module" src="js/chords/quiz.js"></script>
+</body>
+</html>
