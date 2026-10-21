@@ -64,34 +64,29 @@
         <!-- Main Content -->
         <div class="flex flex-1 flex-col overflow-y-auto fretboard-scroll">
             <div class="px-4 md:px-10 lg:px-16 flex flex-1 justify-center py-6">
-                <div class="ex-unit flex flex-col w-full max-w-[1400px] flex-1 gap-6">
+                <div class="ex-unit">
                     
-                    <!-- Title and Controls Row -->
-                    <div class="flex flex-col xl:flex-row gap-6 justify-between items-start xl:items-end">
-                        <div class="flex flex-col gap-3 max-w-2xl ns-rise">
+                    <!-- Deck: title and the main LCD -->
+                    <section class="ex-deck">
+                        <div class="ex-hero">
                             <span class="ex-eyebrow">Scale explorer · 22 frets</span>
-                            <h1 class="ex-title text-white text-3xl md:text-4xl font-black leading-tight tracking-[-0.033em]">Visualize the <em>fretboard</em></h1>
-                            <p class="text-[#b9ae9c] text-base font-normal leading-normal max-w-xl">
-                                Instantly map out scales, arpeggios, and intervals across all 22 frets. Select a key and scale below to get started.
-                            </p>
+                            <h1 class="ex-title">Visualize the <em>fretboard</em></h1>
+                            <p class="ex-lede">Pick a key and a scale, then read it straight off the neck.</p>
                         </div>
-                        
-                        <!-- Scale Title Display -->
-                        <div class="scale-title text-right ns-rise-2" id="scale-title">
-                            <h2 class="text-2xl font-bold text-primary">C Major</h2>
-                            <div class="scale-formula-display text-sm text-[#b9ae9c]" id="scale-formula-display">
-                                Root, Major 2nd, Major 3rd, Perfect 4th, Perfect 5th, Major 6th, Major 7th
-                            </div>
+                        <div class="ex-lcd scale-title" id="scale-title" aria-live="polite">
+                            <span class="ex-lcd__label">Now showing</span>
+                            <h2>C Major</h2>
+                            <div class="ex-lcd__formula" id="scale-formula"><p><strong>W-W-H-W-W-W-H</strong></p></div>
+                            <div class="ex-lcd__intervals scale-formula-display" id="scale-formula-display">Root, Major 2nd, Major 3rd, Perfect 4th, Perfect 5th, Major 6th, Major 7th</div>
                         </div>
-                    </div>
+                    </section>
 
-                    <!-- Controls Bar -->
-                    <div class="flex flex-wrap items-end gap-3 bg-surface-dark p-4 rounded-xl border border-[#2a231b] shadow-lg">
-                        <!-- Root Note Dropdown -->
-                        <label class="flex flex-col min-w-[100px] w-28">
-                            <span class="text-[#b9ae9c] text-xs font-bold uppercase tracking-wider mb-1.5 ml-1">Root</span>
-                            <div class="relative">
-                                <select id="root-select" class="appearance-none w-full rounded-lg text-white font-bold bg-[#14110e] border border-[#3a3128] h-10 px-3 pr-8 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary cursor-pointer transition-colors">
+                    <!-- Tray: key, scale, compare, pattern -->
+                    <section class="ex-tray">
+                        <div class="ex-tray__row">
+                            <label class="ex-field ex-field--root">
+                                <span class="ex-label">Root</span>
+                                <span class="ex-select"><select id="root-select" aria-label="Root">
                                     <option value="C" selected>C</option>
                                     <option value="C#">C# / Db</option>
                                     <option value="D">D</option>
@@ -104,16 +99,11 @@
                                     <option value="A">A</option>
                                     <option value="A#">A# / Bb</option>
                                     <option value="B">B</option>
-                                </select>
-                                <span class="material-symbols-outlined absolute right-2 top-2.5 text-[#b9ae9c] pointer-events-none text-lg">expand_more</span>
-                            </div>
-                        </label>
-                        
-                        <!-- Scale Dropdown -->
-                        <label class="flex flex-col min-w-[200px] flex-1 max-w-md">
-                            <span class="text-[#b9ae9c] text-xs font-bold uppercase tracking-wider mb-1.5 ml-1">Scale</span>
-                            <div class="relative">
-                                <select id="scale-select" class="appearance-none w-full rounded-lg text-white font-bold bg-[#14110e] border border-[#3a3128] h-10 px-3 pr-8 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary cursor-pointer transition-colors">
+                                </select></span>
+                            </label>
+                            <label class="ex-field ex-field--scale">
+                                <span class="ex-label">Scale</span>
+                                <span class="ex-select"><select id="scale-select" aria-label="Scale">
                                     <optgroup label="Basic Scales">
                                         <option value="major" selected>Major</option>
                                         <option value="natural-minor">Natural Minor</option>
@@ -146,47 +136,31 @@
                                         <option value="lydian-minor">Lydian Minor</option>
                                         <option value="lydian-diminished">Lydian Diminished</option>
                                     </optgroup>
-                                </select>
-                                <span class="material-symbols-outlined absolute right-2 top-2.5 text-[#b9ae9c] pointer-events-none text-lg">expand_more</span>
+                                </select></span>
+                            </label>
+                            <label class="ex-plus" title="Compare with a second scale">
+                                <input type="checkbox" id="comparison-mode" aria-label="Compare with a second scale">
+                                <span aria-hidden="true"></span>
+                            </label>
+                            <div class="ex-field ex-field--pattern">
+                                <span class="ex-label">Pattern</span>
+                                <div class="ex-keys">
+                                    <button class="pattern-btn active" data-pattern="full">Full</button>
+                                    <button class="pattern-btn" data-pattern="vertical">Vertical</button>
+                                    <button class="pattern-btn" data-pattern="diagonal">Diagonal</button>
+                                </div>
                             </div>
-                        </label>
-                        
-                        <!-- Pattern View -->
-                        <div class="flex flex-col">
-                            <span class="text-[#b9ae9c] text-xs font-bold uppercase tracking-wider mb-1.5 ml-1">Pattern</span>
-                            <div class="pattern-buttons flex gap-1">
-                                <button class="pattern-btn active px-3 h-10 rounded-lg bg-primary text-white text-sm font-semibold transition-all" data-pattern="full">Full</button>
-                                <button class="pattern-btn px-3 h-10 rounded-lg bg-[#14110e] border border-[#3a3128] text-[#b9ae9c] text-sm font-medium hover:border-primary transition-all" data-pattern="vertical">Vertical</button>
-                                <button class="pattern-btn px-3 h-10 rounded-lg bg-[#14110e] border border-[#3a3128] text-[#b9ae9c] text-sm font-medium hover:border-primary transition-all" data-pattern="diagonal">Diagonal</button>
-                            </div>
+                            <button id="reset-all" class="ex-reset" title="Reset everything">
+                                <span class="material-symbols-outlined text-[18px]">refresh</span>Reset
+                            </button>
                         </div>
-                        
-                        <!-- Reset Button -->
-                        <button id="reset-all" class="flex items-center justify-center gap-2 h-10 px-4 rounded-lg bg-[#3a3128] hover:bg-[#4a3f33] text-white font-bold text-sm transition-colors">
-                            <span class="material-symbols-outlined text-[18px]">refresh</span>
-                            Reset
-                        </button>
-                    </div>
 
-                    <!-- Comparison Mode Section -->
-                    <div class="comparison-section bg-surface-dark p-4 rounded-xl border border-[#2a231b]">
-                        <label class="comparison-toggle flex items-center gap-3 cursor-pointer">
-                            <input type="checkbox" id="comparison-mode" class="w-5 h-5 accent-primary">
-                            <span class="text-white font-bold flex items-center gap-2">
-                                <span class="material-symbols-outlined text-primary">compare</span>
-                                Comparison Mode
-                            </span>
-                            <span class="text-[#8a7f6f] text-sm ml-2">Compare two scales side by side</span>
-                        </label>
-                        
-                        <div class="scale-2-controls mt-4 pt-4 border-t border-[#2a231b] hidden" id="scale-2-controls">
-                            <p class="text-[#b9ae9c] text-sm mb-3">Choose second scale for comparison:</p>
-                            <div class="flex flex-wrap gap-3">
-                                <!-- Root Note 2 -->
-                                <label class="flex flex-col min-w-[100px]">
-                                    <span class="text-[#b9ae9c] text-xs font-bold uppercase tracking-wider mb-1.5 ml-1">Root 2</span>
-                                    <div class="relative">
-                                        <select id="root-select-2" class="appearance-none w-full rounded-lg text-white font-bold bg-[#14110e] border border-[#3a3128] h-10 px-3 pr-8 focus:outline-none focus:border-primary cursor-pointer">
+                        <!-- Second scale, opened with the + key -->
+                        <div class="ex-compare hidden" id="scale-2-controls">
+                            <span class="ex-compare__vs">vs</span>
+                            <label class="ex-field ex-field--root">
+                                <span class="ex-label">Root 2</span>
+                                <span class="ex-select"><select id="root-select-2" aria-label="Root 2">
                                             <option value="C" selected>C</option>
                                             <option value="C#">C# / Db</option>
                                             <option value="D">D</option>
@@ -199,16 +173,11 @@
                                             <option value="A">A</option>
                                             <option value="A#">A# / Bb</option>
                                             <option value="B">B</option>
-                                        </select>
-                                        <span class="material-symbols-outlined absolute right-2 top-2.5 text-[#b9ae9c] pointer-events-none text-lg">expand_more</span>
-                                    </div>
-                                </label>
-                                
-                                <!-- Scale 2 -->
-                                <label class="flex flex-col min-w-[200px] flex-1 max-w-md">
-                                    <span class="text-[#b9ae9c] text-xs font-bold uppercase tracking-wider mb-1.5 ml-1">Scale 2</span>
-                                    <div class="relative">
-                                        <select id="scale-select-2" class="appearance-none w-full rounded-lg text-white font-bold bg-[#14110e] border border-[#3a3128] h-10 px-3 pr-8 focus:outline-none focus:border-primary cursor-pointer">
+                                        </select></span>
+                            </label>
+                            <label class="ex-field ex-field--scale">
+                                <span class="ex-label">Scale 2</span>
+                                <span class="ex-select"><select id="scale-select-2" aria-label="Scale 2">
                                             <optgroup label="Basic Scales">
                                                 <option value="major" selected>Major</option>
                                                 <option value="natural-minor">Natural Minor</option>
@@ -241,314 +210,112 @@
                                                 <option value="lydian-minor">Lydian Minor</option>
                                                 <option value="lydian-diminished">Lydian Diminished</option>
                                             </optgroup>
-                                        </select>
-                                        <span class="material-symbols-outlined absolute right-2 top-2.5 text-[#b9ae9c] pointer-events-none text-lg">expand_more</span>
-                                    </div>
-                                </label>
+                                        </select></span>
+                            </label>
+                            <div class="ex-legend">
+                                <span><i class="ex-dot ex-dot--shared"></i>In both</span>
+                                <span><i class="ex-dot ex-dot--one"></i>Scale 1 only</span>
+                                <span><i class="ex-dot ex-dot--two"></i>Scale 2 only</span>
                             </div>
-                            
-                            <!-- Comparison Legend -->
-                            <div class="flex flex-wrap gap-4 mt-4 text-sm">
-                                <div class="flex items-center gap-2">
-                                    <div class="size-3 rounded-full bg-[#e4e1da] ring-2 ring-primary"></div>
-                                    <span class="text-[#b9ae9c]">Shared Notes</span>
+                        </div>
+                    </section>
+
+                    <!-- Strip: overlays and strings, one panel -->
+                    <section class="ex-strip">
+                        <div class="ex-strip__row">
+                            <div class="ex-group">
+                                <span class="ex-group__label">Overlay</span>
+                                <div class="ex-keys">
+                                    <label class="triad-toggle"><input type="checkbox" id="triad-mode">Triads</label>
+                                    <button id="tab-toggle">TAB</button>
+                                    <button id="caged-toggle">CAGED</button>
                                 </div>
-                                <div class="flex items-center gap-2">
-                                    <div class="size-3 rounded-full bg-[#ffd24a]"></div>
-                                    <span class="text-[#b9ae9c]">Scale 1 Only</span>
+                            </div>
+                            <div class="ex-group" id="string-filter-bar">
+                                <span class="ex-group__label">Strings</span>
+                                <div class="ex-keys" id="string-filter-buttons">
+                                    <button class="string-filter-btn active" data-string="0" title="High E (1st string)"><span class="string-num">1</span><span class="string-note">e</span></button>
+                                    <button class="string-filter-btn active" data-string="1" title="B (2nd string)"><span class="string-num">2</span><span class="string-note">B</span></button>
+                                    <button class="string-filter-btn active" data-string="2" title="G (3rd string)"><span class="string-num">3</span><span class="string-note">G</span></button>
+                                    <button class="string-filter-btn active" data-string="3" title="D (4th string)"><span class="string-num">4</span><span class="string-note">D</span></button>
+                                    <button class="string-filter-btn active" data-string="4" title="A (5th string)"><span class="string-num">5</span><span class="string-note">A</span></button>
+                                    <button class="string-filter-btn active" data-string="5" title="Low E (6th string)"><span class="string-num">6</span><span class="string-note">E</span></button>
+                                    <button id="toggle-all-strings" title="All strings, or only the high e">All</button>
                                 </div>
-                                <div class="flex items-center gap-2">
-                                    <div class="size-3 rounded-full bg-[#8ec5ff]"></div>
-                                    <span class="text-[#b9ae9c]">Scale 2 Only</span>
-                                </div>
+                            </div>
+                            <div class="ex-legend ex-legend--key">
+                                <span><i class="ex-dot ex-dot--root"></i><b id="root-legend">Root (C)</b></span>
+                                <span><i class="ex-dot ex-dot--note"></i>Scale note</span>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- Explore Scale Bar -->
-                    <div class="bg-surface-dark p-4 rounded-xl border border-[#2a231b] flex flex-wrap gap-3 items-center justify-between">
-                        <div class="flex flex-wrap gap-3 items-center">
-                            <span class="text-white font-bold text-sm mr-2 flex items-center gap-2">
-                                <span class="material-symbols-outlined text-primary text-lg">travel_explore</span>
-                                Explore Scale:
-                            </span>
-                            <label class="triad-toggle flex items-center gap-2 px-4 py-2 bg-[#221d17] hover:bg-[#2e271f] text-[#b9ae9c] border border-[#3a3128] rounded-lg text-sm font-medium transition-colors cursor-pointer">
-                                <input type="checkbox" id="triad-mode" class="w-4 h-4 accent-primary">
-                                <span class="material-symbols-outlined text-base">piano</span> Show Triads
-                            </label>
-                            <button class="px-4 py-2 bg-[#221d17] hover:bg-[#2e271f] text-[#b9ae9c] border border-[#3a3128] rounded-lg text-sm font-medium transition-colors opacity-60" disabled title="Coming soon">
-                                7th Chords
-                            </button>
-                            <button class="px-4 py-2 bg-[#221d17] hover:bg-[#2e271f] text-[#b9ae9c] border border-[#3a3128] rounded-lg text-sm font-medium transition-colors opacity-60" disabled title="Coming soon">
-                                Arpeggios
-                            </button>
-                            <button id="tab-toggle" class="flex items-center gap-2 px-4 py-2 bg-[#221d17] hover:bg-[#2e271f] text-[#b9ae9c] border border-[#3a3128] rounded-lg text-sm font-medium transition-colors">
-                                <span class="material-symbols-outlined text-base">queue_music</span> Show TAB
-                            </button>
-                            <button id="caged-toggle" class="flex items-center gap-2 px-4 py-2 bg-[#221d17] hover:bg-[#2e271f] text-[#b9ae9c] border border-[#3a3128] rounded-lg text-sm font-medium transition-colors">
-                                <span class="material-symbols-outlined text-base">shapes</span> CAGED
-                            </button>
-                        </div>
-                        
-                        <!-- Legend -->
-                        <div class="flex items-center gap-4">
-                            <div class="flex items-center gap-2">
-                                <div class="size-3 rounded-full bg-primary shadow-[0_0_8px_rgba(255,90,31,0.7)]"></div>
-                                <span class="text-sm text-white font-medium" id="root-legend">Root (C)</span>
+                        <!-- Triads: pick one string group -->
+                        <div class="ex-strip__sub string-groups hidden" id="string-groups">
+                            <span class="ex-group__label">Triad strings</span>
+                            <div class="ex-keys" role="radiogroup" aria-label="String group for triads">
+                                <label class="string-group-option"><input type="radio" name="string-group" id="top-strings" value="0,1,2" checked><span>Top 3 · e B G</span></label>
+                                <label class="string-group-option"><input type="radio" name="string-group" id="middle-strings" value="1,2,3"><span>Middle 3 · B G D</span></label>
+                                <label class="string-group-option"><input type="radio" name="string-group" id="bottom-strings" value="3,4,5"><span>Bottom 3 · D A E</span></label>
                             </div>
-                            <div class="flex items-center gap-2">
-                                <div class="size-3 rounded-full bg-[#e4e1da] border-2 border-black"></div>
-                                <span class="text-sm text-[#b9ae9c]">Scale Note</span>
+                            <div class="ex-legend">
+                                <span><i class="ex-dot ex-dot--root"></i>Root</span>
+                                <span><i class="ex-dot" style="background:#ffd24a"></i>3rd</span>
+                                <span><i class="ex-dot" style="background:#5ec4ff"></i>5th</span>
                             </div>
                         </div>
-                    </div>
-                    
-                    <!-- Position Info Bar -->
-                    <div id="position-info-bar" class="bg-surface-dark p-4 rounded-xl border border-[#2a231b] flex flex-wrap gap-3 items-center hidden">
-                        <span class="text-white font-bold text-sm mr-2 flex items-center gap-2">
-                            <span class="material-symbols-outlined text-primary text-lg">view_week</span>
-                            Position:
-                        </span>
-                        <span id="position-info" class="text-[#b9ae9c] text-sm">Click a fret number above the fretboard to show a position</span>
-                    </div>
 
-                    <!-- String Groups (for Triad mode) -->
-                    <div class="string-groups hidden bg-surface-dark p-4 rounded-xl border border-[#2a231b]" id="string-groups">
-                        <label class="text-[#b9ae9c] text-sm font-bold mb-3 block">String Groups for Triads:</label>
-                        <div class="flex flex-wrap gap-4">
-                            <label class="string-group-option flex items-center gap-2 cursor-pointer text-sm text-[#b9ae9c] hover:text-white transition-colors">
-                                <input type="checkbox" id="top-strings" value="0,1,2" checked class="w-4 h-4 accent-primary">
-                                <span>Top 3 (E, B, G)</span>
-                            </label>
-                            <label class="string-group-option flex items-center gap-2 cursor-pointer text-sm text-[#b9ae9c] hover:text-white transition-colors">
-                                <input type="checkbox" id="middle-strings" value="1,2,3" checked class="w-4 h-4 accent-primary">
-                                <span>Middle 3 (B, G, D)</span>
-                            </label>
-                            <label class="string-group-option flex items-center gap-2 cursor-pointer text-sm text-[#b9ae9c] hover:text-white transition-colors">
-                                <input type="checkbox" id="bottom-strings" value="3,4,5" checked class="w-4 h-4 accent-primary">
-                                <span>Bottom 3 (D, A, E)</span>
-                            </label>
+                        <!-- CAGED: what each colour ring means -->
+                        <div class="ex-strip__sub hidden" id="caged-legend">
+                            <span class="ex-group__label">CAGED shapes</span>
+                            <div class="ex-legend ex-legend--caged">
+                                <span><i class="ex-ring" style="--c:#ffd24a"></i>C</span>
+                                <span><i class="ex-ring" style="--c:#5ec4ff"></i>A</span>
+                                <span><i class="ex-ring" style="--c:#7ee08a"></i>G</span>
+                                <span><i class="ex-ring" style="--c:#ff5c93"></i>E</span>
+                                <span><i class="ex-ring" style="--c:#b48cff"></i>D</span>
+                            </div>
+                            <span class="ex-hint">Each ring is a chord tone of that shape; the rest of the scale dims.</span>
                         </div>
-                    </div>
+                    </section>
 
-                    <!-- String Filter Bar -->
-                    <div id="string-filter-bar" class="bg-surface-dark p-4 rounded-xl border border-[#2a231b] flex flex-wrap gap-3 items-center">
-                        <span class="text-white font-bold text-sm mr-2 flex items-center gap-2">
-                            <span class="material-symbols-outlined text-primary text-lg">filter_list</span>
-                            String Filter:
-                        </span>
-                        <div class="flex gap-2" id="string-filter-buttons">
-                            <button class="string-filter-btn active" data-string="0" title="High E (1st string)">
-                                <span class="string-num">1</span>
-                                <span class="string-note">e</span>
-                            </button>
-                            <button class="string-filter-btn active" data-string="1" title="B (2nd string)">
-                                <span class="string-num">2</span>
-                                <span class="string-note">B</span>
-                            </button>
-                            <button class="string-filter-btn active" data-string="2" title="G (3rd string)">
-                                <span class="string-num">3</span>
-                                <span class="string-note">G</span>
-                            </button>
-                            <button class="string-filter-btn active" data-string="3" title="D (4th string)">
-                                <span class="string-num">4</span>
-                                <span class="string-note">D</span>
-                            </button>
-                            <button class="string-filter-btn active" data-string="4" title="A (5th string)">
-                                <span class="string-num">5</span>
-                                <span class="string-note">A</span>
-                            </button>
-                            <button class="string-filter-btn active" data-string="5" title="Low E (6th string)">
-                                <span class="string-num">6</span>
-                                <span class="string-note">E</span>
-                            </button>
+                    <!-- The neck -->
+                    <section class="ex-neck relative">
+                        <div class="ex-neck__head">
+                            <div id="position-info-bar" class="ex-position hidden"><span id="position-info">Click a fret number above the fretboard to show a position</span></div>
+                            <div class="ex-tuning">Standard tuning · E A D G B E</div>
                         </div>
-                        <button id="toggle-all-strings" class="ml-4 px-3 py-1.5 rounded-lg bg-[#3a3128] hover:bg-[#4a3f33] text-white text-xs font-medium transition-colors">
-                            Toggle All
-                        </button>
-                        <span class="text-[#8a7f6f] text-xs ml-2">(Click to isolate strings)</span>
-                    </div>
-
-                    <!-- Fretboard Section -->
-                    <div class="relative flex flex-col gap-2">
-                        <!-- Tuning Label -->
-                        <div class="flex justify-end px-1">
-                            <div class="text-[#8a7f6f] text-xs font-mono tracking-widest uppercase">Standard Tuning (E A D G B E)</div>
-                        </div>
-                        
-                        <!-- Fretboard Container -->
                         <div class="relative w-full overflow-x-auto pb-4 fretboard-scroll">
-                            <div class="fretboard" id="fretboard">
-                                <!-- Fretboard will be generated by JavaScript -->
-                            </div>
+                            <div class="fretboard" id="fretboard"></div>
                         </div>
-                        
-                        <p class="text-sm text-[#8a7f6f] italic text-center w-full">
-                            Tip: Click on a note to isolate it across the fretboard. Use the color picker to highlight specific notes.
-                        </p>
-                        
-                        <!-- TAB Display -->
-                        <div id="tab-display" class="hidden bg-surface-dark rounded-xl p-4 border border-[#2a231b] mt-4">
-                            <div class="flex items-center gap-3 mb-3">
-                                <span class="material-symbols-outlined text-primary">queue_music</span>
-                                <h4 class="text-white font-bold">TAB Notation</h4>
-                                <span id="tab-shape-label" class="text-[#8a7f6f] text-sm ml-2">(All Positions)</span>
-                            </div>
-                            <pre id="tab-content" class="text-[#b9ae9c] font-mono text-sm whitespace-pre overflow-x-auto bg-[#14110e] p-4 rounded-lg border border-[#3a3128]"></pre>
-                        </div>
-                    </div>
+                        <p class="ex-hint ex-hint--center">Click a note to mark it · click a fret number in Vertical to see one position</p>
 
-                    <!-- Scale Degrees Section -->
-                    <div class="scale-degrees bg-surface-dark p-4 rounded-xl border border-[#2a231b]" id="scale-degrees">
-                        <div class="flex items-center gap-3 mb-3">
-                            <span class="material-symbols-outlined text-primary">tune</span>
-                            <label class="text-white font-bold">Scale Degrees:</label>
+                        <div id="tab-display" class="ex-tab hidden">
+                            <div class="ex-tab__head"><span class="ex-group__label">TAB</span><span id="tab-shape-label" class="ex-hint">(All Positions)</span></div>
+                            <pre id="tab-content"></pre>
                         </div>
-                        <div class="degree-buttons flex flex-wrap gap-2" id="degree-buttons">
-                            <!-- Scale degree buttons will be generated by JavaScript -->
-                        </div>
-                    </div>
+                    </section>
 
-                    <!-- Note Color Picker -->
-                    <div class="note-color-controls bg-surface-dark p-4 rounded-xl border border-[#2a231b]">
-                        <div class="flex items-center gap-3 mb-3">
-                            <span class="material-symbols-outlined text-primary">palette</span>
-                            <h4 class="text-white font-bold">Note Color Picker</h4>
+                    <!-- Highlight: paint notes by degree or by colour -->
+                    <section class="ex-paint">
+                        <div class="ex-group ex-group--grow">
+                            <span class="ex-group__label">Highlight a degree</span>
+                            <div class="ex-keys degree-buttons" id="degree-buttons"></div>
                         </div>
-                        <div class="color-buttons flex flex-wrap gap-2 mb-3">
-                            <button class="color-btn w-10 h-10 rounded-lg border-2 border-transparent hover:border-white transition-all" data-color="#ff6b6b" style="background: #ff6b6b;" title="Red"></button>
-                            <button class="color-btn w-10 h-10 rounded-lg border-2 border-transparent hover:border-white transition-all" data-color="#4ecdc4" style="background: #4ecdc4;" title="Teal"></button>
-                            <button class="color-btn w-10 h-10 rounded-lg border-2 border-transparent hover:border-white transition-all" data-color="#45b7d1" style="background: #45b7d1;" title="Blue"></button>
-                            <button class="color-btn w-10 h-10 rounded-lg border-2 border-transparent hover:border-white transition-all" data-color="#96ceb4" style="background: #96ceb4;" title="Green"></button>
-                            <button class="color-btn w-10 h-10 rounded-lg border-2 border-transparent hover:border-white transition-all" data-color="#feca57" style="background: #feca57;" title="Yellow"></button>
-                            <button class="color-btn w-10 h-10 rounded-lg border-2 border-transparent hover:border-white transition-all" data-color="#ff9ff3" style="background: #ff9ff3;" title="Pink"></button>
-                            <button class="color-btn w-10 h-10 rounded-lg border-2 border-transparent hover:border-white transition-all" data-color="#a55eea" style="background: #a55eea;" title="Purple"></button>
-                            <button class="color-btn w-10 h-10 rounded-lg border-2 border-transparent hover:border-white transition-all" data-color="#ffa726" style="background: #ffa726;" title="Orange"></button>
-                            <button id="clear-notes" class="ml-4 px-4 py-2 rounded-lg bg-[#3a3128] hover:bg-[#4a3f33] text-white text-sm font-medium transition-colors">
-                                Clear Colors
-                            </button>
-                        </div>
-                        <p class="text-[#8a7f6f] text-sm">Click a color, then click any fret to color all instances of that note!</p>
-                    </div>
-
-                    <!-- Info Panels Grid -->
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <!-- Scale Emotions Panel -->
-                        <div class="bg-surface-dark p-6 rounded-xl border border-[#2a231b] flex flex-col gap-4">
-                            <div class="flex items-center gap-3 text-white">
-                                <span class="material-symbols-outlined text-primary">psychology</span>
-                                <h3 class="font-bold text-lg">Scale Emotions & Tendencies</h3>
-                            </div>
-                            <div id="scale-emotions" class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-2 fretboard-scroll">
-                                <!-- Will be populated by JavaScript -->
+                        <div class="ex-group">
+                            <span class="ex-group__label">Or paint with a colour, then click a note</span>
+                            <div class="ex-keys color-buttons">
+                                <button class="color-btn" data-color="#ff6b6b" style="background: #ff6b6b;" title="Red"></button>
+                                <button class="color-btn" data-color="#4ecdc4" style="background: #4ecdc4;" title="Teal"></button>
+                                <button class="color-btn" data-color="#45b7d1" style="background: #45b7d1;" title="Blue"></button>
+                                <button class="color-btn" data-color="#96ceb4" style="background: #96ceb4;" title="Green"></button>
+                                <button class="color-btn" data-color="#feca57" style="background: #feca57;" title="Yellow"></button>
+                                <button class="color-btn" data-color="#ff9ff3" style="background: #ff9ff3;" title="Pink"></button>
+                                <button class="color-btn" data-color="#a55eea" style="background: #a55eea;" title="Purple"></button>
+                                <button class="color-btn" data-color="#ffa726" style="background: #ffa726;" title="Orange"></button>
+                                <button id="clear-notes">Clear</button>
                             </div>
                         </div>
-                        
-                        <!-- Circle of Fifths Panel -->
-                        <div class="bg-surface-dark p-5 rounded-xl border border-[#2a231b] flex flex-col items-center justify-center gap-4">
-                            <div class="flex items-center gap-3 text-white w-full">
-                                <span class="material-symbols-outlined text-primary">donut_small</span>
-                                <h3 class="font-bold text-lg">Circle of Fifths</h3>
-                            </div>
-                            <div class="flex flex-row items-center gap-8 justify-center w-full">
-                                <div class="cof-container relative shrink-0" id="circle-of-fifths">
-                                    <div class="absolute inset-0 rounded-full border-2 border-[#2a231b] bg-[#0c0a09]"></div>
-                                    <!-- Labels positioned around circle -->
-                                    <span class="cof-label" data-note="C" style="top: 8%; left: 50%;">C</span>
-                                    <span class="cof-label" data-note="G" style="top: 15%; left: 75%;">G</span>
-                                    <span class="cof-label" data-note="D" style="top: 30%; left: 92%;">D</span>
-                                    <span class="cof-label" data-note="A" style="top: 50%; left: 97%;">A</span>
-                                    <span class="cof-label" data-note="E" style="top: 70%; left: 92%;">E</span>
-                                    <span class="cof-label" data-note="B" style="top: 85%; left: 75%;">B</span>
-                                    <span class="cof-label" data-note="F#" style="top: 92%; left: 50%;">F#</span>
-                                    <span class="cof-label" data-note="C#" style="top: 85%; left: 25%;">Db</span>
-                                    <span class="cof-label" data-note="G#" style="top: 70%; left: 8%;">Ab</span>
-                                    <span class="cof-label" data-note="D#" style="top: 50%; left: 3%;">Eb</span>
-                                    <span class="cof-label" data-note="A#" style="top: 30%; left: 8%;">Bb</span>
-                                    <span class="cof-label" data-note="F" style="top: 15%; left: 25%;">F</span>
-                                    <!-- Center display -->
-                                    <div class="absolute inset-0 m-auto w-20 h-20 rounded-full border border-[#2a231b] bg-[#1a1612] flex flex-col items-center justify-center text-center p-2 z-10">
-                                        <div class="text-[10px] text-[#8a7f6f] uppercase font-bold">Key</div>
-                                        <div class="text-2xl font-black text-white" id="cof-key">C</div>
-                                        <div class="text-[10px] text-primary" id="cof-scale">Major</div>
-                                    </div>
-                                </div>
-                                <div class="hidden sm:flex flex-col gap-3 max-w-xs">
-                                    <p class="text-sm text-[#b9ae9c] leading-relaxed">
-                                        The <strong class="text-white">Circle of Fifths</strong> shows the relationship among the 12 tones of the chromatic scale.
-                                    </p>
-                                    <p class="text-xs text-[#8a7f6f]">
-                                        Highlighted notes indicate the notes in your selected scale. Adjacent keys share many common notes.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Bottom Info Panels -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <!-- Selected Note Panel -->
-                        <div class="bg-surface-dark p-5 rounded-xl border border-[#2a231b] flex flex-col gap-3">
-                            <div class="flex items-center gap-3 text-white mb-1">
-                                <span class="material-symbols-outlined text-primary">music_note</span>
-                                <h3 class="font-bold text-lg">Selected Note</h3>
-                            </div>
-                            <div class="flex items-end gap-2" id="selected-note-display">
-                                <span class="text-5xl font-black text-white" id="selected-note-name">-</span>
-                                <span class="text-lg text-[#b9ae9c] font-medium mb-1.5" id="selected-note-type">Click a note</span>
-                            </div>
-                            <p class="text-sm text-[#b9ae9c]" id="selected-note-freq">Frequency: --</p>
-                        </div>
-                        
-                        <!-- Intervals Panel -->
-                        <div class="bg-surface-dark p-5 rounded-xl border border-[#2a231b] flex flex-col gap-3">
-                            <div class="flex items-center gap-3 text-white mb-1">
-                                <span class="material-symbols-outlined text-primary">piano</span>
-                                <h3 class="font-bold text-lg">Scale Formula</h3>
-                            </div>
-                            <div id="scale-formula" class="text-sm text-[#b9ae9c]">
-                                <p><strong class="text-white">W-W-H-W-W-W-H</strong></p>
-                            </div>
-                            <div id="scale-intervals" class="flex flex-wrap gap-2 mt-2">
-                                <!-- Intervals will be populated by JS -->
-                            </div>
-                        </div>
-                        
-                        <!-- Tuning Panel -->
-                        <div class="bg-surface-dark p-5 rounded-xl border border-[#2a231b] flex flex-col gap-3">
-                            <div class="flex items-center gap-3 text-white mb-1">
-                                <span class="material-symbols-outlined text-primary">tune</span>
-                                <h3 class="font-bold text-lg">Tuning</h3>
-                            </div>
-                            <div class="flex justify-between items-center bg-[#14110e] p-3 rounded-lg border border-[#3a3128]">
-                                <div class="flex flex-col items-center gap-1">
-                                    <span class="text-[10px] text-[#8a7f6f] font-bold">6</span>
-                                    <span class="text-white font-bold">E</span>
-                                </div>
-                                <div class="flex flex-col items-center gap-1">
-                                    <span class="text-[10px] text-[#8a7f6f] font-bold">5</span>
-                                    <span class="text-white font-bold">A</span>
-                                </div>
-                                <div class="flex flex-col items-center gap-1">
-                                    <span class="text-[10px] text-[#8a7f6f] font-bold">4</span>
-                                    <span class="text-white font-bold">D</span>
-                                </div>
-                                <div class="flex flex-col items-center gap-1">
-                                    <span class="text-[10px] text-[#8a7f6f] font-bold">3</span>
-                                    <span class="text-white font-bold">G</span>
-                                </div>
-                                <div class="flex flex-col items-center gap-1">
-                                    <span class="text-[10px] text-[#8a7f6f] font-bold">2</span>
-                                    <span class="text-white font-bold">B</span>
-                                </div>
-                                <div class="flex flex-col items-center gap-1">
-                                    <span class="text-[10px] text-[#8a7f6f] font-bold">1</span>
-                                    <span class="text-white font-bold">E</span>
-                                </div>
-                            </div>
-                            <p class="text-sm text-[#b9ae9c] text-center">Standard Tuning</p>
-                        </div>
-                    </div>
+                    </section>
 
                 </div>
             </div>

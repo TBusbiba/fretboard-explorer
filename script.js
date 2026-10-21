@@ -23,7 +23,7 @@ class GuitarScaleApp {
         this.cagedShapes = {
             C: {
                 name: 'C Shape',
-                color: 'rgba(255, 193, 7, 0.4)',
+                color: '#ffd24a',
                 // Positions relative to root: [string (0-5), fret offset from shape start]
                 positions: [
                     { string: 4, fretOffset: 0, interval: 'R' },  // Root on A string
@@ -35,7 +35,7 @@ class GuitarScaleApp {
             },
             A: {
                 name: 'A Shape',
-                color: 'rgba(78, 205, 196, 0.4)',
+                color: '#5ec4ff',
                 positions: [
                     { string: 4, fretOffset: 0, interval: 'R' },
                     { string: 3, fretOffset: 2, interval: '5' },
@@ -46,7 +46,7 @@ class GuitarScaleApp {
             },
             G: {
                 name: 'G Shape',
-                color: 'rgba(150, 206, 180, 0.4)',
+                color: '#7ee08a',
                 positions: [
                     { string: 5, fretOffset: 0, interval: 'R' },
                     { string: 4, fretOffset: 2, interval: '3' },
@@ -58,7 +58,7 @@ class GuitarScaleApp {
             },
             E: {
                 name: 'E Shape',
-                color: 'rgba(255, 107, 107, 0.4)',
+                color: '#ff5c93',
                 positions: [
                     { string: 5, fretOffset: 0, interval: 'R' },
                     { string: 4, fretOffset: 2, interval: '5' },
@@ -70,7 +70,7 @@ class GuitarScaleApp {
             },
             D: {
                 name: 'D Shape',
-                color: 'rgba(165, 94, 234, 0.4)',
+                color: '#b48cff',
                 positions: [
                     { string: 3, fretOffset: 0, interval: 'R' },
                     { string: 2, fretOffset: 2, interval: '5' },
@@ -1086,6 +1086,11 @@ class GuitarScaleApp {
             }
         }
         
+        // Dim the rest of the scale while the shapes are shown, and show the legend
+        if (this.fretboard) this.fretboard.classList.toggle('caged-on', this.showCaged);
+        const cagedLegend = document.getElementById('caged-legend');
+        if (cagedLegend) cagedLegend.classList.toggle('hidden', !this.showCaged);
+        
         this.updateScaleDisplay();
     }
     
@@ -1145,26 +1150,28 @@ class GuitarScaleApp {
             noteSlot = this.fretboard.querySelector(`button[data-string="${string}"][data-fret="0"]`);
             if (noteSlot) {
                 // Add a ring around the note
-                noteSlot.style.boxShadow = `0 0 0 4px ${color}, 0 2px 4px rgba(0,0,0,0.5)`;
+                noteSlot.style.boxShadow = `0 0 0 2px #0e0e0d, 0 0 0 6px ${color}`;
+                noteSlot.classList.add('caged-note');
             }
         } else {
             noteSlot = this.fretboard.querySelector(`.note-slot[data-string="${string}"][data-fret="${fret}"]`);
             if (noteSlot) {
                 const existingCircle = noteSlot.querySelector('.note-circle');
                 if (existingCircle) {
-                    existingCircle.style.boxShadow = `0 0 0 4px ${color}, 0 2px 4px rgba(0,0,0,0.5)`;
+                    existingCircle.style.boxShadow = `0 0 0 2px #0e0e0d, 0 0 0 6px ${color}`;
+                    existingCircle.classList.add('caged-note');
                 } else {
                     // Create a background marker for CAGED position
                     const marker = document.createElement('div');
                     marker.className = 'caged-marker';
                     marker.style.cssText = `
                         position: absolute;
-                        width: 32px;
-                        height: 32px;
+                        width: 26px;
+                        height: 26px;
                         border-radius: 50%;
-                        background: ${color};
+                        border: 4px solid ${color};
+                        box-shadow: 0 0 0 2px #0e0e0d;
                         z-index: 15;
-                        opacity: 0.6;
                     `;
                     noteSlot.style.position = 'relative';
                     noteSlot.appendChild(marker);
@@ -1181,11 +1188,8 @@ class GuitarScaleApp {
         // Reset box shadows on note circles
         const noteCircles = this.fretboard.querySelectorAll('.note-circle');
         noteCircles.forEach(circle => {
-            if (circle.classList.contains('root-note')) {
-                circle.style.boxShadow = '0 0 0 4px rgba(240,178,74,0.3)';
-            } else {
-                circle.style.boxShadow = '0 2px 4px rgba(0,0,0,0.5)';
-            }
+            circle.style.boxShadow = '';
+            circle.classList.remove('caged-note');
         });
     }
     
@@ -1232,7 +1236,7 @@ class GuitarScaleApp {
             button.addEventListener('click', () => {
                 document.querySelectorAll('.degree-btn').forEach(btn => btn.classList.remove('selected'));
                 button.classList.add('selected');
-                this.colorAllInstancesOfNote(note, '#c9541a');
+                this.colorAllInstancesOfNote(note, '#ff5a1f');
             });
             
             degreeButtonsContainer.appendChild(button);
@@ -1252,7 +1256,7 @@ class GuitarScaleApp {
                         const noteBtn = this.fretboard.querySelector(`button[data-string="${string}"][data-fret="0"]`);
                         if (noteBtn) {
                             noteBtn.style.background = color;
-                            noteBtn.style.color = '#ffffff';
+                            noteBtn.style.color = '#0e0e0d';
                         }
                     } else {
                         const noteSlot = this.fretboard.querySelector(`.note-slot[data-string="${string}"][data-fret="${fret}"]`);
@@ -1260,13 +1264,13 @@ class GuitarScaleApp {
                             const existingCircle = noteSlot.querySelector('.note-circle');
                             if (existingCircle) {
                                 existingCircle.style.background = color;
-                                existingCircle.style.color = '#ffffff';
+                                existingCircle.style.color = '#0e0e0d';
                             } else {
                                 const noteCircle = document.createElement('button');
                                 noteCircle.className = 'note-circle';
                                 noteCircle.textContent = note;
                                 noteCircle.style.background = color;
-                                noteCircle.style.color = '#ffffff';
+                                noteCircle.style.color = '#0e0e0d';
                                 noteCircle.addEventListener('click', (e) => {
                                     e.stopPropagation();
                                     this.handleNoteClick(string, fret);
@@ -1349,9 +1353,9 @@ class GuitarScaleApp {
         const triadNotes = intervals.map(interval => scaleNotes[interval]).filter(Boolean);
         
         const triadColors = {
-            [triadNotes[0]]: '#c9541a',
-            [triadNotes[1]]: '#4ecdc4',
-            [triadNotes[2]]: '#45b7d1'
+            [triadNotes[0]]: '#ff5a1f',
+            [triadNotes[1]]: '#ffd24a',
+            [triadNotes[2]]: '#5ec4ff'
         };
         
         // Track processed positions to avoid duplicates when string groups overlap
@@ -1378,7 +1382,7 @@ class GuitarScaleApp {
                             const noteBtn = this.fretboard.querySelector(`button[data-string="${string}"][data-fret="0"]`);
                             if (noteBtn) {
                                 noteBtn.style.background = color;
-                                noteBtn.style.color = '#ffffff';
+                                noteBtn.style.color = '#0e0e0d';
                                 noteBtn.textContent = note;
                             }
                         } else {
@@ -1388,7 +1392,7 @@ class GuitarScaleApp {
                                 noteCircle.className = 'note-circle';
                                 noteCircle.textContent = note;
                                 noteCircle.style.background = color;
-                                noteCircle.style.color = '#ffffff';
+                                noteCircle.style.color = '#0e0e0d';
                                 noteCircle.addEventListener('click', (e) => {
                                     e.stopPropagation();
                                     this.handleNoteClick(string, fret);
