@@ -269,7 +269,9 @@ class GuitarScaleApp {
     }
     
     paint(circle, color, how) {
-        circle.style.background = color;
+        circle.style.background = colors.length > 1
+            ? `linear-gradient(90deg, ${colors[0]} 50%, ${colors[1]} 50%)`
+            : colors[0];
         circle.style.color = '#0e0e0d';
         circle.dataset.painted = how;
     }
@@ -1086,7 +1088,7 @@ class GuitarScaleApp {
     // scale has a minor 3rd), each moved up
     // the neck to the key (C at 0, A +3, G +5, E +8, D +10 for C major). Each
     // shape's notes are filled in its colour and labelled R / 3 / 5; where two
-    // shapes share a note, the earlier one in C-A-G-E-D keeps it.
+    // shapes share a note, it is split between both colours.
     renderCagedOverlay() {
         if (!this.showCaged || !this.currentScale1) return;
         
@@ -1094,9 +1096,9 @@ class GuitarScaleApp {
         const rootIndex = noteNames.indexOf(this.currentScale1.root);
         // minor scales use the minor open chords (Cm, Am, Gm, Em, Dm): same shapes, 3rd one fret lower
         const minor = this.currentScale1.intervals.includes('Minor 3rd');
-        const taken = new Set();
+        const spots = new Map();
         
-        // every shape in its lowest position first, then the repeats an octave up
+        // every shape in its lowest position, plus the repeat an octave up
         for (const octave of [0, 12]) {
             ['C', 'A', 'G', 'E', 'D'].forEach(name => {
                 const shape = this.cagedShapes[name];
@@ -1104,16 +1106,22 @@ class GuitarScaleApp {
                 shape.positions.forEach(pos => {
                     const third = pos.interval === '3';
                     const fret = base + pos.fret - (minor && third ? 1 : 0);
+                    if (fret < 0 || fret > 21) return;
                     const key = `${pos.string}:${fret}`;
-                    if (fret < 0 || fret > 21 || taken.has(key)) return;
-                    taken.add(key);
-                    this.addCagedMarker(pos.string, fret, shape.color, minor && third ? '♭3' : pos.interval);
+                    if (!spots.has(key)) spots.set(key, { string: pos.string, fret, interval: minor && third ? '♭3' : pos.interval, shapes: [] });
+                    spots.get(key).shapes.push({ color: shape.color, base });
                 });
             });
         }
+        
+        // a note shared by two shapes is split down the middle, lower shape on the left
+        spots.forEach(spot => {
+            const colors = spot.shapes.sort((x, y) => x.base - y.base).map(sh => sh.color);
+            this.addCagedMarker(spot.string, spot.fret, colors, spot.interval);
+        });
     }
     
-    addCagedMarker(string, fret, color, interval) {
+    addCagedMarker(string, fret, colors, interval) {
         let circle = this.noteCircleAt(string, fret);
         if (!circle) {
             // a chord tone outside the scale (e.g. a major 3rd in a minor scale)
@@ -1125,7 +1133,9 @@ class GuitarScaleApp {
             noteSlot.appendChild(circle);
         }
         circle.classList.add('caged-note');
-        circle.style.background = color;
+        circle.style.background = colors.length > 1
+            ? `linear-gradient(90deg, ${colors[0]} 50%, ${colors[1]} 50%)`
+            : colors[0];
         circle.style.color = '#0e0e0d';
         circle.textContent = interval;
     }
