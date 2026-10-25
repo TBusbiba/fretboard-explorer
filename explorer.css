@@ -494,3 +494,14 @@ body .pattern-btn, body #reset-all, body #tab-toggle, body #caged-toggle, body .
 body .string-filter-btn { flex: none; }
 body #toggle-all-strings { height: 54px !important; }
 body #clear-notes { min-height: 38px !important; }
+
+/* CAGED: each shape's notes are filled in its colour and show R / 3 / 5 */
+.ex-swatch { width: 14px; height: 14px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 2px #0e0e0d; flex: none; }
+#fretboard-body .note-circle.caged-note { font-size: 14px; font-weight: 800; text-shadow: none; }
+.caged-marker {
+  position: absolute; width: 30px; height: 30px; border-radius: 50%; z-index: 15;
+  display: flex; align-items: center; justify-content: center;
+  font: 800 14px/1 var(--cs-sans); color: #0e0e0d;
+  border: 2px dashed #0e0e0d; filter: drop-shadow(2.5px 2.5px 0 #0e0e0d);
+  animation: ex-note-in 480ms var(--cs-heavy) both;
+}

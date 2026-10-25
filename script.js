@@ -21,63 +21,22 @@ class GuitarScaleApp {
         // CAGED chord shape definitions (relative positions from root)
         // Each shape is defined by intervals from the root on specific strings
         this.cagedShapes = {
-            C: {
-                name: 'C Shape',
-                color: '#ffd24a',
-                // Positions relative to root: [string (0-5), fret offset from shape start]
-                positions: [
-                    { string: 4, fretOffset: 0, interval: 'R' },  // Root on A string
-                    { string: 3, fretOffset: 2, interval: '5' },
-                    { string: 2, fretOffset: 0, interval: 'R' },
-                    { string: 1, fretOffset: 1, interval: '3' },
-                    { string: 0, fretOffset: 0, interval: '5' }
-                ]
-            },
-            A: {
-                name: 'A Shape',
-                color: '#5ec4ff',
-                positions: [
-                    { string: 4, fretOffset: 0, interval: 'R' },
-                    { string: 3, fretOffset: 2, interval: '5' },
-                    { string: 2, fretOffset: 2, interval: 'R' },
-                    { string: 1, fretOffset: 2, interval: '3' },
-                    { string: 0, fretOffset: 0, interval: '5' }
-                ]
-            },
-            G: {
-                name: 'G Shape',
-                color: '#7ee08a',
-                positions: [
-                    { string: 5, fretOffset: 0, interval: 'R' },
-                    { string: 4, fretOffset: 2, interval: '3' },
-                    { string: 3, fretOffset: 0, interval: '5' },
-                    { string: 2, fretOffset: 0, interval: 'R' },
-                    { string: 1, fretOffset: 0, interval: '3' },
-                    { string: 0, fretOffset: 0, interval: 'R' }
-                ]
-            },
-            E: {
-                name: 'E Shape',
-                color: '#ff5c93',
-                positions: [
-                    { string: 5, fretOffset: 0, interval: 'R' },
-                    { string: 4, fretOffset: 2, interval: '5' },
-                    { string: 3, fretOffset: 2, interval: 'R' },
-                    { string: 2, fretOffset: 1, interval: '3' },
-                    { string: 1, fretOffset: 0, interval: '5' },
-                    { string: 0, fretOffset: 0, interval: 'R' }
-                ]
-            },
-            D: {
-                name: 'D Shape',
-                color: '#b48cff',
-                positions: [
-                    { string: 3, fretOffset: 0, interval: 'R' },
-                    { string: 2, fretOffset: 2, interval: '5' },
-                    { string: 1, fretOffset: 3, interval: 'R' },
-                    { string: 0, fretOffset: 2, interval: '3' }
-                ]
-            }
+            // Open chord forms; string 0 = high e, 5 = low E; fret as played in the open chord
+            C: { name: 'C Shape', color: '#ff6b6b', positions: [
+                { string: 4, fret: 3, interval: 'R' }, { string: 3, fret: 2, interval: '3' }, { string: 2, fret: 0, interval: '5' },
+                { string: 1, fret: 1, interval: 'R' }, { string: 0, fret: 0, interval: '3' } ] },
+            A: { name: 'A Shape', color: '#ffd24a', positions: [
+                { string: 4, fret: 0, interval: 'R' }, { string: 3, fret: 2, interval: '5' }, { string: 2, fret: 2, interval: 'R' },
+                { string: 1, fret: 2, interval: '3' }, { string: 0, fret: 0, interval: '5' } ] },
+            G: { name: 'G Shape', color: '#7ee08a', positions: [
+                { string: 5, fret: 3, interval: 'R' }, { string: 4, fret: 2, interval: '3' }, { string: 3, fret: 0, interval: '5' },
+                { string: 2, fret: 0, interval: 'R' }, { string: 1, fret: 0, interval: '3' }, { string: 0, fret: 3, interval: 'R' } ] },
+            E: { name: 'E Shape', color: '#5ec4ff', positions: [
+                { string: 5, fret: 0, interval: 'R' }, { string: 4, fret: 2, interval: '5' }, { string: 3, fret: 2, interval: 'R' },
+                { string: 2, fret: 1, interval: '3' }, { string: 1, fret: 0, interval: '5' }, { string: 0, fret: 0, interval: 'R' } ] },
+            D: { name: 'D Shape', color: '#e07bff', positions: [
+                { string: 3, fret: 0, interval: 'R' }, { string: 2, fret: 2, interval: '5' }, { string: 1, fret: 3, interval: 'R' },
+                { string: 0, fret: 2, interval: '3' } ] }
         };
         
         this.init();
@@ -238,13 +197,19 @@ class GuitarScaleApp {
         // Update selected note display
         this.updateSelectedNoteDisplay(note, string, fret);
         
-        // Check if a color is selected
+        // A painted note goes back to how it looked before, whichever way it was painted
+        const circle = this.noteCircleAt(string, fret);
+        if (circle && circle.dataset.painted) {
+            if (circle.dataset.painted === 'all') this.revertNoteToPreviousState(string, fret);
+            else this.unpaint(circle);
+            return;
+        }
+        
+        // With a colour picked, paint every instance of the note; otherwise mark just this one
         if (this.selectedColor) {
             this.colorAllInstancesOfNote(note, this.selectedColor);
             return;
         }
-        
-        // Toggle note marking
         this.toggleNoteMarking(string, fret);
     }
     
@@ -296,23 +261,46 @@ class GuitarScaleApp {
         return noteNames[noteIndex];
     }
     
+    // The note's circle at a position: the open-string button itself at fret 0
+    noteCircleAt(string, fret) {
+        if (fret === 0) return this.fretboard.querySelector(`button[data-string="${string}"][data-fret="0"]`);
+        const slot = this.fretboard.querySelector(`.note-slot[data-string="${string}"][data-fret="${fret}"]`);
+        return slot ? slot.querySelector('.note-circle') : null;
+    }
+    
+    paint(circle, color, how) {
+        circle.style.background = color;
+        circle.style.color = '#0e0e0d';
+        circle.dataset.painted = how;
+    }
+    
+    unpaint(circle) {
+        if (circle.dataset.created) { circle.remove(); return; }
+        circle.style.background = '';
+        circle.style.color = '';
+        delete circle.dataset.painted;
+    }
+    
+    // Mark a single note (no colour picked); clicking it again unmarks it
     toggleNoteMarking(string, fret) {
-        const noteSlot = this.fretboard.querySelector(`[data-string="${string}"][data-fret="${fret}"]`);
-        if (!noteSlot) return;
-        
-        const existingCircle = noteSlot.querySelector('.note-circle');
-        if (existingCircle && existingCircle.style.background) {
-            this.revertNoteToPreviousState(string, fret);
-            return;
+        const MARK = '#ffd24a';
+        let circle = this.noteCircleAt(string, fret);
+        if (circle && circle.dataset.painted) { this.unpaint(circle); return; }
+        if (!circle) {
+            // not in the scale: add a marker so any spot can be marked
+            const slot = this.fretboard.querySelector(`.note-slot[data-string="${string}"][data-fret="${fret}"]`);
+            if (!slot) return;
+            circle = document.createElement('button');
+            circle.className = 'note-circle';
+            circle.textContent = this.getNoteAtPosition(string, fret);
+            circle.dataset.created = '1';
+            circle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.handleNoteClick(string, fret);
+            });
+            slot.appendChild(circle);
         }
-        
-        if (this.selectedColor) {
-            const note = this.getNoteAtPosition(string, fret);
-            this.colorAllInstancesOfNote(note, this.selectedColor);
-            return;
-        }
-        
-        this.updateScaleDisplay();
+        this.paint(circle, MARK, 'one');
     }
     
     setupEventListeners() {
@@ -1094,90 +1082,48 @@ class GuitarScaleApp {
         this.updateScaleDisplay();
     }
     
+    // CAGED: the five open-chord shapes of the root's major chord, each moved up
+    // the neck to the key (C at 0, A +3, G +5, E +8, D +10 for C major). Each
+    // shape's notes are filled in its colour and labelled R / 3 / 5; where two
+    // shapes share a note, the earlier one in C-A-G-E-D keeps it.
     renderCagedOverlay() {
         if (!this.showCaged || !this.currentScale1) return;
         
-        const rootNote = this.currentScale1.root;
         const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-        const rootIndex = noteNames.indexOf(rootNote);
+        const rootIndex = noteNames.indexOf(this.currentScale1.root);
+        const taken = new Set();
         
-        // Find root positions and draw CAGED shapes
-        const openStrings = ['E', 'B', 'G', 'D', 'A', 'E'];
-        
-        // For each CAGED shape, calculate positions and add overlay
-        const cagedOrder = ['E', 'D', 'C', 'A', 'G'];
-        
-        cagedOrder.forEach((shapeName, shapeIndex) => {
-            const shape = this.cagedShapes[shapeName];
-            
-            // Calculate base fret for this shape based on root
-            let baseFret = 0;
-            
-            // Find where this shape's root falls
-            if (shapeName === 'E') {
-                // E shape root is on string 5 (low E)
-                const lowEIndex = noteNames.indexOf('E');
-                baseFret = (rootIndex - lowEIndex + 12) % 12;
-            } else if (shapeName === 'A') {
-                const aIndex = noteNames.indexOf('A');
-                baseFret = (rootIndex - aIndex + 12) % 12;
-            } else if (shapeName === 'D') {
-                const dIndex = noteNames.indexOf('D');
-                baseFret = (rootIndex - dIndex + 12) % 12;
-            } else if (shapeName === 'G') {
-                const gIndex = noteNames.indexOf('G');
-                baseFret = (rootIndex - gIndex + 12) % 12;
-                if (baseFret < 2) baseFret += 12;
-            } else if (shapeName === 'C') {
-                const cIndex = noteNames.indexOf('C');
-                baseFret = (rootIndex - cIndex + 12) % 12;
-            }
-            
-            // Draw chord tones with overlay
-            shape.positions.forEach(pos => {
-                const fret = baseFret + pos.fretOffset;
-                if (fret >= 0 && fret < 22) {
+        // every shape in its lowest position first, then the repeats an octave up
+        for (const octave of [0, 12]) {
+            ['C', 'A', 'G', 'E', 'D'].forEach(name => {
+                const shape = this.cagedShapes[name];
+                const base = (rootIndex - noteNames.indexOf(name) + 12) % 12 + octave;
+                shape.positions.forEach(pos => {
+                    const fret = base + pos.fret;
+                    const key = `${pos.string}:${fret}`;
+                    if (fret > 21 || taken.has(key)) return;
+                    taken.add(key);
                     this.addCagedMarker(pos.string, fret, shape.color, pos.interval);
-                }
+                });
             });
-        });
+        }
     }
     
     addCagedMarker(string, fret, color, interval) {
-        let noteSlot;
-        
-        if (fret === 0) {
-            noteSlot = this.fretboard.querySelector(`button[data-string="${string}"][data-fret="0"]`);
-            if (noteSlot) {
-                // Add a ring around the note
-                noteSlot.style.boxShadow = `0 0 0 2px #0e0e0d, 0 0 0 6px ${color}`;
-                noteSlot.classList.add('caged-note');
-            }
-        } else {
-            noteSlot = this.fretboard.querySelector(`.note-slot[data-string="${string}"][data-fret="${fret}"]`);
-            if (noteSlot) {
-                const existingCircle = noteSlot.querySelector('.note-circle');
-                if (existingCircle) {
-                    existingCircle.style.boxShadow = `0 0 0 2px #0e0e0d, 0 0 0 6px ${color}`;
-                    existingCircle.classList.add('caged-note');
-                } else {
-                    // Create a background marker for CAGED position
-                    const marker = document.createElement('div');
-                    marker.className = 'caged-marker';
-                    marker.style.cssText = `
-                        position: absolute;
-                        width: 26px;
-                        height: 26px;
-                        border-radius: 50%;
-                        border: 4px solid ${color};
-                        box-shadow: 0 0 0 2px #0e0e0d;
-                        z-index: 15;
-                    `;
-                    noteSlot.style.position = 'relative';
-                    noteSlot.appendChild(marker);
-                }
-            }
+        let circle = this.noteCircleAt(string, fret);
+        if (!circle) {
+            // a chord tone outside the scale (e.g. a major 3rd in a minor scale)
+            const noteSlot = this.fretboard.querySelector(`.note-slot[data-string="${string}"][data-fret="${fret}"]`);
+            if (!noteSlot) return;
+            circle = document.createElement('div');
+            circle.className = 'caged-marker';
+            noteSlot.style.position = 'relative';
+            noteSlot.appendChild(circle);
         }
+        circle.classList.add('caged-note');
+        circle.style.background = color;
+        circle.style.color = '#0e0e0d';
+        circle.textContent = interval;
     }
     
     clearCagedMarkers() {
@@ -1249,71 +1195,36 @@ class GuitarScaleApp {
             if (!this.selectedStrings.has(string)) continue;
             
             for (let fret = 0; fret < 22; fret++) {
-                const cellNote = this.getNoteAtPosition(string, fret);
-                
-                if (cellNote === note) {
-                    if (fret === 0) {
-                        const noteBtn = this.fretboard.querySelector(`button[data-string="${string}"][data-fret="0"]`);
-                        if (noteBtn) {
-                            noteBtn.style.background = color;
-                            noteBtn.style.color = '#0e0e0d';
-                        }
-                    } else {
-                        const noteSlot = this.fretboard.querySelector(`.note-slot[data-string="${string}"][data-fret="${fret}"]`);
-                        if (noteSlot) {
-                            const existingCircle = noteSlot.querySelector('.note-circle');
-                            if (existingCircle) {
-                                existingCircle.style.background = color;
-                                existingCircle.style.color = '#0e0e0d';
-                            } else {
-                                const noteCircle = document.createElement('button');
-                                noteCircle.className = 'note-circle';
-                                noteCircle.textContent = note;
-                                noteCircle.style.background = color;
-                                noteCircle.style.color = '#0e0e0d';
-                                noteCircle.addEventListener('click', (e) => {
-                                    e.stopPropagation();
-                                    this.handleNoteClick(string, fret);
-                                });
-                                noteSlot.appendChild(noteCircle);
-                            }
-                        }
-                    }
+                if (this.getNoteAtPosition(string, fret) !== note) continue;
+                let circle = this.noteCircleAt(string, fret);
+                if (!circle && fret > 0) {
+                    const noteSlot = this.fretboard.querySelector(`.note-slot[data-string="${string}"][data-fret="${fret}"]`);
+                    if (!noteSlot) continue;
+                    circle = document.createElement('button');
+                    circle.className = 'note-circle';
+                    circle.textContent = note;
+                    circle.dataset.created = '1';
+                    circle.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.handleNoteClick(string, fret);
+                    });
+                    noteSlot.appendChild(circle);
                 }
+                if (circle) this.paint(circle, color, 'all');
             }
         }
     }
     
     revertNoteToPreviousState(string, fret) {
+        // Un-paint every instance of this note that was painted as a group
         const note = this.getNoteAtPosition(string, fret);
-        
         for (let s = 0; s < 6; s++) {
             for (let f = 0; f < 22; f++) {
-                const cellNote = this.getNoteAtPosition(s, f);
-                
-                if (cellNote === note) {
-                    if (f === 0) {
-                        const noteBtn = this.fretboard.querySelector(`button[data-string="${s}"][data-fret="0"]`);
-                        if (noteBtn && noteBtn.style.background) {
-                            noteBtn.style.background = '';
-                            noteBtn.style.color = '';
-                        }
-                    } else {
-                        const noteSlot = this.fretboard.querySelector(`.note-slot[data-string="${s}"][data-fret="${f}"]`);
-                        if (noteSlot) {
-                            const existingCircle = noteSlot.querySelector('.note-circle');
-                            if (existingCircle && existingCircle.style.background) {
-                                existingCircle.style.background = '';
-                                existingCircle.style.color = '';
-                            }
-                        }
-                    }
-                }
+                if (this.getNoteAtPosition(s, f) !== note) continue;
+                const circle = this.noteCircleAt(s, f);
+                if (circle && circle.dataset.painted === 'all') this.unpaint(circle);
             }
         }
-        
-        // Refresh display
-        this.updateScaleDisplay();
     }
     
     toggleTriadMode(enabled) {
