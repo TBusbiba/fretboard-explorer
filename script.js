@@ -1082,7 +1082,8 @@ class GuitarScaleApp {
         this.updateScaleDisplay();
     }
     
-    // CAGED: the five open-chord shapes of the root's major chord, each moved up
+    // CAGED: the five open-chord shapes of the root's chord (major, or minor when the
+    // scale has a minor 3rd), each moved up
     // the neck to the key (C at 0, A +3, G +5, E +8, D +10 for C major). Each
     // shape's notes are filled in its colour and labelled R / 3 / 5; where two
     // shapes share a note, the earlier one in C-A-G-E-D keeps it.
@@ -1091,6 +1092,8 @@ class GuitarScaleApp {
         
         const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
         const rootIndex = noteNames.indexOf(this.currentScale1.root);
+        // minor scales use the minor open chords (Cm, Am, Gm, Em, Dm): same shapes, 3rd one fret lower
+        const minor = this.currentScale1.intervals.includes('Minor 3rd');
         const taken = new Set();
         
         // every shape in its lowest position first, then the repeats an octave up
@@ -1099,11 +1102,12 @@ class GuitarScaleApp {
                 const shape = this.cagedShapes[name];
                 const base = (rootIndex - noteNames.indexOf(name) + 12) % 12 + octave;
                 shape.positions.forEach(pos => {
-                    const fret = base + pos.fret;
+                    const third = pos.interval === '3';
+                    const fret = base + pos.fret - (minor && third ? 1 : 0);
                     const key = `${pos.string}:${fret}`;
-                    if (fret > 21 || taken.has(key)) return;
+                    if (fret < 0 || fret > 21 || taken.has(key)) return;
                     taken.add(key);
-                    this.addCagedMarker(pos.string, fret, shape.color, pos.interval);
+                    this.addCagedMarker(pos.string, fret, shape.color, minor && third ? '♭3' : pos.interval);
                 });
             });
         }
