@@ -1085,10 +1085,9 @@ class GuitarScaleApp {
     }
     
     // CAGED: the five open-chord shapes of the root's chord (major, or minor when the
-    // scale has a minor 3rd), each moved up
-    // the neck to the key (C at 0, A +3, G +5, E +8, D +10 for C major). Each
-    // shape's notes are filled in its colour and labelled R / 3 / 5; where two
-    // shapes share a note, it is split between both colours.
+    // scale has a minor 3rd), each moved up the neck to the key (C at 0, A +3, G +5,
+    // E +8, D +10 for C major). Each shape's fretted notes are filled in its colour and
+    // labelled R / 3 / 5; the one note the D and C shapes share is split between both.
     renderCagedOverlay() {
         if (!this.showCaged || !this.currentScale1) return;
         
@@ -1103,7 +1102,9 @@ class GuitarScaleApp {
             ['C', 'A', 'G', 'E', 'D'].forEach(name => {
                 const shape = this.cagedShapes[name];
                 const base = (rootIndex - noteNames.indexOf(name) + 12) % 12 + octave;
-                shape.positions.forEach(pos => {
+                // open strings in the open chord become the barre, which is the neighbouring
+                // shape's fretted notes, so each shape only owns the notes it frets
+                shape.positions.filter(pos => pos.fret > 0).forEach(pos => {
                     const third = pos.interval === '3';
                     const fret = base + pos.fret - (minor && third ? 1 : 0);
                     if (fret < 0 || fret > 21) return;
