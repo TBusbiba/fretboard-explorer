@@ -11,6 +11,21 @@ class GuitarScaleApp {
         this.currentScale1 = null;
         this.currentScale2 = null;
         this.comparisonMode = false;
+        
+        // Tunings as MIDI pitches of the open strings, string 0 = high e to 5 = low E
+        this.noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        this.tunings = {
+            'standard':    { name: 'Standard',        midi: [64, 59, 55, 50, 45, 40] },
+            'half-down':   { name: 'Half step down',  midi: [63, 58, 54, 49, 44, 39] },
+            'd-standard':  { name: 'D standard',      midi: [62, 57, 53, 48, 43, 38] },
+            'drop-d':      { name: 'Drop D',          midi: [64, 59, 55, 50, 45, 38] },
+            'drop-c':      { name: 'Drop C',          midi: [62, 57, 53, 48, 43, 36] },
+            'dadgad':      { name: 'DADGAD',          midi: [62, 57, 55, 50, 45, 38] },
+            'open-g':      { name: 'Open G',          midi: [62, 59, 55, 50, 43, 38] },
+            'open-d':      { name: 'Open D',          midi: [62, 57, 54, 50, 45, 38] },
+            'open-e':      { name: 'Open E',          midi: [64, 59, 56, 52, 47, 40] }
+        };
+        this.loadTuning();
         this.currentPattern = 'full';
         this.selectedNote = null;
         this.selectedFret = null;  // null = show all, number = show position at that fret
@@ -126,11 +141,10 @@ class GuitarScaleApp {
         nut.appendChild(nutLabel);
         
         // Add open string notes
-        const openNotes = ['E', 'B', 'G', 'D', 'A', 'E'];
         for (let string = 0; string < 6; string++) {
             const noteBtn = document.createElement('button');
             noteBtn.className = 'note-circle scale-note';
-            noteBtn.textContent = openNotes[string];
+            noteBtn.textContent = this.openNote(string);
             noteBtn.dataset.string = string;
             noteBtn.dataset.fret = 0;
             noteBtn.style.gridRow = `${string + 1}`;
@@ -243,22 +257,104 @@ class GuitarScaleApp {
     }
     
     calculateFrequency(note, string, fret) {
-        // Base frequencies for open strings (standard tuning)
-        const openFreqs = [329.63, 246.94, 196.00, 146.83, 110.00, 82.41]; // E4, B3, G3, D3, A2, E2
-        const baseFreq = openFreqs[string];
-        // Each fret is a semitone = multiply by 2^(1/12)
-        return baseFreq * Math.pow(2, fret / 12);
+        // A4 (MIDI 69) = 440 Hz; each fret is a semitone = multiply by 2^(1/12)
+        return 440 * Math.pow(2, (this.tuning[string] + fret - 69) / 12);
     }
     
     getNoteAtPosition(string, fret) {
-        const openNotes = ['E', 'B', 'G', 'D', 'A', 'E'];
-        const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        return this.noteNames[(this.tuning[string] + fret) % 12];
+    }
+    
+    openNote(string) {
+        return this.getNoteAtPosition(string, 0);
+    }
+    
+    // ---- Tuning: a preset or a custom note per string, remembered between visits ----
+    loadTuning() {
+        let saved = null;
+        try { saved = JSON.parse(localStorage.getItem('explorer.tuning')); } catch {}
+        if (saved && saved.id === 'custom' && Array.isArray(saved.midi) && saved.midi.length === 6) {
+            this.tuningId = 'custom';
+            this.tuning = saved.midi.slice();
+        } else {
+            this.tuningId = saved && this.tunings[saved.id] ? saved.id : 'standard';
+            this.tuning = this.tunings[this.tuningId].midi.slice();
+        }
+    }
+    
+    setTuning(id, midi) {
+        this.tuningId = id;
+        this.tuning = (midi || this.tunings[id].midi).slice();
+        try { localStorage.setItem('explorer.tuning', JSON.stringify({ id, midi: this.tuning })); } catch {}
+        this.updateTuningLabels();
+        this.updateScaleDisplay();
+    }
+    
+    // A custom string tuned to a note: the pitch closest to that string in standard tuning
+    customStringMidi(string, note) {
+        const standard = this.tunings.standard.midi[string];
+        const pc = this.noteNames.indexOf(note);
+        for (let midi = standard - 7; midi <= standard + 4; midi++) {
+            if (midi % 12 === pc) return midi;
+        }
+        return standard;
+    }
+    
+    setupTuning() {
+        const select = document.getElementById('tuning-select');
+        const custom = document.getElementById('tuning-custom');
+        if (!select || !custom) return;
         
-        const openNote = openNotes[string];
-        const openNoteIndex = noteNames.indexOf(openNote);
-        const noteIndex = (openNoteIndex + fret) % 12;
+        // one note picker per string, low E on the left like the tuning name reads
+        custom.innerHTML = '';
+        for (let string = 5; string >= 0; string--) {
+            const field = document.createElement('label');
+            field.className = 'ex-tune';
+            field.innerHTML = `<span class="ex-tune__num">${string + 1}</span><span class="ex-select"><select aria-label="String ${string + 1}">${
+                this.noteNames.map(n => `<option value="${n}">${n}</option>`).join('')}</select></span>`;
+            const picker = field.querySelector('select');
+            picker.dataset.string = string;
+            picker.addEventListener('change', () => {
+                const midi = this.tuning.slice();
+                midi[string] = this.customStringMidi(string, picker.value);
+                this.setTuning('custom', midi);
+            });
+            custom.appendChild(field);
+        }
         
-        return noteNames[noteIndex];
+        select.value = this.tuningId;
+        select.addEventListener('change', () => {
+            if (select.value === 'custom') this.setTuning('custom', this.tuning);
+            else this.setTuning(select.value);
+        });
+        this.updateTuningLabels();
+    }
+    
+    updateTuningLabels() {
+        const lowToHigh = [5, 4, 3, 2, 1, 0].map(s => this.openNote(s)).join(' ');
+        const preset = this.tunings[this.tuningId];
+        const readout = document.querySelector('.ex-tuning');
+        if (readout) readout.textContent = `${preset ? preset.name : 'Custom'} tuning · ${lowToHigh}`;
+        
+        const custom = document.getElementById('tuning-custom');
+        if (custom) {
+            custom.classList.toggle('hidden', this.tuningId !== 'custom');
+            custom.querySelectorAll('select').forEach(picker => { picker.value = this.openNote(+picker.dataset.string); });
+        }
+        
+        const ordinal = ['1st', '2nd', '3rd', '4th', '5th', '6th'];
+        document.querySelectorAll('.string-filter-btn').forEach(btn => {
+            const string = +btn.dataset.string;
+            const label = btn.querySelector('.string-note');
+            if (label) label.textContent = string === 0 ? this.openNote(0).toLowerCase() : this.openNote(string);
+            btn.title = `${this.openNote(string)} (${ordinal[string]} string)`;
+        });
+        
+        if (!this.fretboard) return;
+        for (let string = 0; string < 6; string++) {
+            const noteBtn = this.fretboard.querySelector(`button[data-string="${string}"][data-fret="0"]`);
+            if (noteBtn) noteBtn.textContent = this.openNote(string);
+        }
     }
     
     // The note's circle at a position: the open-string button itself at fret 0
@@ -269,9 +365,7 @@ class GuitarScaleApp {
     }
     
     paint(circle, color, how) {
-        circle.style.background = colors.length > 1
-            ? `linear-gradient(90deg, ${colors[0]} 50%, ${colors[1]} 50%)`
-            : colors[0];
+        circle.style.background = color;
         circle.style.color = '#0e0e0d';
         circle.dataset.painted = how;
     }
@@ -397,6 +491,8 @@ class GuitarScaleApp {
         
         // Color button picker
         this.setupColorButtons();
+        
+        this.setupTuning();
         
         // Triad finder toggle
         const triadModeElement = document.getElementById('triad-mode');
@@ -742,12 +838,11 @@ class GuitarScaleApp {
         });
         
         // Reset open string notes
-        const openNotes = ['E', 'B', 'G', 'D', 'A', 'E'];
         for (let string = 0; string < 6; string++) {
             const noteBtn = this.fretboard.querySelector(`button[data-string="${string}"][data-fret="0"]`);
             if (noteBtn) {
                 noteBtn.className = 'note-circle scale-note';
-                noteBtn.textContent = openNotes[string];
+                noteBtn.textContent = this.openNote(string);
                 noteBtn.style.background = '';
             }
         }
@@ -953,9 +1048,7 @@ class GuitarScaleApp {
     
     // Helper: get a unique pitch ID for a position (to detect same-pitch duplicates)
     getPitchId(string, fret) {
-        // Standard tuning open string MIDI notes: E2=40, A2=45, D3=50, G3=55, B3=59, E4=64
-        const openStringMidi = [64, 59, 55, 50, 45, 40]; // high e to low E (string 0 to 5)
-        return openStringMidi[string] + fret;
+        return this.tuning[string] + fret;
     }
     
     // TAB Methods
@@ -998,7 +1091,8 @@ class GuitarScaleApp {
         }
         
         const scaleNotes = this.currentScale1.notes;
-        const stringNames = ['e', 'B', 'G', 'D', 'A', 'E'];
+        const names = [0, 1, 2, 3, 4, 5].map(s => s === 0 ? this.openNote(0).toLowerCase() : this.openNote(s));
+        const stringNames = names.map(n => n.padEnd(Math.max(...names.map(x => x.length))));
         
         // Get notes for current position or all
         let notesToShow = [];
@@ -1097,8 +1191,8 @@ class GuitarScaleApp {
         const minor = this.currentScale1.intervals.includes('Minor 3rd');
         const spots = new Map();
         
-        // every shape in its lowest position, plus the repeat an octave up
-        for (const octave of [0, 12]) {
+        // every shape in its lowest position, plus the repeats an octave either side
+        for (const octave of [-12, 0, 12]) {
             ['C', 'A', 'G', 'E', 'D'].forEach(name => {
                 const shape = this.cagedShapes[name];
                 const base = (rootIndex - noteNames.indexOf(name) + 12) % 12 + octave;
@@ -1106,7 +1200,9 @@ class GuitarScaleApp {
                 // shape's fretted notes, so each shape only owns the notes it frets
                 shape.positions.filter(pos => pos.fret > 0).forEach(pos => {
                     const third = pos.interval === '3';
-                    const fret = base + pos.fret - (minor && third ? 1 : 0);
+                    // the shapes are standard-tuning shapes; a retuned string moves its notes along it
+                    const retune = this.tunings.standard.midi[pos.string] - this.tuning[pos.string];
+                    const fret = base + pos.fret - (minor && third ? 1 : 0) + retune;
                     if (fret < 0 || fret > 21) return;
                     const key = `${pos.string}:${fret}`;
                     if (!spots.has(key)) spots.set(key, { string: pos.string, fret, interval: minor && third ? '♭3' : pos.interval, shapes: [] });
@@ -1672,7 +1768,7 @@ class PatternManager {
     filterNotesForPosition(scaleNotes, getNoteAtPosition) {
         if (!this.verticalMode) return null;
         
-        const stringBasePitch = [64, 59, 55, 50, 45, 40];
+        const stringBasePitch = this.app.tuning;
         const positionNotes = [];
         const seenPitches = new Set();
         

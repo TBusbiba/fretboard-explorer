@@ -142,6 +142,21 @@
                                 <input type="checkbox" id="comparison-mode" aria-label="Compare with a second scale">
                                 <span aria-hidden="true"></span>
                             </label>
+                            <label class="ex-field ex-field--tuning">
+                                <span class="ex-label">Tuning</span>
+                                <span class="ex-select"><select id="tuning-select" aria-label="Tuning">
+                                    <option value="standard">Standard</option>
+                                    <option value="half-down">Half step down</option>
+                                    <option value="d-standard">D standard</option>
+                                    <option value="drop-d">Drop D</option>
+                                    <option value="drop-c">Drop C</option>
+                                    <option value="dadgad">DADGAD</option>
+                                    <option value="open-g">Open G</option>
+                                    <option value="open-d">Open D</option>
+                                    <option value="open-e">Open E</option>
+                                    <option value="custom">Custom…</option>
+                                </select></span>
+                            </label>
                             <div class="ex-field ex-field--pattern">
                                 <span class="ex-label">Pattern</span>
                                 <div class="ex-keys">
@@ -154,6 +169,9 @@
                                 <span class="material-symbols-outlined text-[18px]">refresh</span>Reset
                             </button>
                         </div>
+
+                        <!-- Custom tuning: one note per string, low E first -->
+                        <div class="ex-tuning-custom hidden" id="tuning-custom" aria-label="Custom tuning"></div>
 
                         <!-- Second scale, opened with the + key -->
                         <div class="ex-compare hidden" id="scale-2-controls">

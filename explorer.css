@@ -148,6 +148,14 @@ body #scale-formula-display { color: #8fcf7e !important; font: 400 13px/1.35 var
 .ex-field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
 .ex-field--root { width: 120px; }
 .ex-field--scale { flex: 1; min-width: 220px; max-width: 420px; }
+.ex-field--tuning { width: 190px; }
+
+/* custom tuning: six small note pickers, low E on the left */
+.ex-tuning-custom { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 12px; padding-top: 14px; border-top: 1px solid var(--cs-line); box-shadow: inset 0 1px 0 var(--cs-edge); }
+.ex-tuning-custom:not(.hidden) { animation: ex-open 520ms var(--cs-heavy) both; }
+.ex-tune { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 76px; }
+.ex-tune__num { font: 600 10.5px var(--cs-mono); letter-spacing: 0.12em; color: var(--cs-ink-2); }
+.ex-tune .ex-select { width: 100%; }
 .ex-label { font: 600 10.5px var(--cs-mono); letter-spacing: 0.18em; text-transform: uppercase; color: var(--cs-ink-2); }
 .ex-select { position: relative; display: block; }
 .ex-select::after { content: ''; position: absolute; right: 14px; top: 50%; width: 7px; height: 7px; margin-top: -6px; border-right: 2px solid var(--cs-lcd); border-bottom: 2px solid var(--cs-lcd); transform: rotate(45deg); pointer-events: none; filter: drop-shadow(0 0 3px var(--cs-lcd-glow)); }
@@ -290,7 +298,7 @@ body #tab-shape-label { color: var(--cs-screen-ink-3); }
 #fretboard-body > div:first-child { opacity: 0 !important; }
 
 /* strings: warm grey, plain on top, wound below, thicker toward the low E */
-.string-line { width: 100%; background: #d6d1c6; box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.8); pointer-events: none; z-index: 10; transform-origin: 0 50%; animation: ex-string-in 700ms var(--cs-settle) both; }
+.string-line { transition: background-color 150ms, box-shadow 150ms; width: 100%; background: #d6d1c6; box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.8); pointer-events: none; z-index: 10; transform-origin: 0 50%; animation: ex-string-in 700ms var(--cs-settle) both; }
 #fretboard-body .grid-rows-6 > div:nth-child(1) .string-line { height: 1.3px; animation-delay: 900ms; }
 #fretboard-body .grid-rows-6 > div:nth-child(2) .string-line { height: 1.6px; animation-delay: 960ms; }
 #fretboard-body .grid-rows-6 > div:nth-child(3) .string-line { height: 2px; animation-delay: 1020ms; }
@@ -300,7 +308,16 @@ body #tab-shape-label { color: var(--cs-screen-ink-3); }
 #fretboard-body .grid-rows-6 > div:nth-child(6) .string-line { height: 3.5px; animation-delay: 1200ms; }
 @keyframes ex-string-in { from { transform: scaleX(0); } }
 
-/* hovering a spot makes its string glow orange, like a finger resting on it */
+/* hovering a spot makes its string glow orange and wobble, like a finger resting on it.
+   The wobble runs on the string's row, so the string's own draw-in animation never restarts. */
+#fretboard-body:has([data-string="0"]:hover) .grid-rows-6 > div:nth-child(1),
+#fretboard-body:has([data-string="1"]:hover) .grid-rows-6 > div:nth-child(2),
+#fretboard-body:has([data-string="2"]:hover) .grid-rows-6 > div:nth-child(3),
+#fretboard-body:has([data-string="3"]:hover) .grid-rows-6 > div:nth-child(4),
+#fretboard-body:has([data-string="4"]:hover) .grid-rows-6 > div:nth-child(5),
+#fretboard-body:has([data-string="5"]:hover) .grid-rows-6 > div:nth-child(6) {
+  animation: ex-pluck 600ms cubic-bezier(0.2, 0.6, 0.3, 1);
+}
 #fretboard-body:has([data-string="0"]:hover) .grid-rows-6 > div:nth-child(1) .string-line,
 #fretboard-body:has([data-string="1"]:hover) .grid-rows-6 > div:nth-child(2) .string-line,
 #fretboard-body:has([data-string="2"]:hover) .grid-rows-6 > div:nth-child(3) .string-line,
@@ -308,7 +325,6 @@ body #tab-shape-label { color: var(--cs-screen-ink-3); }
 #fretboard-body:has([data-string="4"]:hover) .grid-rows-6 > div:nth-child(5) .string-line,
 #fretboard-body:has([data-string="5"]:hover) .grid-rows-6 > div:nth-child(6) .string-line {
   background: var(--cs-org); box-shadow: 0 0 8px var(--cs-org);
-  animation: ex-pluck 600ms cubic-bezier(0.2, 0.6, 0.3, 1);
 }
 @keyframes ex-pluck { 10% { transform: translateY(-1.5px); } 25% { transform: translateY(1.2px); } 40% { transform: translateY(-0.7px); } 60% { transform: translateY(0.4px); } 100% { transform: none; } }
 
