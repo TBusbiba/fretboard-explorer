@@ -67,15 +67,17 @@ const sound = createSound({ onPlaying: (v) => block('sound', v) });
 
 // Speak, then play. Dropped if the target changed meanwhile.
 let promptToken = 0;
-async function announce(text, playMidi) {
+// `speak` forces the voice on (Say + play the note) even when spoken prompts are off.
+async function announce(text, playMidi, { speak = settings.voice } = {}) {
   const token = ++promptToken;
-  if (settings.voice && text) await voice.speak(text, voiceOpts());
+  if (speak && text) await voice.speak(text, voiceOpts());
   if (token !== promptToken) return;
   if (playMidi != null) await sound.play(playMidi);
 }
 
 const pitch = createPitchDetector({
   getSettings: () => settings,
+  getExpected: () => (session.state === 'listening' && session.note ? session.note.midi : null),
   onNote: (midi) => session.noteDetected(midi),
   onLevel: updateMeter,
   onState: updateMicState,
@@ -94,6 +96,7 @@ const ui = {
   meterFill: $('meter-fill'), meterGate: $('meter-gate'), micNote: $('mic-note'),
   ring: $('ring'), ringFill: $('ring-fill'), ringLabel: $('ring-label'),
   statCount: $('stat-count'), statAccuracy: $('stat-accuracy'), statAvg: $('stat-avg'), statWrong: $('stat-wrong'),
+  earPicker: $('ear-picker'), earToggle: $('ear-toggle'), earReplay: $('ear-replay'),
   picker: $('interval-picker'), chordPicker: $('chord-picker'), triadPicker: $('triad-picker'), groupPicker: $('group-picker'), inversionPicker: $('inversion-picker'),
   heatReset: $('heat-reset'), heatBody: $('heat-body'),
 };
@@ -148,7 +151,8 @@ function handleSessionEvent(type, p) {
         scrollBoardTo(p.target.fret);
         setPrompt(`String ${STRINGS[p.target.string].number}`, p.note.name, 'listening');
         setStatus('Listening…');
-        announce(`string ${STRINGS[p.target.string].number}, ${spokenName(p.note.name)}`, settings.playNote ? p.note.midi : null);
+        announce(`string ${STRINGS[p.target.string].number}, ${spokenName(p.note.name)}`, settings.playNote ? p.note.midi : null,
+          { speak: settings.voice || settings.playNote });
       }
       break;
     }
@@ -299,7 +303,23 @@ function syncButtons() {
   ui.startBtn.classList.toggle('is-running', running);
   ui.skipBtn.disabled = !running;
   ui.hintBtn.disabled = !(session.state === 'listening' && session.hintStage < session.hintStages);
+  ui.earReplay.disabled = !canHearAgain();
 }
+
+// ---------- by ear: say the note and play it ----------
+function canHearAgain() {
+  return settings.playNote && session.state === 'listening' && session.mode === 'note';
+}
+function hearAgain() {
+  if (!canHearAgain()) return;
+  announce(spokenName(session.note.name), session.note.midi, { speak: true });
+}
+ui.earToggle.addEventListener('click', () => {
+  commit({ playNote: !settings.playNote });
+  syncButtons();
+  hearAgain(); // switching it on mid-question plays the current note straight away
+});
+ui.earReplay.addEventListener('click', hearAgain);
 
 // A skip is a "couldn't find it" for the heatmap.
 function skipNow() {
@@ -513,6 +533,7 @@ document.addEventListener('keydown', (e) => {
   if (e.code === 'Space') { e.preventDefault(); toggleSession(); }
   else if (e.key === 'n' || e.key === 'N') skipNow();
   else if (e.key === 'h' || e.key === 'H') { session.showHint(); syncButtons(); }
+  else if (e.key === 'r' || e.key === 'R') hearAgain();
   else if (e.key === 'Escape') closeSettings();
 });
 
@@ -592,7 +613,7 @@ f.voiceFeedback.addEventListener('change', () => commit({ speakFeedback: f.voice
 f.voiceSelect.addEventListener('change', () => commit({ voiceName: f.voiceSelect.value }));
 f.voiceRate.addEventListener('input', () => commit({ voiceRate: +f.voiceRate.value }));
 f.voiceTest.addEventListener('click', () => voice.speak('string 5, C sharp', voiceOpts()));
-$('play-note').addEventListener('change', (e) => commit({ playNote: e.target.checked }));
+$('play-note').addEventListener('change', (e) => { commit({ playNote: e.target.checked }); syncButtons(); });
 $('sound-test').addEventListener('click', () => sound.play(48));
 
 // intervals pool for Random
@@ -667,6 +688,8 @@ function applySettingsToUI() {
   ui.chordPicker.querySelectorAll('.chip').forEach((c) => c.classList.toggle('is-active', c.dataset.id === (settings.chordPick || 'random')));
   chordList.querySelectorAll('input').forEach((i) => { i.checked = settings.chords.includes(i.value); });
   $('play-note').checked = settings.playNote;
+  ui.earPicker.hidden = mode !== 'note';
+  ui.earToggle.setAttribute('aria-pressed', settings.playNote);
   intervalList.querySelectorAll('input').forEach((i) => { i.checked = settings.intervals.includes(i.value); });
 
   f.pills.querySelectorAll('.pill').forEach((b) =>

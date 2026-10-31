@@ -36,3 +36,32 @@ export function correctOctave(buf, sampleRate, hz, { minHz = 70, maxHz = 270, ra
   const at3Half = goertzel(buf, sampleRate, half * 3);
   return atHalf > ratio * atF || at3Half > ratio * atF ? half : hz;
 }
+
+/** Normalized autocorrelation of `buf` at a (fractional) lag in samples. */
+export function selfSimilarity(buf, lag) {
+  const l0 = Math.floor(lag), fr = lag - l0;
+  let ac = 0, m = 0;
+  for (let i = 0; i + l0 + 1 < buf.length; i++) {
+    const y = buf[i + l0] * (1 - fr) + buf[i + l0 + 1] * fr;
+    ac += buf[i] * y;
+    m += buf[i] * buf[i] + y * y;
+  }
+  return m ? (2 * ac) / m : 0;
+}
+
+/**
+ * Lenient version of the check above, for when the app expects the lower note:
+ * true when the signal shows any trace of `hz / 2`. When a low string's odd
+ * partials are nearly gone (a laptop mic barely hears 82 Hz) the sound is
+ * almost an octave-up copy of itself and correctOctave can't call it, but a real
+ * note an octave up has nothing at all at f/2 or 1.5f and repeats every period,
+ * not only every second one.
+ */
+export function hasLowerOctave(buf, sampleRate, hz, { ratio = 0.05, gain = 0.008 } = {}) {
+  const atF = goertzel(buf, sampleRate, hz);
+  if (atF === 0) return false;
+  const half = hz / 2;
+  if (goertzel(buf, sampleRate, half) > ratio * atF || goertzel(buf, sampleRate, half * 3) > ratio * atF) return true;
+  const period = sampleRate / hz;
+  return selfSimilarity(buf, 2 * period) - selfSimilarity(buf, period) > gain;
+}

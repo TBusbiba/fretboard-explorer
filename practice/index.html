@@ -41,6 +41,10 @@
     <div class="picker" id="triad-picker" role="group" aria-label="Which triad" hidden></div>
     <div class="picker" id="inversion-picker" role="group" aria-label="Which inversion" hidden></div>
     <div class="picker picker--groups" id="group-picker" role="group" aria-label="String groups" hidden></div>
+    <div class="picker" id="ear-picker" role="group" aria-label="Find it by ear" hidden>
+      <button type="button" class="chip" id="ear-toggle" aria-pressed="false" title="Say the note's name and play it, then find it by ear">Say + play the note</button>
+      <button type="button" class="chip chip--plain" id="ear-replay" disabled title="Say and play the note again">Hear it again <kbd>R</kbd></button>
+    </div>
 
     <section class="prompt" aria-live="polite">
       <div class="prompt__string" id="string-name">Press start</div>
@@ -176,7 +180,7 @@
 
       <fieldset class="group">
         <legend>Sound</legend>
-        <label class="switch"><input type="checkbox" id="play-note"><span>Play the note after saying it <small>find-the-note mode</small></span></label>
+        <label class="switch"><input type="checkbox" id="play-note"><span>Say and play the note <small>find-the-note mode, to find it by ear</small></span></label>
         <p class="note">In Intervals mode the root note is always played.</p>
         <button type="button" class="btn btn--ghost btn--small" id="sound-test">Test sound</button>
       </fieldset>

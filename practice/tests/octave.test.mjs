@@ -51,3 +51,20 @@ test('correction never drops below the instrument range', () => {
   const buf = tone([1, 1], 100);
   assert.equal(correctOctave(buf, SR, 100, { minHz: 70 }), 100); // 50 Hz would be below the low E
 });
+
+test('hasLowerOctave catches a low E whose odd partials are almost gone', async () => {
+  const { hasLowerOctave } = await import('../js/octave.js');
+  // 82 Hz heard through a laptop mic: barely any fundamental or 3rd partial,
+  // so correctOctave leaves the octave-up reading alone, but the trace is there.
+  const buf = tone([0.08, 1, 0.12, 0.8, 0.1, 0.5], 82.41);
+  assert.equal(correctOctave(buf, SR, 164.81), 164.81);
+  assert.equal(hasLowerOctave(buf, SR, 164.81), true);
+});
+
+test('hasLowerOctave leaves a real note an octave up alone', async () => {
+  const { hasLowerOctave } = await import('../js/octave.js');
+  for (const partials of [[1, 0.6, 0.4, 0.2], [0.1, 1, 0.6, 0.4, 0.3]]) {
+    assert.equal(hasLowerOctave(tone(partials, 164.81), SR, 164.81), false, `E3 ${partials}`);
+    assert.equal(hasLowerOctave(tone(partials, 220), SR, 220), false, `A3 ${partials}`);
+  }
+});
