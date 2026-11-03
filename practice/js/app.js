@@ -26,7 +26,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '13';
+const BUILD = '14';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -97,6 +97,7 @@ const ui = {
   meterFill: $('meter-fill'), meterGate: $('meter-gate'), micNote: $('mic-note'),
   ring: $('ring'), ringFill: $('ring-fill'), ringLabel: $('ring-label'),
   statCount: $('stat-count'), statAccuracy: $('stat-accuracy'), statAvg: $('stat-avg'), statWrong: $('stat-wrong'),
+  customPicker: $('custom-picker'), customNotes: $('custom-notes'), customStrings: $('custom-strings'),
   earPicker: $('ear-picker'), earToggle: $('ear-toggle'), earReplay: $('ear-replay'), namesToggle: $('names-toggle'),
   shapesToggle: $('shapes-toggle'), drill: $('drill'), shapes: $('shapes'), shapesTabs: $('shapes-tabs'), shapesList: $('shapes-list'),
   picker: $('interval-picker'), chordPicker: $('chord-picker'), triadPicker: $('triad-picker'), groupPicker: $('group-picker'), inversionPicker: $('inversion-picker'),
@@ -487,6 +488,53 @@ document.querySelectorAll('input[name="mode"]').forEach((r) => r.addEventListene
 }));
 
 // interval picker (Random + one chip per interval)
+// custom note mode: which notes and strings are asked (at least one of each stays on)
+const ACCIDENTALS = [1, 3, 6, 8, 10];
+const hasAccidentals = (notes) => notes.some(n => ACCIDENTALS.includes(n));
+function commitNotes(notes) {
+  commit({ notes, naturalsOnly: !hasAccidentals(notes) });
+  if (session.state !== 'idle' && session.mode === 'note') session.skip();
+}
+for (const [pc, label] of [[0, 'C'], [2, 'D'], [4, 'E'], [5, 'F'], [7, 'G'], [9, 'A'], [11, 'B']]) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'chip chip--key'; b.dataset.pc = pc; b.textContent = label;
+  b.setAttribute('aria-pressed', 'false');
+  b.addEventListener('click', () => {
+    const on = new Set(settings.notes);
+    on.has(pc) ? on.delete(pc) : on.add(pc);
+    if (on.size === 0) return;
+    commitNotes([...on].sort((a, c) => a - c));
+  });
+  ui.customNotes.appendChild(b);
+}
+{
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'chip chip--key'; b.id = 'custom-accidentals'; b.textContent = '♯/♭';
+  b.title = 'The five sharp / flat notes: C♯ D♯ F♯ G♯ A♯';
+  b.setAttribute('aria-pressed', 'false');
+  b.addEventListener('click', () => {
+    const on = new Set(settings.notes);
+    if (hasAccidentals(settings.notes)) ACCIDENTALS.forEach(n => on.delete(n)); else ACCIDENTALS.forEach(n => on.add(n));
+    if (on.size === 0) return;
+    commitNotes([...on].sort((a, c) => a - c));
+  });
+  ui.customNotes.appendChild(b);
+}
+for (const s of [...STRINGS].reverse()) {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'chip chip--key'; b.dataset.index = s.index; b.textContent = s.number;
+  b.setAttribute('aria-label', `String ${s.number} (${s.label})`);
+  b.setAttribute('aria-pressed', 'false');
+  b.addEventListener('click', () => {
+    const on = new Set(settings.strings);
+    on.has(s.index) ? on.delete(s.index) : on.add(s.index);
+    if (on.size === 0) return;
+    commit({ strings: [...on].sort() });
+    if (session.state !== 'idle' && session.mode === 'note') session.skip();
+  });
+  ui.customStrings.appendChild(b);
+}
+
 for (const opt of [{ id: 'random', label: 'Random' }, ...INTERVALS.map(iv => ({ id: iv.id, label: `${iv.label} ${iv.arrow}` }))]) {
   const b = document.createElement('button');
   b.type = 'button'; b.className = 'chip'; b.dataset.id = opt.id; b.textContent = opt.label;
@@ -614,7 +662,11 @@ f.presets.addEventListener('click', (e) => {
 
 // note set
 document.querySelectorAll('input[name="noteset"]').forEach((r) =>
-  r.addEventListener('change', () => commit({ naturalsOnly: r.value === 'naturals' })));
+  r.addEventListener('change', () => {
+    const naturalsOnly = r.value === 'naturals';
+    const kept = settings.notes.filter(n => !ACCIDENTALS.includes(n));
+    commit({ naturalsOnly, notes: naturalsOnly ? (kept.length ? kept : [0, 2, 4, 5, 7, 9, 11]) : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] });
+  }));
 
 // hint + pause
 f.hintDelay.addEventListener('input', () => {
@@ -690,7 +742,7 @@ f.gain.addEventListener('input', () => commit({ gain: +f.gain.value }));
 f.reset.addEventListener('click', () => { settings = resetSettings(); applySettingsToUI(); });
 
 const TICKER = {
-  note: ['Press Start or Space and allow the mic', 'Play the note shown, on the string shown', 'Stuck? H shows where it is, N skips', 'Turn on Say + play the note to find it by ear, R plays it again', 'Your fretboard, over time shows which notes need work'],
+  note: ['Press Start or Space and allow the mic', 'Play the note shown, on the string shown', 'Pick which notes and strings to practise', 'Stuck? H shows where it is, N skips', 'Turn on Say + play the note to find it by ear, R plays it again', 'Your fretboard, over time shows which notes need work'],
   intervals: ['Play the root, then the interval above it', 'Practise one interval, or let it pick at random', 'H shows a tip first, then where both notes are', 'N skips to the next one'],
   arpeggios: ['Play the chord one note per string, from the low string up', 'Pick a chord type, or let it pick at random', 'Each note counts as soon as you hit it', 'H shows a tip, then where the next note is', 'N skips to the next chord'],
   triads: ['Play the three notes of the triad on the string group shown', 'Choose the triad types, the inversion and which string groups to use', 'H shows a tip, then where the next note is', 'N skips to the next triad'],
@@ -746,6 +798,10 @@ function applySettingsToUI() {
   chordList.querySelectorAll('input').forEach((i) => { i.checked = settings.chords.includes(i.value); });
   $('play-note').checked = settings.playNote;
   ui.earPicker.hidden = mode !== 'note';
+  ui.customPicker.hidden = mode !== 'note';
+  ui.customNotes.querySelectorAll('.chip[data-pc]').forEach((c) => c.setAttribute('aria-pressed', settings.notes.includes(+c.dataset.pc)));
+  $('custom-accidentals').setAttribute('aria-pressed', hasAccidentals(settings.notes));
+  ui.customStrings.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', settings.strings.includes(+c.dataset.index)));
   ui.earToggle.setAttribute('aria-pressed', settings.playNote);
   ui.namesToggle.setAttribute('aria-pressed', settings.showStringNames);
   fretboard.setStringNames(settings.showStringNames);

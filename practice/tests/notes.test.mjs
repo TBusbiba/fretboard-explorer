@@ -263,3 +263,41 @@ test('settings migration: old triadPick values become a list of types', async ()
   assert.equal(DEFAULTS.triadPick.length, 6);
   assert.equal(DEFAULTS.showStringNames, true);
 });
+
+test('pickTarget honours the note filter by pitch class, over any octave and string', () => {
+  const opts = { strings: [0, 1, 2, 3, 4, 5], fretFrom: 0, fretTo: 21, naturalsOnly: true, notes: [0, 5] };
+  const seen = new Set();
+  for (let i = 0; i < 400; i++) {
+    const t = pickTarget(opts, null, Math.random);
+    const name = noteAt(t.string, t.fret).name;
+    assert.ok(name === 'C' || name === 'F', `got ${name}`);
+    seen.add(`${t.string}:${name}`);
+  }
+  assert.equal(seen.size, 12); // both notes turn up on every string
+});
+
+test('the note filter replaces naturalsOnly, so sharps can be asked on their own', () => {
+  const opts = { strings: [4], fretFrom: 0, fretTo: 11, naturalsOnly: true, notes: [1] };
+  for (let i = 0; i < 50; i++) assert.equal(noteAt(4, pickTarget(opts, null, Math.random).fret).name, 'C♯');
+});
+
+test('note filter with C and F on strings 6 and 5 only asks those', () => {
+  const opts = { strings: [5, 4], fretFrom: 0, fretTo: 11, naturalsOnly: true, notes: [0, 5] };
+  const spots = new Set();
+  for (let i = 0; i < 300; i++) { const t = pickTarget(opts, null, Math.random); spots.add(`${t.string}:${t.fret}`); }
+  assert.deepEqual([...spots].sort(), ['4:3', '4:8', '5:1', '5:8']);
+});
+
+test('a note filter that matches nothing in range returns null', () => {
+  assert.equal(pickTarget({ strings: [5], fretFrom: 0, fretTo: 0, naturalsOnly: true, notes: [0] }, null, Math.random), null);
+});
+
+test('settings migration: saved settings without notes follow the old naturals switch', async () => {
+  const { migrate } = await import('../js/settings.js');
+  assert.deepEqual(migrate({}).notes, [0, 2, 4, 5, 7, 9, 11]);
+  assert.deepEqual(migrate({ naturalsOnly: true }).notes, [0, 2, 4, 5, 7, 9, 11]);
+  assert.deepEqual(migrate({ naturalsOnly: false }).notes, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+  assert.deepEqual(migrate({ notes: [] }).notes, [0, 2, 4, 5, 7, 9, 11]);
+  assert.deepEqual(migrate({ notes: [99, 'x'] }).notes, [0, 2, 4, 5, 7, 9, 11]);
+  assert.deepEqual(migrate({ notes: [7, 0, 0] }).notes, [0, 7]); // kept, sorted, de-duplicated
+});

@@ -457,6 +457,10 @@ input[type="range"]::-moz-range-thumb {
 
 /* interval / chord / triad pickers */
 .picker { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: -8px; }
+.picker--custom { gap: 12px 28px; }
+.picker__group { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; }
+.picker__label { font: 700 12px var(--nb-sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--nb-ink); margin-right: 2px; }
+.chip--key { min-width: var(--nb-tap); padding: 0 10px; }
 
 /* tip line under the cue */
 .prompt__tip {
@@ -589,6 +593,10 @@ input[type="range"]::-moz-range-thumb {
   .foot { display: none; }
   .mode { grid-template-columns: repeat(3, 1fr); gap: 10px; }
   .heat { padding: 14px 14px 16px; }
+  .picker--custom { gap: 12px; }
+  .picker__group { gap: 6px; justify-content: flex-start; width: 100%; }
+  .picker__label { flex-basis: 100%; }
+  .chip--key { min-width: 38px; min-height: 40px; padding: 0 6px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -49,18 +49,24 @@ export function fretForMidi(string, midi) {
   return fret >= 0 && fret < FRET_COUNT ? fret : -1;
 }
 
+export function pitchClass(midi) {
+  return ((midi % 12) + 12) % 12;
+}
+
 /**
  * Pick a random {string, fret} target.
- * @param {{strings:number[], fretFrom:number, fretTo:number, naturalsOnly:boolean}} opts
+ * @param {{strings:number[], fretFrom:number, fretTo:number, naturalsOnly:boolean, notes?:number[], weigh?:(string:number, fret:number) => number}} opts
+ *   `notes` (pitch classes 0-11) replaces the naturals-only filter; `weigh` makes some positions likelier.
  * @param {{string:number, fret:number}|null} previous  avoided when any alternative exists
  * @param {() => number} rng  returns [0,1)
  */
 export function pickTarget(opts, previous, rng = Math.random) {
+  const wanted = opts.notes ? new Set(opts.notes) : null;
   const candidates = [];
   for (const string of opts.strings) {
     for (let fret = opts.fretFrom; fret <= opts.fretTo; fret++) {
-      const { name } = noteAt(string, fret);
-      if (opts.naturalsOnly && !isNatural(name)) continue;
+      const { name, midi } = noteAt(string, fret);
+      if (wanted ? !wanted.has(pitchClass(midi)) : opts.naturalsOnly && !isNatural(name)) continue;
       candidates.push({ string, fret });
     }
   }
@@ -69,6 +75,18 @@ export function pickTarget(opts, previous, rng = Math.random) {
     ? candidates.filter(c => !(c.string === previous.string && c.fret === previous.fret))
     : candidates;
   const pool = fresh.length > 0 ? fresh : candidates;
+  if (opts.weigh) {
+    const weights = pool.map(c => Math.max(0, opts.weigh(c.string, c.fret)));
+    const total = weights.reduce((a, b) => a + b, 0);
+    if (total > 0) {
+      let r = rng() * total;
+      for (let i = 0; i < pool.length; i++) {
+        r -= weights[i];
+        if (r < 0) return pool[i];
+      }
+      return pool[pool.length - 1];
+    }
+  }
   return pool[Math.floor(rng() * pool.length)];
 }
 
