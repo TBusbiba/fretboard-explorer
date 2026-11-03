@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html class="dark" lang="en">
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta content="width=device-width, initial-scale=1.0" name="viewport">
@@ -7,25 +7,22 @@
     <meta name="description" content="Map any scale across all 22 frets: roots, degrees, triads, CAGED shapes, TAB and comparisons.">
     <link href="https://fonts.googleapis.com" rel="preconnect">
     <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
-    <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <script>
         tailwind.config = {
-            darkMode: "class",
             theme: {
                 extend: {
                     colors: {
-                        "primary": "#ff5a1f",
-                        "background-light": "#f6f7f8",
-                        "background-dark": "#cbc6bc",
-                        "surface-dark": "#1c1b19",
-                        "surface-darker": "#100d0b",
+                        "primary": "#ff7a59",
+                        "background-light": "#fff8e7",
+                        "surface-dark": "#ffffff",
                     },
                     fontFamily: {
-                        "display": ["Inter Tight", "system-ui", "sans-serif"],
-                        "body": ["Inter Tight", "system-ui", "sans-serif"],
-                                                "mono": ["JetBrains Mono", "ui-monospace", "monospace"]
+                        "display": ["Space Grotesk", "system-ui", "sans-serif"],
+                        "body": ["Space Grotesk", "system-ui", "sans-serif"],
+                        "mono": ["ui-monospace", "SF Mono", "Menlo", "monospace"]
                     },
                     borderRadius: {
                         "DEFAULT": "0.25rem",
@@ -41,7 +38,7 @@
     <link rel="stylesheet" href="shared/console.css">
     <link rel="stylesheet" href="explorer.css">
 </head>
-<body class="font-display bg-background-dark text-white antialiased">
+<body class="font-display antialiased">
     <div class="relative flex min-h-screen w-full flex-col">
         <!-- Header -->
         <header class="ex-top">
@@ -60,6 +57,7 @@
                 </button>
             </div>
         </header>
+        <div class="nb-ticker" aria-hidden="true"><div class="nb-ticker__track"><span>C ★ C♯ ★ D ★ E♭ ★ E ★ F ★ F♯ ★ G ★ A♭ ★ A ★ B♭ ★ B ★ C ★ C♯ ★ D ★ E♭ ★ E ★ F ★ F♯ ★ G ★ A♭ ★ A ★ B♭ ★ B ★ C ★ C♯ ★ D ★ E♭ ★ E ★ F ★ F♯ ★ G ★ A♭ ★ A ★ B♭ ★ B ★ C ★ C♯ ★ D ★ E♭ ★ E ★ F ★ F♯ ★ G ★ A♭ ★ A ★ B♭ ★ B ★</span><span>C ★ C♯ ★ D ★ E♭ ★ E ★ F ★ F♯ ★ G ★ A♭ ★ A ★ B♭ ★ B ★ C ★ C♯ ★ D ★ E♭ ★ E ★ F ★ F♯ ★ G ★ A♭ ★ A ★ B♭ ★ B ★ C ★ C♯ ★ D ★ E♭ ★ E ★ F ★ F♯ ★ G ★ A♭ ★ A ★ B♭ ★ B ★ C ★ C♯ ★ D ★ E♭ ★ E ★ F ★ F♯ ★ G ★ A♭ ★ A ★ B♭ ★ B ★</span></div></div>
 
         <!-- Main Content -->
         <div class="flex flex-1 flex-col overflow-y-auto fretboard-scroll">
@@ -277,8 +275,8 @@
                             </div>
                             <div class="ex-legend">
                                 <span><i class="ex-dot ex-dot--root"></i>Root</span>
-                                <span><i class="ex-dot" style="background:#ffd24a"></i>3rd</span>
-                                <span><i class="ex-dot" style="background:#5ec4ff"></i>5th</span>
+                                <span><i class="ex-dot" style="background:#ffd400"></i>3rd</span>
+                                <span><i class="ex-dot" style="background:#5aa9ff"></i>5th</span>
                             </div>
                         </div>
 
@@ -286,11 +284,11 @@
                         <div class="ex-strip__sub hidden" id="caged-legend">
                             <span class="ex-group__label">CAGED shapes</span>
                             <div class="ex-legend ex-legend--caged">
-                                <span><i class="ex-swatch" style="--c:#ff6b6b"></i>C</span>
-                                <span><i class="ex-swatch" style="--c:#ffd24a"></i>A</span>
-                                <span><i class="ex-swatch" style="--c:#7ee08a"></i>G</span>
-                                <span><i class="ex-swatch" style="--c:#5ec4ff"></i>E</span>
-                                <span><i class="ex-swatch" style="--c:#e07bff"></i>D</span>
+                                <span><i class="ex-swatch" style="--c:#ff5c7a"></i>C</span>
+                                <span><i class="ex-swatch" style="--c:#ffd400"></i>A</span>
+                                <span><i class="ex-swatch" style="--c:#9cff6b"></i>G</span>
+                                <span><i class="ex-swatch" style="--c:#5aa9ff"></i>E</span>
+                                <span><i class="ex-swatch" style="--c:#c79bff"></i>D</span>
                             </div>
                             <span class="ex-hint">Your open-chord shapes moved up the neck to this key (minor shapes in minor scales) · R root · 3 / ♭3 third · 5 fifth</span>
                         </div>
@@ -322,14 +320,14 @@
                         <div class="ex-group">
                             <span class="ex-group__label">Or paint with a colour, then click a note</span>
                             <div class="ex-keys color-buttons">
-                                <button class="color-btn" data-color="#ff6b6b" style="background: #ff6b6b;" title="Red"></button>
-                                <button class="color-btn" data-color="#4ecdc4" style="background: #4ecdc4;" title="Teal"></button>
-                                <button class="color-btn" data-color="#45b7d1" style="background: #45b7d1;" title="Blue"></button>
-                                <button class="color-btn" data-color="#96ceb4" style="background: #96ceb4;" title="Green"></button>
-                                <button class="color-btn" data-color="#feca57" style="background: #feca57;" title="Yellow"></button>
-                                <button class="color-btn" data-color="#ff9ff3" style="background: #ff9ff3;" title="Pink"></button>
-                                <button class="color-btn" data-color="#a55eea" style="background: #a55eea;" title="Purple"></button>
-                                <button class="color-btn" data-color="#ffa726" style="background: #ffa726;" title="Orange"></button>
+                                <button class="color-btn" data-color="#ff4f5e" style="background: #ff4f5e;" title="Red" aria-label="Paint red"></button>
+                                <button class="color-btn" data-color="#2ee6c5" style="background: #2ee6c5;" title="Teal" aria-label="Paint teal"></button>
+                                <button class="color-btn" data-color="#5aa9ff" style="background: #5aa9ff;" title="Blue" aria-label="Paint blue"></button>
+                                <button class="color-btn" data-color="#9cff6b" style="background: #9cff6b;" title="Green" aria-label="Paint green"></button>
+                                <button class="color-btn" data-color="#ffd400" style="background: #ffd400;" title="Yellow" aria-label="Paint yellow"></button>
+                                <button class="color-btn" data-color="#ff8ad8" style="background: #ff8ad8;" title="Pink" aria-label="Paint pink"></button>
+                                <button class="color-btn" data-color="#b98cff" style="background: #b98cff;" title="Purple" aria-label="Paint purple"></button>
+                                <button class="color-btn" data-color="#ffa02e" style="background: #ffa02e;" title="Orange" aria-label="Paint orange"></button>
                                 <button id="clear-notes">Clear</button>
                             </div>
                         </div>
@@ -344,7 +342,7 @@
     <aside class="settings-panel" id="settings-panel">
         <div class="flex justify-between items-center mb-6 pb-4 border-b border-[#2a231b]">
             <h3 class="text-primary text-xl font-bold">Settings</h3>
-            <button id="close-settings" class="text-[#b9ae9c] hover:text-white transition-colors">
+            <button id="close-settings" aria-label="Close settings">
                 <span class="material-symbols-outlined">close</span>
             </button>
         </div>
@@ -354,15 +352,15 @@
                 <div class="flex flex-col gap-4">
                     <div class="flex items-center justify-between">
                         <label for="root-color" class="text-[#b9ae9c]">Root Note:</label>
-                        <input type="color" id="root-color" value="#ff5a1f" class="w-12 h-8 rounded cursor-pointer">
+                        <input type="color" id="root-color" value="#ff7a59" class="w-12 h-8 rounded cursor-pointer">
                     </div>
                     <div class="flex items-center justify-between">
                         <label for="scale-color" class="text-[#b9ae9c]">Scale Notes:</label>
-                        <input type="color" id="scale-color" value="#e4e1da" class="w-12 h-8 rounded cursor-pointer">
+                        <input type="color" id="scale-color" value="#3de0ff" class="w-12 h-8 rounded cursor-pointer">
                     </div>
                     <div class="flex items-center justify-between">
                         <label for="comparison-color" class="text-[#b9ae9c]">Comparison Notes:</label>
-                        <input type="color" id="comparison-color" value="#8ec5ff" class="w-12 h-8 rounded cursor-pointer">
+                        <input type="color" id="comparison-color" value="#c79bff" class="w-12 h-8 rounded cursor-pointer">
                     </div>
                 </div>
             </div>

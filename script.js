@@ -37,19 +37,19 @@ class GuitarScaleApp {
         // Each shape is defined by intervals from the root on specific strings
         this.cagedShapes = {
             // Open chord forms; string 0 = high e, 5 = low E; fret as played in the open chord
-            C: { name: 'C Shape', color: '#ff6b6b', positions: [
+            C: { name: 'C Shape', color: '#ff5c7a', positions: [
                 { string: 4, fret: 3, interval: 'R' }, { string: 3, fret: 2, interval: '3' }, { string: 2, fret: 0, interval: '5' },
                 { string: 1, fret: 1, interval: 'R' }, { string: 0, fret: 0, interval: '3' } ] },
-            A: { name: 'A Shape', color: '#ffd24a', positions: [
+            A: { name: 'A Shape', color: '#ffd400', positions: [
                 { string: 4, fret: 0, interval: 'R' }, { string: 3, fret: 2, interval: '5' }, { string: 2, fret: 2, interval: 'R' },
                 { string: 1, fret: 2, interval: '3' }, { string: 0, fret: 0, interval: '5' } ] },
-            G: { name: 'G Shape', color: '#7ee08a', positions: [
+            G: { name: 'G Shape', color: '#9cff6b', positions: [
                 { string: 5, fret: 3, interval: 'R' }, { string: 4, fret: 2, interval: '3' }, { string: 3, fret: 0, interval: '5' },
                 { string: 2, fret: 0, interval: 'R' }, { string: 1, fret: 0, interval: '3' }, { string: 0, fret: 3, interval: 'R' } ] },
-            E: { name: 'E Shape', color: '#5ec4ff', positions: [
+            E: { name: 'E Shape', color: '#5aa9ff', positions: [
                 { string: 5, fret: 0, interval: 'R' }, { string: 4, fret: 2, interval: '5' }, { string: 3, fret: 2, interval: 'R' },
                 { string: 2, fret: 1, interval: '3' }, { string: 1, fret: 0, interval: '5' }, { string: 0, fret: 0, interval: 'R' } ] },
-            D: { name: 'D Shape', color: '#e07bff', positions: [
+            D: { name: 'D Shape', color: '#c79bff', positions: [
                 { string: 3, fret: 0, interval: 'R' }, { string: 2, fret: 2, interval: '5' }, { string: 1, fret: 3, interval: 'R' },
                 { string: 0, fret: 2, interval: '3' } ] }
         };
@@ -379,7 +379,7 @@ class GuitarScaleApp {
     
     // Mark a single note (no colour picked); clicking it again unmarks it
     toggleNoteMarking(string, fret) {
-        const MARK = '#ffd24a';
+        const MARK = '#ffd400';
         let circle = this.noteCircleAt(string, fret);
         if (circle && circle.dataset.painted) { this.unpaint(circle); return; }
         if (!circle) {
@@ -1293,7 +1293,7 @@ class GuitarScaleApp {
             button.addEventListener('click', () => {
                 document.querySelectorAll('.degree-btn').forEach(btn => btn.classList.remove('selected'));
                 button.classList.add('selected');
-                this.colorAllInstancesOfNote(note, '#ff5a1f');
+                this.colorAllInstancesOfNote(note, '#ff6ad5');
             });
             
             degreeButtonsContainer.appendChild(button);
@@ -1375,9 +1375,9 @@ class GuitarScaleApp {
         const triadNotes = intervals.map(interval => scaleNotes[interval]).filter(Boolean);
         
         const triadColors = {
-            [triadNotes[0]]: '#ff5a1f',
-            [triadNotes[1]]: '#ffd24a',
-            [triadNotes[2]]: '#5ec4ff'
+            [triadNotes[0]]: '#ff7a59',
+            [triadNotes[1]]: '#ffd400',
+            [triadNotes[2]]: '#5aa9ff'
         };
         
         // Track processed positions to avoid duplicates when string groups overlap
@@ -1437,9 +1437,9 @@ class GuitarScaleApp {
         
         if (intervalsInfo) {
             intervalsInfo.innerHTML = `
-                <span class="px-2 py-1 rounded text-xs font-bold" style="background: #c9541a; color: white;">Root</span>
-                <span class="px-2 py-1 rounded text-xs font-bold" style="background: #4ecdc4; color: white;">3rd</span>
-                <span class="px-2 py-1 rounded text-xs font-bold" style="background: #45b7d1; color: white;">5th</span>
+                <span class="px-2 py-1 rounded text-xs font-bold" style="background: #ff7a59; color: #111;">Root</span>
+                <span class="px-2 py-1 rounded text-xs font-bold" style="background: #ffd400; color: #111;">3rd</span>
+                <span class="px-2 py-1 rounded text-xs font-bold" style="background: #5aa9ff; color: #111;">5th</span>
             `;
         }
     }
@@ -1880,9 +1880,9 @@ class PatternManager {
 // Color Manager Class
 class ColorManager {
     constructor() {
-        this.rootColor = '#c9541a';
-        this.scaleColor = '#100d0b';
-        this.comparisonColor = '#7a9ca8';
+        this.rootColor = '#ff7a59';
+        this.scaleColor = '#3de0ff';
+        this.comparisonColor = '#c79bff';
     }
     
     setRootColor(color) {

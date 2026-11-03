@@ -1,18 +1,21 @@
 /* ==========================================================================
-   Studio Console: the shared design system for every page.
+   Neo-Brutalist: the shared design system for every page. Light only.
 
-   The app is a piece of music hardware: warm grey chassis with screws,
-   rubber keys with LEDs, green LCDs, matte black screens, and one orange
-   accent (the lit LED, the root note). Things move like hardware: units
-   slide into the rack, keys travel when pressed, LCDs flicker on, LEDs
-   sweep, drawers run out on rails.
+   Cream paper, ink outlines, flat vivid fills (yellow, cyan, salmon, green),
+   hard offset shadows, Space Grotesk. Things do not glide or glow: a box
+   lifts a little on hover, and on press its shadow collapses and it drops
+   by the shadow's offset, like a stamp.
 
-   Light "chassis" context by default. Wrap dark areas (LCDs, the
-   fretboard strip, scopes) in a screen context by giving them the
-   .cs-screen class or setting the --cs-* screen tokens locally.
+   Contract for page stylesheets:
+   - tokens: the --nb-* custom properties below (the --cs-* and --ns-*
+     names are kept as aliases so older page CSS still resolves)
+   - chrome: .ns-brand, .ns-nav (top bar), .nb-ticker, .nb-box, .nb-btn,
+     .nb-chip, .nb-label, .nb-select, :focus-visible ring
    ========================================================================== */
 
-/* ♭ ♮ ♯ only: Inter Tight has no accidentals. Tiny Noto subset (SIL OFL). */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap');
+
+/* ♭ ♮ ♯ only: Space Grotesk has no accidentals. Tiny Noto subset (SIL OFL). */
 @font-face {
   font-family: 'CS Acc';
   src: url('fonts/acc-sans.woff2') format('woff2');
@@ -21,240 +24,251 @@
 }
 
 :root {
-  /* the room and the box */
-  --cs-desk: #cbc6bc;
-  --cs-body: #e7e4dd;
-  --cs-body-hi: #f1efe9;
-  --cs-body-lo: #d8d4cb;
-  --cs-recess: #d3cfc5;
-  --cs-edge: rgba(255, 255, 255, 0.85);
-  --cs-shade: rgba(60, 50, 35, 0.18);
-  --cs-line: rgba(35, 35, 35, 0.12);
-  --cs-line-2: rgba(35, 35, 35, 0.22);
+  /* paper and ink */
+  --nb-paper: #fff8e7;
+  --nb-card: #ffffff;
+  --nb-ink: #111111;
+  --nb-ink-2: #3a3a3a;
+  --nb-ink-3: #5c5c5c;
 
-  /* ink on the chassis */
-  --cs-ink: #232323;
-  --cs-ink-2: #5d594f;
-  --cs-ink-3: #8b867b;
+  /* flat fills; ink text on all of them, never white */
+  --nb-yellow: #ffd400;
+  --nb-cyan: #3de0ff;
+  --nb-salmon: #ff7a59;
+  --nb-green: #9cff6b;
+  --nb-pink: #ff6ad5;
+  --nb-violet: #c79bff;
+  --nb-blue: #5aa9ff;
+  --nb-rose: #ff5c7a;
 
-  /* the one accent: an orange LED */
-  --cs-org: #ff5a1f;
-  --cs-org-hi: #ff8a5c;
-  --cs-org-lo: #c53b06;
-  --cs-org-glow: rgba(255, 90, 31, 0.55);
-  --cs-org-soft: rgba(255, 90, 31, 0.13);
+  /* feedback (text-safe on paper) */
+  --nb-ok: #1a7a3a;
+  --nb-bad: #c42a1b;
 
-  /* screens */
-  --cs-screen: #1c1b19;
-  --cs-screen-2: #262522;
-  --cs-screen-ink: #ece6d8;
-  --cs-screen-ink-2: #b6af9f;
-  --cs-screen-ink-3: #7d776c;
-  --cs-lcd-bg: #1f2a22;
-  --cs-lcd: #b9f5a6;
-  --cs-lcd-glow: rgba(185, 245, 166, 0.55);
-
-  /* feedback */
-  --cs-ok: #1f9d5a;
-  --cs-ok-screen: #7ee08a;
-  --cs-bad: #e0412b;
-  --cs-bad-screen: #ff6b55;
+  /* construction */
+  --nb-line: 3px;
+  --nb-line-sm: 2.5px;
+  --nb-border: var(--nb-line) solid var(--nb-ink);
+  --nb-border-sm: var(--nb-line-sm) solid var(--nb-ink);
+  --nb-shadow: 6px 6px 0 var(--nb-ink);
+  --nb-shadow-md: 4px 4px 0 var(--nb-ink);
+  --nb-shadow-sm: 3px 3px 0 var(--nb-ink);
+  --nb-shadow-lift: 8px 8px 0 var(--nb-ink);
+  --nb-radius: 10px;
+  --nb-radius-sm: 8px;
+  --nb-tap: 44px;
+  --nb-fast: 90ms;
 
   /* type */
-  --cs-sans: 'Inter Tight', 'CS Acc', ui-sans-serif, system-ui, sans-serif;
-  --cs-mono: 'JetBrains Mono', 'CS Acc', ui-monospace, monospace;
-  --cs-lcd-font: 'Share Tech Mono', 'CS Acc', ui-monospace, monospace;
+  --nb-sans: 'Space Grotesk', 'CS Acc', ui-sans-serif, system-ui, sans-serif;
+  --nb-mono: ui-monospace, 'SF Mono', Menlo, Consolas, 'CS Acc', monospace;
 
-  /* motion: heavy things overshoot a little and settle */
-  --cs-heavy: cubic-bezier(0.2, 1.25, 0.35, 1);
-  --cs-settle: cubic-bezier(0.16, 1, 0.3, 1);
+  /* ---- legacy aliases: Studio Console names mapped onto this palette ---- */
+  --cs-desk: var(--nb-paper);
+  --cs-body: var(--nb-card);
+  --cs-body-hi: var(--nb-card);
+  --cs-body-lo: var(--nb-card);
+  --cs-recess: var(--nb-paper);
+  --cs-edge: transparent;
+  --cs-shade: transparent;
+  --cs-line: rgba(17, 17, 17, 0.2);
+  --cs-line-2: var(--nb-ink);
+  --cs-ink: var(--nb-ink);
+  --cs-ink-2: var(--nb-ink-2);
+  --cs-ink-3: var(--nb-ink-3);
+  --cs-org: var(--nb-salmon);
+  --cs-org-hi: var(--nb-salmon);
+  --cs-org-lo: var(--nb-ink);
+  --cs-org-glow: transparent;
+  --cs-org-soft: var(--nb-yellow);
+  --cs-screen: var(--nb-card);
+  --cs-screen-2: var(--nb-paper);
+  --cs-screen-ink: var(--nb-ink);
+  --cs-screen-ink-2: var(--nb-ink-2);
+  --cs-screen-ink-3: var(--nb-ink-3);
+  --cs-lcd-bg: var(--nb-yellow);
+  --cs-lcd: var(--nb-ink);
+  --cs-lcd-glow: transparent;
+  --cs-ok: var(--nb-ok);
+  --cs-ok-screen: var(--nb-ok);
+  --cs-bad: var(--nb-bad);
+  --cs-bad-screen: var(--nb-bad);
+  --cs-sans: var(--nb-sans);
+  --cs-mono: var(--nb-mono);
+  --cs-lcd-font: var(--nb-mono);
+  --cs-heavy: cubic-bezier(0.3, 0, 0.2, 1);
+  --cs-settle: cubic-bezier(0.3, 0, 0.2, 1);
   --cs-snap: cubic-bezier(0.3, 0, 0.2, 1);
-  --cs-r-sm: 8px; --cs-r-md: 12px; --cs-r-lg: 18px; --cs-r-xl: 26px;
+  --cs-r-sm: var(--nb-radius-sm); --cs-r-md: var(--nb-radius); --cs-r-lg: var(--nb-radius); --cs-r-xl: var(--nb-radius);
 
-  /* Night Stage aliases, so anything not yet restyled still resolves */
-  --ns-ink: var(--cs-desk); --ns-text: var(--cs-ink); --ns-text-2: var(--cs-ink-2); --ns-text-3: var(--cs-ink-3);
-  --ns-line: var(--cs-line); --ns-line-2: var(--cs-line-2); --ns-line-3: var(--cs-ink-3);
-  --ns-brass: var(--cs-org); --ns-brass-hi: var(--cs-org-hi); --ns-brass-ink: #fff;
-  --ns-brass-soft: var(--cs-org-soft); --ns-brass-glow: var(--cs-org-glow);
-  --ns-ok: var(--cs-ok); --ns-ok-ink: #fff; --ns-bad: var(--cs-bad); --ns-bad-ink: #fff;
-  --ns-ice: #3a8fdc; --ns-rose: #e0457b;
-  --ns-serif: var(--cs-sans); --ns-sans: var(--cs-sans); --ns-mono: var(--cs-mono);
-  --ns-ease: var(--cs-settle); --ns-spring: var(--cs-heavy);
-  --ns-fast: 140ms; --ns-med: 260ms; --ns-slow: 520ms;
-  --ns-r-sm: var(--cs-r-sm); --ns-r-md: var(--cs-r-md); --ns-r-lg: var(--cs-r-lg);
-  --ns-shadow: 0 1px 0 var(--cs-edge) inset, 0 -2px 0 rgba(0, 0, 0, 0.06) inset, 0 10px 24px -14px var(--cs-shade);
+  --ns-ink: var(--nb-paper); --ns-text: var(--nb-ink); --ns-text-2: var(--nb-ink-2); --ns-text-3: var(--nb-ink-3);
+  --ns-line: var(--cs-line); --ns-line-2: var(--nb-ink); --ns-line-3: var(--nb-ink-3);
+  --ns-brass: var(--nb-salmon); --ns-brass-hi: var(--nb-salmon); --ns-brass-ink: var(--nb-ink);
+  --ns-brass-soft: var(--nb-yellow); --ns-brass-glow: transparent;
+  --ns-ok: var(--nb-green); --ns-ok-ink: var(--nb-ink); --ns-bad: var(--nb-salmon); --ns-bad-ink: var(--nb-ink);
+  --ns-ice: var(--nb-cyan); --ns-rose: var(--nb-pink);
+  --ns-serif: var(--nb-sans); --ns-sans: var(--nb-sans); --ns-mono: var(--nb-mono);
+  --ns-ease: var(--cs-snap); --ns-spring: var(--cs-snap);
+  --ns-fast: 90ms; --ns-med: 160ms; --ns-slow: 260ms;
+  --ns-r-sm: var(--nb-radius-sm); --ns-r-md: var(--nb-radius); --ns-r-lg: var(--nb-radius);
+  --ns-shadow: var(--nb-shadow);
 }
 
-html { color-scheme: light; background: var(--cs-desk); }
-body { background: transparent !important; color: var(--cs-ink); font-family: var(--cs-sans); perspective: 1600px; }
+html { color-scheme: light; background: var(--nb-paper); }
+body { background: var(--nb-paper) !important; color: var(--nb-ink); font-family: var(--nb-sans); }
+::selection { background: var(--nb-yellow); color: var(--nb-ink); }
 
-/* the desk: a soft top light and a fine powder-coat texture */
-body::before {
-  content: ''; position: fixed; inset: 0; z-index: -2; pointer-events: none;
-  background:
-    radial-gradient(120% 70% at 50% -10%, rgba(255, 255, 255, 0.55), transparent 60%),
-    radial-gradient(90% 60% at 50% 120%, rgba(60, 50, 35, 0.18), transparent 70%),
-    var(--cs-desk);
-}
-body::after {
-  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: 0.35; mix-blend-mode: multiply;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35  0 0 0 0 .3  0 0 0 0 .25  0 0 0 .12 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-::selection { background: rgba(255, 90, 31, 0.3); }
+/* one focus ring everywhere: thick ink, offset clear of the hard shadow */
+:focus-visible { outline: 3px solid var(--nb-ink); outline-offset: 3px; }
 
 /* ---------------------------------------------------------------------------
-   Chassis: a hardware unit with four screws. Use .cs-unit, or give the
-   class's look to an existing element in a page stylesheet.
+   Boxes. .nb-box is the base: ink border, hard shadow, flat fill.
+   Set --nb-fill to colour one (e.g. style="--nb-fill: var(--nb-cyan)").
    --------------------------------------------------------------------------- */
-.cs-unit {
+.nb-box, .cs-unit, .cs-screen {
   position: relative;
-  background: linear-gradient(180deg, var(--cs-body-hi), var(--cs-body) 18%, var(--cs-body) 82%, var(--cs-body-lo));
-  border-radius: var(--cs-r-xl);
-  box-shadow:
-    0 2px 0 var(--cs-edge) inset,
-    0 -3px 0 rgba(0, 0, 0, 0.07) inset,
-    0 0 0 1px rgba(0, 0, 0, 0.06),
-    0 30px 60px -28px rgba(40, 30, 15, 0.55),
-    0 6px 14px -8px rgba(40, 30, 15, 0.3);
+  background: var(--nb-fill, var(--nb-card));
+  color: var(--nb-ink);
+  border: var(--nb-border);
+  border-radius: var(--nb-radius);
+  box-shadow: var(--nb-shadow);
 }
-.cs-unit::before, .cs-screws::before { /* four screws, no markup needed */
-  content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; z-index: 0;
-  --s: radial-gradient(circle, #8f8a7f 0 1px, #f5f3ee 1.5px 3.6px, #b2ada2 4.6px, rgba(0, 0, 0, 0.18) 5.4px, transparent 6.2px);
-  background:
-    var(--s) 10px 10px / 14px 14px no-repeat,
-    var(--s) calc(100% - 10px) 10px / 14px 14px no-repeat,
-    var(--s) 10px calc(100% - 10px) / 14px 14px no-repeat,
-    var(--s) calc(100% - 10px) calc(100% - 10px) / 14px 14px no-repeat;
-}
-.cs-unit > *, .cs-screws > * { position: relative; z-index: 1; }
-
-/* a recessed dark screen */
 .cs-screen {
-  --text: var(--cs-screen-ink); --muted: var(--cs-screen-ink-2); --faint: var(--cs-screen-ink-3);
-  --line: rgba(255, 255, 255, 0.09); --line-strong: rgba(255, 255, 255, 0.18);
-  --ok: var(--cs-ok-screen); --bad: var(--cs-bad-screen);
-  background: var(--cs-screen);
-  color: var(--cs-screen-ink);
-  border-radius: var(--cs-r-lg);
-  box-shadow: inset 0 3px 10px rgba(0, 0, 0, 0.75), inset 0 0 0 1px rgba(0, 0, 0, 0.6), 0 1px 0 var(--cs-edge);
+  --text: var(--nb-ink); --muted: var(--nb-ink-2); --faint: var(--nb-ink-3);
+  --line: rgba(17, 17, 17, 0.2); --line-strong: var(--nb-ink);
+  --ok: var(--nb-ok); --bad: var(--nb-bad);
 }
-
-/* green LCD */
 .cs-lcd {
-  background: var(--cs-lcd-bg); color: var(--cs-lcd);
-  font-family: var(--cs-lcd-font); text-shadow: 0 0 6px var(--cs-lcd-glow);
-  border-radius: var(--cs-r-md);
-  box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.6), 0 1px 0 var(--cs-edge);
+  background: var(--nb-yellow); color: var(--nb-ink);
+  font-family: var(--nb-mono); font-weight: 700;
+  border: var(--nb-border-sm); border-radius: var(--nb-radius-sm);
 }
 
-/* rubber key with an LED; add .is-on or aria-current/pressed for the lit state */
-.cs-key {
-  position: relative;
-  font: 600 11px var(--cs-mono); text-transform: uppercase; letter-spacing: 0.08em;
-  color: var(--cs-ink); background: linear-gradient(180deg, #f8f6f1, #ebe8e1);
-  border: 0; border-radius: 10px;
-  padding: 16px 14px 8px;
-  box-shadow: 0 3px 0 #bdb8ad, 0 4px 7px rgba(0, 0, 0, 0.16), inset 0 1px 0 #fff;
-  transition: transform 90ms var(--cs-snap), box-shadow 90ms var(--cs-snap);
+/* small bold uppercase label */
+.nb-label {
+  font: 700 12px/1.2 var(--nb-sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--nb-ink);
 }
-.cs-key::before {
-  content: ''; position: absolute; top: 6px; left: 50%; margin-left: -3px; width: 6px; height: 6px; border-radius: 50%;
-  background: #c9c4b9; transition: background 160ms, box-shadow 160ms;
-}
-.cs-key:active, .cs-key.is-down { transform: translateY(3px); box-shadow: 0 0 0 #bdb8ad, 0 1px 2px rgba(0, 0, 0, 0.2), inset 0 1px 0 #fff; }
-.cs-key.is-on::before, .cs-key[aria-current]::before, .cs-key[aria-pressed="true"]::before { background: var(--cs-org); box-shadow: 0 0 8px var(--cs-org); }
 
 /* ---------------------------------------------------------------------------
-   Header: the top rail of the rack. Works with the existing markup on every
-   page (.ns-brand + .ns-nav).
+   Buttons and chips. Both lift on hover; on press the shadow collapses and
+   the box drops by the shadow's offset.
+   .nb-btn  = a command (3px border, 4px shadow); .nb-btn--go = yellow
+   .nb-chip = a toggle or option (2.5px border, 3px shadow); on = green
+   --------------------------------------------------------------------------- */
+.nb-btn, .nb-chip, .cs-key {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: var(--nb-tap); padding: 0 16px;
+  font: 700 14px/1 var(--nb-sans); color: var(--nb-ink); text-decoration: none; white-space: nowrap;
+  background: var(--nb-card);
+  border: var(--nb-border-sm); border-radius: var(--nb-radius-sm);
+  box-shadow: var(--nb-shadow-sm);
+  cursor: pointer;
+  transition: transform var(--nb-fast) var(--cs-snap), box-shadow var(--nb-fast) var(--cs-snap), background-color var(--nb-fast);
+}
+.nb-btn { border: var(--nb-border); box-shadow: var(--nb-shadow-md); }
+.nb-btn--go { background: var(--nb-yellow); }
+.nb-btn:hover, .nb-chip:hover, .cs-key:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--nb-ink); }
+.nb-btn:hover { box-shadow: 5px 5px 0 var(--nb-ink); }
+.nb-chip:active, .cs-key:active, .cs-key.is-down { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--nb-ink); }
+.nb-btn:active { transform: translate(4px, 4px); box-shadow: 0 0 0 var(--nb-ink); }
+.nb-chip.is-on, .nb-chip[aria-pressed="true"], .nb-chip[aria-current],
+.cs-key.is-on, .cs-key[aria-pressed="true"], .cs-key[aria-current] { background: var(--nb-green); }
+.nb-btn:disabled, .nb-chip:disabled, .cs-key:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: var(--nb-shadow-sm); }
+
+/* ---------------------------------------------------------------------------
+   Selects: wrap the <select> in .nb-select for the ink chevron.
+   --------------------------------------------------------------------------- */
+.nb-select { position: relative; display: block; }
+.nb-select select, select.nb-select {
+  width: 100%; height: var(--nb-tap); padding: 0 36px 0 12px;
+  appearance: none; -webkit-appearance: none; cursor: pointer;
+  font: 700 16px var(--nb-sans); color: var(--nb-ink);
+  background: var(--nb-card);
+  border: var(--nb-border-sm); border-radius: var(--nb-radius-sm);
+  box-shadow: var(--nb-shadow-sm);
+}
+.nb-select::after {
+  content: ''; position: absolute; right: 15px; top: 50%; width: 8px; height: 8px; margin-top: -7px;
+  border-right: 3px solid var(--nb-ink); border-bottom: 3px solid var(--nb-ink);
+  transform: rotate(45deg); pointer-events: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Top bar: works with the existing markup on every page (.ns-brand + .ns-nav).
+   The logo sits on a yellow box; each nav link is a box; the current page is
+   cyan and lifted.
    --------------------------------------------------------------------------- */
 .ns-brand {
-  display: inline-flex; align-items: center; gap: 10px;
-  color: var(--cs-ink); text-decoration: none; white-space: nowrap;
+  display: inline-flex; align-items: center; min-height: var(--nb-tap);
+  padding: 4px 12px;
+  color: var(--nb-ink); text-decoration: none; white-space: nowrap;
+  background: var(--nb-yellow);
+  border: var(--nb-border); border-radius: var(--nb-radius);
+  box-shadow: var(--nb-shadow);
+  transition: transform var(--nb-fast) var(--cs-snap), box-shadow var(--nb-fast) var(--cs-snap);
 }
-.ns-brand__led {
-  width: 11px; height: 11px; border-radius: 50%; flex: none;
-  background: radial-gradient(circle at 40% 35%, #ffc4a6, var(--cs-org) 60%);
-  box-shadow: 0 0 10px var(--cs-org), 0 0 0 3px rgba(0, 0, 0, 0.08);
-  animation: cs-led-on 900ms 250ms steps(1, end) both, cs-breathe 3.6s 1.4s ease-in-out infinite;
-}
-.ns-brand__word { font: 800 17px var(--cs-sans); letter-spacing: -0.01em; text-transform: lowercase; }
-.ns-brand__model { font: 500 10.5px var(--cs-mono); letter-spacing: 0.16em; color: var(--cs-ink-3); padding: 3px 7px; border: 1px solid var(--cs-line-2); border-radius: 6px; }
-@keyframes cs-breathe { 50% { box-shadow: 0 0 4px var(--cs-org), 0 0 0 3px rgba(0, 0, 0, 0.08); } }
+.ns-brand:active { transform: translate(6px, 6px); box-shadow: 0 0 0 var(--nb-ink); }
+.ns-brand__led, .ns-brand__model { display: none; }
+.ns-brand__word { font: 700 22px/1 var(--nb-sans); letter-spacing: 0.01em; text-transform: uppercase; }
 
-.ns-nav { display: inline-flex; gap: 8px; padding: 6px; border-radius: 14px; background: var(--cs-recess); box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.14), 0 1px 0 var(--cs-edge); }
+.ns-nav { display: inline-flex; gap: 12px; padding: 0; background: none; box-shadow: none; }
 .ns-nav a {
   position: relative;
-  display: inline-flex; align-items: center; gap: 8px;
-  min-height: 38px; padding: 12px 16px 4px;
-  border-radius: 9px; text-decoration: none; white-space: nowrap;
-  font: 600 11px var(--cs-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--cs-ink);
-  background: linear-gradient(180deg, #f8f6f1, #ebe8e1);
-  box-shadow: 0 3px 0 #b7b2a6, 0 4px 6px rgba(0, 0, 0, 0.14), inset 0 1px 0 #fff;
-  transition: transform 90ms var(--cs-snap), box-shadow 90ms var(--cs-snap);
-}
-.ns-nav a::before {
-  content: ''; position: absolute; top: 5px; left: 50%; margin-left: -3px; width: 6px; height: 6px; border-radius: 50%;
-  background: #c9c4b9;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: var(--nb-tap); padding: 0 16px;
+  border: var(--nb-border); border-radius: var(--nb-radius);
+  text-decoration: none; white-space: nowrap;
+  font: 700 16px/1 var(--nb-sans); color: var(--nb-ink);
+  background: var(--nb-card);
+  box-shadow: var(--nb-shadow);
+  transition: transform var(--nb-fast) var(--cs-snap), box-shadow var(--nb-fast) var(--cs-snap);
 }
 .ns-nav a svg, .ns-nav a .material-symbols-outlined { display: none; }
-.ns-nav a:hover { background: linear-gradient(180deg, #fff, #f0ede6); }
-.ns-nav a:active { transform: translateY(3px); box-shadow: 0 0 0 #b7b2a6, 0 1px 2px rgba(0, 0, 0, 0.2), inset 0 1px 0 #fff; }
-.ns-nav a[aria-current="page"] { transform: translateY(2px); box-shadow: 0 1px 0 #b7b2a6, 0 1px 3px rgba(0, 0, 0, 0.18), inset 0 1px 0 #fff; }
-.ns-nav a[aria-current="page"]::before { background: var(--cs-org); box-shadow: 0 0 8px var(--cs-org); animation: cs-led-on 700ms 500ms steps(1, end) both; }
+.ns-nav a:hover { transform: translate(-1px, -1px); box-shadow: 7px 7px 0 var(--nb-ink); }
+.ns-nav a[aria-current="page"] { background: var(--nb-cyan); transform: translate(-2px, -2px); box-shadow: var(--nb-shadow-lift); }
+.ns-nav a:active { transform: translate(6px, 6px); box-shadow: 0 0 0 var(--nb-ink); }
 
 .ns-sr { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* ---------------------------------------------------------------------------
-   Motion: hardware moving.
+   Ticker: a black band under the top bar with yellow note names scrolling.
+   Markup: <div class="nb-ticker" aria-hidden="true"><div class="nb-ticker__track">
+   <span>…</span><span>…same text…</span></div></div>  (two identical halves)
    --------------------------------------------------------------------------- */
-
-/* a unit slides into the rack: comes up from below, tilted, and settles */
-@keyframes cs-insert {
-  0% { opacity: 0; transform: translateY(70px) rotateX(14deg) scale(0.97); }
-  60% { opacity: 1; }
-  100% { opacity: 1; transform: none; }
+.nb-ticker {
+  overflow: hidden; white-space: nowrap;
+  background: var(--nb-ink); color: var(--nb-yellow);
+  border-top: var(--nb-border); border-bottom: var(--nb-border);
+  font: 700 18px/1 var(--nb-sans); letter-spacing: 0.02em;
+  padding: 9px 0;
 }
-/* the top rail drops in from above */
-@keyframes cs-drop { from { opacity: 0; transform: translateY(-40px); } to { opacity: 1; transform: none; } }
-/* a screen powers on: dark, a flicker, a bright flash, then steady */
-@keyframes cs-power {
-  0% { filter: brightness(0.15) saturate(0.4); }
-  18% { filter: brightness(0.9); }
-  24% { filter: brightness(0.2); }
-  40% { filter: brightness(1.35); }
-  100% { filter: none; }
-}
-/* LED switching on (used with steps(1)) */
-@keyframes cs-led-on { 0% { background: #c9c4b9; box-shadow: none; } 100% { } }
-/* a drawer runs out on its rails */
-@keyframes cs-drawer { from { transform: translateX(110%); } 70% { transform: translateX(-2%); } to { transform: none; } }
-/* a strip reveals left to right, like a fader sweep */
-@keyframes cs-sweep { from { clip-path: inset(0 100% 0 0 round var(--cs-r-lg)); } to { clip-path: inset(0 0 0 0 round var(--cs-r-lg)); } }
-/* a key pops up from the panel */
-@keyframes cs-pop { 0% { opacity: 0; transform: translateY(-6px) scale(0.4); } 70% { opacity: 1; transform: translateY(1px) scale(1.08); } 100% { transform: none; } }
-/* a knob is turned to its setting */
-@keyframes cs-turn { from { transform: rotate(-150deg); } }
+.nb-ticker__track { display: inline-flex; animation: nb-tick 40s linear infinite; }
+.nb-ticker__track > span { flex: none; padding-right: 0.6em; }
+@keyframes nb-tick { to { transform: translateX(-50%); } }
 
-.cs-insert { animation: cs-insert 900ms var(--cs-heavy) both; }
-.cs-insert-2 { animation: cs-insert 900ms 110ms var(--cs-heavy) both; }
-.cs-insert-3 { animation: cs-insert 900ms 220ms var(--cs-heavy) both; }
-.cs-power { animation: cs-power 1100ms 350ms linear both; }
-
-/* page to page: the old unit slides down out of the rack, the new one rises in */
-@view-transition { navigation: auto; }
-::view-transition-old(root) { animation: cs-unit-out 320ms var(--cs-snap) both; }
-::view-transition-new(root) { animation: cs-unit-in 650ms var(--cs-heavy) both; }
-@keyframes cs-unit-out { to { opacity: 0; transform: translateY(40px) scale(0.985); } }
-@keyframes cs-unit-in { from { opacity: 0; transform: translateY(-50px) scale(1.01); } }
+/* ---------------------------------------------------------------------------
+   Legacy motion names, kept so page stylesheets that still reference them
+   resolve. New work should not add motion beyond hover and press.
+   --------------------------------------------------------------------------- */
+@keyframes cs-insert { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cs-drop { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cs-power { from { opacity: 0.4; } to { opacity: 1; } }
+@keyframes cs-led-on { 0% { } 100% { } }
+@keyframes cs-drawer { from { transform: translateX(110%); } to { transform: none; } }
+@keyframes cs-sweep { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cs-pop { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cs-turn { from { opacity: 0.4; } to { opacity: 1; } }
+.cs-insert, .cs-insert-2, .cs-insert-3, .cs-power { animation: none; }
 
 @media (max-width: 760px) {
-  .ns-brand__word, .ns-brand__model { display: none; }
-  .ns-nav { gap: 5px; padding: 5px; }
-  .ns-nav a { padding: 11px 10px 3px; font-size: 10px; letter-spacing: 0.06em; }
+  .ns-brand__word { font-size: 18px; }
+  .ns-nav { gap: 8px; }
+  .ns-nav a { padding: 0 10px; font-size: 14px; box-shadow: var(--nb-shadow-md); }
+  .ns-nav a[aria-current="page"] { box-shadow: 6px 6px 0 var(--nb-ink); }
+  .ns-nav a:active { transform: translate(4px, 4px); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ns-brand__led, .ns-nav a[aria-current="page"]::before, .cs-insert, .cs-insert-2, .cs-insert-3, .cs-power { animation: none !important; }
-  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+  .nb-ticker__track { animation: none; }
+  .nb-btn, .nb-chip, .cs-key, .ns-brand, .ns-nav a { transition: none; }
 }
