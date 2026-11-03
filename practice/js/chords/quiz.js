@@ -20,7 +20,7 @@ const acc = (name) => name.replace(/([♯♭]+)/g, '<span class="acc">$1</span>'
 
 const KEY = 'practice.chords';
 const saved = (() => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } })();
-const prefs = { deck: 'major', boxes: {}, best: 0, sound: true, rare: false, ...saved };
+const prefs = { deck: 'major', boxes: {}, best: 0, sound: true, rare: false, notesOnly: false, ...saved };
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(prefs)); } catch { /* private mode */ } };
 
 // ---- round state -------------------------------------------------------------
@@ -155,7 +155,8 @@ async function go() {
     [...$('slots').children].forEach((s) => s.classList.add('is-ok'));
     await wait(500);
     busy = false;
-    setStep('key');
+    if (prefs.notesOnly) nextCard();
+    else setStep('key');
   } else {
     clean = false;
     const wrong = result.picks.filter(p => !p.ok).map(p => p.name);
@@ -178,8 +179,14 @@ async function reveal() {
   renderSlots();
   renderKeypad();
   strum(chordMidis(card));
-  say(`${card.name} is ${card.notes.join(' – ')}.`);
   flip(true);
+  if (prefs.notesOnly) {
+    say(`${card.name} is ${card.notes.join(' – ')}. Press Enter for the next card.`);
+    step = 'done';
+    renderSteps();
+    return;
+  }
+  say(`${card.name} is ${card.notes.join(' – ')}.`);
   setStep('fret');
 }
 
@@ -437,7 +444,7 @@ function burst(el, color, count = 22) {
 
 // ---- controls -------------------------------------------------------------------
 
-$('btn-go').addEventListener('click', go);
+$('btn-go').addEventListener('click', () => (step === 'done' ? nextCard() : go()));
 $('btn-reveal').addEventListener('click', reveal);
 $('btn-clear').addEventListener('click', () => { if (step === 'notes' && !busy) { picked = []; renderSlots(); renderKeypad(); } });
 $('btn-next').addEventListener('click', () => nextCard());
@@ -468,6 +475,16 @@ document.querySelectorAll('input[name="deck"]').forEach((r) => {
   });
 });
 
+function syncNotesOnly() {
+  $('notes-only-toggle').checked = prefs.notesOnly;
+  document.querySelector('.cq-steps').hidden = prefs.notesOnly;
+}
+$('notes-only-toggle').addEventListener('change', (ev) => {
+  prefs.notesOnly = ev.target.checked; save();
+  syncNotesOnly();
+  if (step !== 'notes' && !busy) nextCard();
+});
+
 function syncSound() {
   $('sound-toggle').setAttribute('aria-pressed', String(prefs.sound));
   $('sound-toggle').classList.toggle('is-off', !prefs.sound);
@@ -479,5 +496,6 @@ $('sound-toggle').addEventListener('click', () => { prefs.sound = !prefs.sound; 
 buildKeypad();
 buildKeysig();
 syncSound();
+syncNotesOnly();
 renderStats();
 nextCard({ first: true });
