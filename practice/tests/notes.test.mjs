@@ -236,3 +236,30 @@ test('ordered inversions: root -> 1st -> 2nd of the same chord on the same strin
     prev = c;
   }
 });
+
+test('selectedTriads keeps only known ids and falls back to every type', async () => {
+  const { selectedTriads, TRIADS } = await import('../js/notes.js');
+  assert.deepEqual(selectedTriads(['major', 'minor']), ['major', 'minor']);
+  assert.deepEqual(selectedTriads(['bogus', 'dim']), ['dim']);
+  assert.deepEqual(selectedTriads('random'), TRIADS.map(t => t.id));
+  assert.deepEqual(selectedTriads([]), TRIADS.map(t => t.id));
+});
+
+test('pickTriadTarget with several selected types only ever picks those, and uses each', async () => {
+  const { pickTriadTarget, selectedTriads } = await import('../js/notes.js');
+  const opts = { strings: [0, 1, 2, 3, 4, 5], fretFrom: 0, fretTo: 11, naturalsOnly: false, triads: selectedTriads(['major', 'minor']), triadGroups: ['654', '543', '432', '321'], triadInversion: 'random' };
+  const seen = new Set(); let prev = null;
+  for (let i = 0; i < 300; i++) { prev = pickTriadTarget(opts, prev, Math.random); seen.add(prev.triad); }
+  assert.deepEqual([...seen].sort(), ['major', 'minor']);
+});
+
+test('settings migration: old triadPick values become a list of types', async () => {
+  globalThis.localStorage = { getItem: () => null, setItem() {} };
+  const { migrate, DEFAULTS } = await import('../js/settings.js');
+  assert.equal('triadPick' in migrate({ triadPick: 'random' }), false);
+  assert.equal('triadPick' in migrate({}), false);
+  assert.deepEqual(migrate({ triadPick: 'minor' }).triadPick, ['minor']);
+  assert.deepEqual(migrate({ triadPick: ['major', 'dim'] }).triadPick, ['major', 'dim']);
+  assert.equal(DEFAULTS.triadPick.length, 6);
+  assert.equal(DEFAULTS.showStringNames, true);
+});

@@ -1,4 +1,4 @@
-import { STRINGS, FRET_COUNT, INTERVALS, CHORDS, TRIADS, STRING_GROUPS, INVERSIONS, DEGREE_LABELS, intervalById, chordById, triadById, stringGroupById, spokenName, tipFor, noteAt } from './notes.js';
+import { STRINGS, FRET_COUNT, INTERVALS, CHORDS, TRIADS, STRING_GROUPS, INVERSIONS, DEGREE_LABELS, intervalById, chordById, triadById, selectedTriads, stringGroupById, spokenName, tipFor, noteAt } from './notes.js';
 import { createFretboard } from './fretboard.js';
 import { createPitchDetector } from './pitch.js';
 import { createVoice } from './voice.js';
@@ -40,12 +40,12 @@ let settings = loadSettings();
 
 // What the session actually drills: a single picked interval, or the random pool.
 function sessionSettings() {
-  const pick = settings.intervalPick, cpick = settings.chordPick, tpick = settings.triadPick;
+  const pick = settings.intervalPick, cpick = settings.chordPick;
   return {
     ...settings,
     intervals: pick && pick !== 'random' ? [pick] : settings.intervals,
     chords: cpick && cpick !== 'random' ? [cpick] : settings.chords,
-    triads: tpick && tpick !== 'random' ? [tpick] : settings.triads,
+    triads: selectedTriads(settings.triadPick),
   };
 }
 
@@ -96,7 +96,7 @@ const ui = {
   meterFill: $('meter-fill'), meterGate: $('meter-gate'), micNote: $('mic-note'),
   ring: $('ring'), ringFill: $('ring-fill'), ringLabel: $('ring-label'),
   statCount: $('stat-count'), statAccuracy: $('stat-accuracy'), statAvg: $('stat-avg'), statWrong: $('stat-wrong'),
-  earPicker: $('ear-picker'), earToggle: $('ear-toggle'), earReplay: $('ear-replay'),
+  earPicker: $('ear-picker'), earToggle: $('ear-toggle'), earReplay: $('ear-replay'), namesToggle: $('names-toggle'),
   picker: $('interval-picker'), chordPicker: $('chord-picker'), triadPicker: $('triad-picker'), groupPicker: $('group-picker'), inversionPicker: $('inversion-picker'),
   heatReset: $('heat-reset'), heatBody: $('heat-body'),
 };
@@ -321,6 +321,7 @@ ui.earToggle.addEventListener('click', () => {
   hearAgain(); // switching it on mid-question plays the current note straight away
 });
 ui.earReplay.addEventListener('click', hearAgain);
+ui.namesToggle.addEventListener('click', () => commit({ showStringNames: !settings.showStringNames }));
 
 // A skip is a "couldn't find it" for the heatmap.
 function skipNow() {
@@ -496,11 +497,15 @@ for (const opt of [{ id: 'random', label: 'Random' }, ...CHORDS.map(c => ({ id: 
   ui.chordPicker.appendChild(b);
 }
 
-for (const opt of [{ id: 'random', label: 'Random' }, ...TRIADS.map(t => ({ id: t.id, label: t.label }))]) {
+for (const opt of TRIADS.map(t => ({ id: t.id, label: t.label }))) {
   const b = document.createElement('button');
   b.type = 'button'; b.className = 'chip'; b.dataset.id = opt.id; b.textContent = opt.label;
+  b.setAttribute('aria-pressed', 'false');
   b.addEventListener('click', () => {
-    commit({ triadPick: opt.id });
+    const on = new Set(selectedTriads(settings.triadPick));
+    on.has(opt.id) ? on.delete(opt.id) : on.add(opt.id);
+    if (on.size === 0) return; // keep at least one type
+    commit({ triadPick: TRIADS.map(t => t.id).filter(id => on.has(id)) });
     if (session.state !== 'idle' && session.mode === 'triads') session.skip();
   });
   ui.triadPicker.appendChild(b);
@@ -678,7 +683,7 @@ const TICKER = {
   note: ['Press Start or Space and allow the mic', 'Play the note shown, on the string shown', 'Stuck? H shows where it is, N skips', 'Turn on Say + play the note to find it by ear, R plays it again', 'Your fretboard, over time shows which notes need work'],
   intervals: ['Play the root, then the interval above it', 'Practise one interval, or let it pick at random', 'H shows a tip first, then where both notes are', 'N skips to the next one'],
   arpeggios: ['Play the chord one note per string, from the low string up', 'Pick a chord type, or let it pick at random', 'Each note counts as soon as you hit it', 'H shows a tip, then where the next note is', 'N skips to the next chord'],
-  triads: ['Play the three notes of the triad on the string group shown', 'Choose the triad, the inversion and which string groups to use', 'H shows a tip, then where the next note is', 'N skips to the next triad'],
+  triads: ['Play the three notes of the triad on the string group shown', 'Choose the triad types, the inversion and which string groups to use', 'H shows a tip, then where the next note is', 'N skips to the next triad'],
 };
 
 function setTicker(mode) {
@@ -690,7 +695,7 @@ function applySettingsToUI() {
   const mode = ['intervals', 'arpeggios', 'triads'].includes(settings.mode) ? settings.mode : 'note';
   setTicker(mode);
   ui.triadPicker.hidden = mode !== 'triads';
-  ui.triadPicker.querySelectorAll('.chip').forEach((c) => c.classList.toggle('is-active', c.dataset.id === (settings.triadPick || 'random')));
+  ui.triadPicker.querySelectorAll('.chip').forEach((c) => { const on = selectedTriads(settings.triadPick).includes(c.dataset.id); c.classList.toggle('is-active', on); c.setAttribute('aria-pressed', on); });
   ui.inversionPicker.hidden = mode !== 'triads';
   ui.inversionPicker.querySelectorAll('.chip').forEach((c) => c.classList.toggle('is-active', c.dataset.id === String(settings.triadInversion ?? 'random')));
   ui.groupPicker.hidden = mode !== 'triads';
@@ -704,6 +709,8 @@ function applySettingsToUI() {
   $('play-note').checked = settings.playNote;
   ui.earPicker.hidden = mode !== 'note';
   ui.earToggle.setAttribute('aria-pressed', settings.playNote);
+  ui.namesToggle.setAttribute('aria-pressed', settings.showStringNames);
+  fretboard.setStringNames(settings.showStringNames);
   intervalList.querySelectorAll('input').forEach((i) => { i.checked = settings.intervals.includes(i.value); });
 
   f.pills.querySelectorAll('.pill').forEach((b) =>

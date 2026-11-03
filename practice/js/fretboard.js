@@ -110,6 +110,8 @@ export function createFretboard(svg) {
   }
 
   const api = {
+    setStringNames(on) { labels.classList.toggle('is-hidden', !on); },
+
     highlightString(index) {
       stringLines.forEach((l, i) => l.classList.toggle('is-target', i === index));
       stringLabels.forEach((l, i) => l.classList.toggle('is-target', i === index));

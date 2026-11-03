@@ -195,6 +195,7 @@ kbd {
 }
 
 .fb-label { fill: var(--nb-ink); font: 700 14px var(--nb-sans); text-anchor: middle; }
+.fb-labels.is-hidden { visibility: hidden; }
 .fb-label.is-target { font-weight: 700; font-size: 17px; }
 .fb-num { fill: var(--nb-ink-3); font: 700 11px var(--nb-sans); text-anchor: middle; }
 .fb-num--mark { fill: var(--nb-ink); }

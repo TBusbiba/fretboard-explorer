@@ -9,13 +9,14 @@ export const DEFAULTS = Object.freeze({
   fretTo: 11,             // 0-11 covers every note once per string
   naturalsOnly: true,
 
+  showStringNames: true,  // note mode: string name labels on the drill fretboard
   playNote: false,        // note mode: also play the target note after saying it
   intervals: ['octaveUp', 'octaveDown', 'fifth', 'majorThird', 'minorThird'], // pool for 'random'
   intervalPick: 'random', // 'random' or one interval id
   chords: ['major', 'minor', 'dom7', 'min7', 'maj7'], // pool for 'random' in arpeggio mode
   chordPick: 'random',
   triads: ['major', 'minor', 'dim', 'aug', 'dom7', 'min7'],
-  triadPick: 'random',
+  triadPick: ['major', 'minor', 'dim', 'aug', 'dom7', 'min7'], // selected triad types; each question picks one at random
   triadGroups: ['654', '543', '432', '321'],
   triadInversion: 'random', // 'random' | 0 | 1 | 2 | 'cycle'
 
@@ -47,10 +48,12 @@ export function loadSettings() {
 // equals the old default was never deliberately chosen, so it follows the new one.
 const RELAXED = { gate: [0.012], clarity: [0.9] };
 
-function migrate(saved) {
+export function migrate(saved) {
   for (const [key, oldDefaults] of Object.entries(RELAXED)) {
     if (oldDefaults.includes(saved[key])) delete saved[key];
   }
+  if (typeof saved.triadPick === 'string' && saved.triadPick !== 'random') saved.triadPick = [saved.triadPick];
+  else if (!Array.isArray(saved.triadPick) || saved.triadPick.length === 0) delete saved.triadPick;
   return saved;
 }
 

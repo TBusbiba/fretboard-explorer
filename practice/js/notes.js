@@ -269,6 +269,12 @@ export function stringGroupById(id) { return STRING_GROUPS.find(g => g.id === id
 
 const TRIAD_SPAN = 4;
 
+/** The triad ids to drill: the selected ones that exist, or every type when none valid. */
+export function selectedTriads(pick) {
+  const ids = (Array.isArray(pick) ? pick : [pick]).filter(id => triadById(id));
+  return ids.length ? ids : TRIADS.map(t => t.id);
+}
+
 /**
  * Pick a close-voiced triad on a 3-string group in some inversion. Notes are
  * ascending, low string to high, within a 5-fret window and the fret range.
