@@ -57,7 +57,7 @@
                 </button>
             </div>
         </header>
-        <div class="nb-ticker"><div class="nb-ticker__track"><span>Pick a root and a scale, then read it straight off the neck ★ Full, Vertical or Diagonal shows the whole neck or one position at a time ★ In Vertical, click a fret number to see that position ★ Turn on CAGED, Triads or TAB to add more on top ★ Click any note to mark it ★ Change your tuning from the Tuning menu, or build your own ★ Highlight one degree, or pick a colour and paint notes ★ Tap a string to show or hide it ★ </span><span aria-hidden="true">Pick a root and a scale, then read it straight off the neck ★ Full, Vertical or Diagonal shows the whole neck or one position at a time ★ In Vertical, click a fret number to see that position ★ Turn on CAGED, Triads or TAB to add more on top ★ Click any note to mark it ★ Change your tuning from the Tuning menu, or build your own ★ Highlight one degree, or pick a colour and paint notes ★ Tap a string to show or hide it ★ </span></div></div>
+        <div class="nb-ticker"><div class="nb-ticker__track"><span>Pick a root and a scale, then read it straight off the neck ★ Full, Vertical or Diagonal shows the whole neck or one position at a time ★ In Vertical, click a fret number to see that position ★ Turn on CAGED, Triads or TAB to add more on top ★ Click any note to mark it ★ Choose None in the Scale menu to start empty and click the neck to pick your own notes ★ Change your tuning from the Tuning menu, or build your own ★ Highlight one degree, or pick a colour and paint notes ★ Tap a string to show or hide it ★ </span><span aria-hidden="true">Pick a root and a scale, then read it straight off the neck ★ Full, Vertical or Diagonal shows the whole neck or one position at a time ★ In Vertical, click a fret number to see that position ★ Turn on CAGED, Triads or TAB to add more on top ★ Click any note to mark it ★ Choose None in the Scale menu to start empty and click the neck to pick your own notes ★ Change your tuning from the Tuning menu, or build your own ★ Highlight one degree, or pick a colour and paint notes ★ Tap a string to show or hide it ★ </span></div></div>
 
         <!-- Main Content -->
         <div class="flex flex-1 flex-col overflow-y-auto fretboard-scroll">
@@ -102,6 +102,7 @@
                             <label class="ex-field ex-field--scale">
                                 <span class="ex-label">Scale</span>
                                 <span class="ex-select"><select id="scale-select" aria-label="Scale">
+                                    <option value="none">None — pick your own notes</option>
                                     <optgroup label="Basic Scales">
                                         <option value="major" selected>Major</option>
                                         <option value="natural-minor">Natural Minor</option>
@@ -163,6 +164,9 @@
                                     <button class="pattern-btn" data-pattern="diagonal">Diagonal</button>
                                 </div>
                             </div>
+                            <button id="clear-picks" class="hidden" title="Remove every note you picked" disabled>
+                                <span class="material-symbols-outlined text-[18px]">backspace</span>Clear notes
+                            </button>
                             <button id="reset-all" class="ex-reset" title="Reset everything">
                                 <span class="material-symbols-outlined text-[18px]">refresh</span>Reset
                             </button>
@@ -260,8 +264,9 @@
                                 </div>
                             </div>
                             <div class="ex-legend ex-legend--key">
-                                <span><i class="ex-dot ex-dot--root"></i><b id="root-legend">Root (C)</b></span>
-                                <span><i class="ex-dot ex-dot--note"></i>Scale note</span>
+                                <span id="legend-root"><i class="ex-dot ex-dot--root"></i><b id="root-legend">Root (C)</b></span>
+                                <span id="legend-note"><i class="ex-dot ex-dot--note"></i>Scale note</span>
+                                <span id="legend-pick" class="hidden"><i class="ex-dot ex-dot--pick"></i>Your note</span>
                             </div>
                         </div>
 
@@ -303,7 +308,7 @@
                         <div class="relative w-full overflow-x-auto pb-4 fretboard-scroll">
                             <div class="fretboard" id="fretboard"></div>
                         </div>
-                        <p class="ex-hint ex-hint--center">Click a note to mark it · click a fret number in Vertical to see one position</p>
+                        <p class="ex-hint ex-hint--center" id="neck-hint">Click a note to mark it · click a fret number in Vertical to see one position</p>
 
                         <div id="tab-display" class="ex-tab hidden">
                             <div class="ex-tab__head"><span class="ex-group__label">TAB</span><span id="tab-shape-label" class="ex-hint">(All Positions)</span></div>
@@ -318,7 +323,7 @@
                             <div class="ex-keys degree-buttons" id="degree-buttons"></div>
                         </div>
                         <div class="ex-group">
-                            <span class="ex-group__label">Or paint with a colour, then click a note</span>
+                            <span class="ex-group__label" id="paint-label">Or paint with a colour, then click a note</span>
                             <div class="ex-keys color-buttons">
                                 <button class="color-btn" data-color="#ff4f5e" style="background: #ff4f5e;" title="Red" aria-label="Paint red"></button>
                                 <button class="color-btn" data-color="#2ee6c5" style="background: #2ee6c5;" title="Teal" aria-label="Paint teal"></button>

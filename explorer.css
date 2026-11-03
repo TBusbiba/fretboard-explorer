@@ -101,7 +101,7 @@ body select option, body select optgroup { color: var(--nb-ink); background: #ff
    white with an ink border and a 3px shadow; on = green; press = the
    shadow collapses and the chip drops 3px */
 body .pattern-btn, body #reset-all, body #tab-toggle, body #caged-toggle, body .triad-toggle,
-body #clear-notes, body #toggle-all-strings, .string-group-option span, .string-filter-btn, .degree-btn, .ex-plus span {
+body #clear-notes, body #clear-picks, body #toggle-all-strings, .string-group-option span, .string-filter-btn, .degree-btn, .ex-plus span {
   position: relative;
   display: inline-flex !important; align-items: center; justify-content: center; gap: 6px;
   min-height: var(--nb-tap) !important; height: auto !important;
@@ -114,11 +114,11 @@ body #clear-notes, body #toggle-all-strings, .string-group-option span, .string-
   transition: transform var(--nb-fast) var(--cs-snap), box-shadow var(--nb-fast) var(--cs-snap) !important;
 }
 body .pattern-btn:hover, body #reset-all:hover, body #tab-toggle:hover, body #caged-toggle:hover, body .triad-toggle:hover,
-body #clear-notes:hover, body #toggle-all-strings:hover, .string-group-option:hover span, .string-filter-btn:hover, .degree-btn:hover, .ex-plus:hover span {
+body #clear-notes:hover, body #clear-picks:hover, body #toggle-all-strings:hover, .string-group-option:hover span, .string-filter-btn:hover, .degree-btn:hover, .ex-plus:hover span {
   transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--nb-ink) !important;
 }
 body .pattern-btn:active, body #reset-all:active, body #tab-toggle:active, body #caged-toggle:active, body .triad-toggle:active,
-body #clear-notes:active, body #toggle-all-strings:active, .string-group-option:active span, .string-filter-btn:active, .degree-btn:active, .ex-plus:active span {
+body #clear-notes:active, body #clear-picks:active, body #toggle-all-strings:active, .string-group-option:active span, .string-filter-btn:active, .degree-btn:active, .ex-plus:active span {
   transform: translate(3px, 3px); box-shadow: 0 0 0 var(--nb-ink) !important;
 }
 body .pattern-btn.active, body #tab-toggle.bg-primary, body #caged-toggle.bg-primary, body .triad-toggle:has(input:checked),
@@ -174,6 +174,7 @@ body .ex-plus span { position: absolute; inset: 0; padding: 0 !important; pointe
 .ex-dot--shared { background: var(--nb-green); }
 .ex-dot--one { background: var(--nb-yellow); }
 .ex-dot--two { background: var(--nb-violet); }
+.ex-dot--pick { background: var(--nb-yellow); }
 .ex-swatch { width: 16px; height: 16px; border-radius: 50%; background: var(--c); border: 2px solid var(--nb-ink); flex: none; }
 .ex-hint { font: 500 13px/1.4 var(--nb-sans); color: var(--nb-ink-2); }
 .ex-hint--center { text-align: center; margin: 0; }
@@ -330,7 +331,20 @@ body #tab-shape-label { color: var(--nb-ink-2); }
 .note-circle.comparison-note { background: var(--comparison-color, var(--nb-violet)); color: var(--nb-ink); }
 .note-circle.shared-note { background: var(--nb-green); color: var(--nb-ink); }
 .note-circle.different-note { background: var(--nb-yellow); color: var(--nb-ink); }
-.note-circle.marked { background: var(--nb-yellow); color: var(--nb-ink); }
+.note-circle.marked, .note-circle.pick-note { background: var(--nb-yellow); color: var(--nb-ink); }
+
+/* pick your own notes: an empty neck where every spot can take a disc */
+.note-circle.free-empty { background: transparent !important; border-color: transparent !important; filter: none; box-shadow: none; font-size: 0; }
+#fretboard-body.free-on .note-slot, #fretboard-body.free-on .note-circle.free-empty { cursor: pointer; }
+#fretboard-body.free-on .note-slot { position: relative; width: 100%; height: 100%; }
+#fretboard-body.free-on .note-slot:empty:hover::after {
+  content: ''; position: absolute; inset: 0; margin: auto; width: 28px; height: 28px; border-radius: 50%;
+  border: 2.2px dashed var(--nb-ink); background: rgba(255, 212, 0, 0.35); pointer-events: none;
+}
+#fretboard-body.free-on .note-circle.free-empty:hover { border: 2.2px dashed var(--nb-ink) !important; background: rgba(255, 212, 0, 0.35) !important; }
+body #clear-picks.hidden { display: none !important; }
+body #clear-picks:disabled, body #caged-toggle:disabled, body .triad-toggle:has(input:disabled) { opacity: 0.4; cursor: not-allowed; transform: none !important; box-shadow: var(--nb-shadow-sm) !important; }
+.ex-hint--inline { font: 700 13px var(--nb-sans); color: var(--nb-ink); }
 
 body .relative > p.italic { color: var(--nb-ink-2) !important; font-family: var(--nb-sans); font-style: normal !important; font-size: 13px !important; }
 body .relative > .flex.justify-end > div { color: var(--nb-ink-2) !important; }

@@ -26,6 +26,7 @@ class GuitarScaleApp {
             'open-e':      { name: 'Open E',          midi: [64, 59, 56, 52, 47, 40] }
         };
         this.loadTuning();
+        this.loadPicks();
         this.currentPattern = 'full';
         this.selectedNote = null;
         this.selectedFret = null;  // null = show all, number = show position at that fret
@@ -58,6 +59,8 @@ class GuitarScaleApp {
     }
     
     init() {
+        const scaleSelect = document.getElementById('scale-select');
+        if (scaleSelect && this.freeMode) scaleSelect.value = 'none';
         this.createFretboard();
         this.setupEventListeners();
         this.patternManager.setApp(this);
@@ -211,6 +214,11 @@ class GuitarScaleApp {
         // Update selected note display
         this.updateSelectedNoteDisplay(note, string, fret);
         
+        if (this.freeMode) {
+            this.handleFreeClick(string, fret);
+            return;
+        }
+        
         // A painted note goes back to how it looked before, whichever way it was painted
         const circle = this.noteCircleAt(string, fret);
         if (circle && circle.dataset.painted) {
@@ -225,6 +233,152 @@ class GuitarScaleApp {
             return;
         }
         this.toggleNoteMarking(string, fret);
+    }
+    
+    // ---- Pick your own notes: no scale, only the spots the user clicks.
+    // Stored as "string:fret" positions (not pitches), so they stay put when the tuning
+    // changes and the names follow the tuning. Kept in localStorage 'explorer.picks'. ----
+    loadPicks() {
+        let saved = null;
+        try { saved = JSON.parse(localStorage.getItem('explorer.picks')); } catch {}
+        this.picks = new Set();
+        if (saved && Array.isArray(saved.notes)) {
+            saved.notes.forEach(key => {
+                const [string, fret] = String(key).split(':').map(Number);
+                if (string >= 0 && string < 6 && fret >= 0 && fret < 22) this.picks.add(`${string}:${fret}`);
+            });
+        }
+        this.freeMode = !!(saved && saved.free);
+    }
+    
+    savePicks() {
+        try { localStorage.setItem('explorer.picks', JSON.stringify({ free: this.freeMode, notes: [...this.picks] })); } catch {}
+    }
+    
+    handleFreeClick(string, fret) {
+        if (!this.selectedStrings.has(string)) return;
+        const key = `${string}:${fret}`;
+        const circle = this.noteCircleAt(string, fret);
+        // a painted pick goes back to plain on the next click
+        if (circle && circle.dataset.painted) { this.unpaint(circle); return; }
+        if (this.selectedColor) {
+            // paint just this pick, adding it first when the spot is empty
+            if (!this.picks.has(key)) this.addPick(string, fret);
+            const painted = this.noteCircleAt(string, fret);
+            if (painted) this.paint(painted, this.selectedColor, 'one');
+            return;
+        }
+        if (this.picks.has(key)) this.removePick(string, fret);
+        else this.addPick(string, fret);
+    }
+    
+    addPick(string, fret) {
+        this.picks.add(`${string}:${fret}`);
+        this.drawPick(string, fret);
+        this.picksChanged();
+    }
+    
+    removePick(string, fret) {
+        this.picks.delete(`${string}:${fret}`);
+        this.eraseSpot(string, fret);
+        this.picksChanged();
+    }
+    
+    clearPicks() {
+        this.picks.clear();
+        this.picksChanged();
+        if (this.freeMode) this.updateScaleDisplay();
+    }
+    
+    picksChanged() {
+        this.savePicks();
+        this.updateFreeUI();
+        if (this.freeMode) this.updateScaleInfo();
+    }
+    
+    drawPick(string, fret) {
+        const note = this.getNoteAtPosition(string, fret);
+        if (fret === 0) {
+            const btn = this.noteCircleAt(string, 0);
+            if (!btn) return;
+            btn.className = 'note-circle pick-note';
+            btn.textContent = note;
+            return;
+        }
+        const slot = this.fretboard.querySelector(`.note-slot[data-string="${string}"][data-fret="${fret}"]`);
+        if (!slot) return;
+        slot.innerHTML = '';
+        const circle = document.createElement('button');
+        circle.className = 'note-circle pick-note';
+        circle.textContent = note;
+        circle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.handleNoteClick(string, fret);
+        });
+        slot.appendChild(circle);
+    }
+    
+    // Empty spot: nothing in a slot; at the nut an invisible button that still takes the click
+    eraseSpot(string, fret) {
+        if (fret === 0) {
+            const btn = this.noteCircleAt(string, 0);
+            if (!btn) return;
+            btn.className = 'note-circle free-empty';
+            btn.textContent = '';
+            btn.style.background = '';
+            btn.style.color = '';
+            delete btn.dataset.painted;
+            return;
+        }
+        const slot = this.fretboard.querySelector(`.note-slot[data-string="${string}"][data-fret="${fret}"]`);
+        if (slot) slot.innerHTML = '';
+    }
+    
+    renderPicks() {
+        this.picks.forEach(key => {
+            const [string, fret] = key.split(':').map(Number);
+            if (this.selectedStrings.has(string)) this.drawPick(string, fret);
+        });
+    }
+    
+    // Everything that changes between a scale and the empty pick-your-own neck
+    updateFreeUI() {
+        const free = this.freeMode;
+        const toggle = (id, hidden) => { const el = document.getElementById(id); if (el) el.classList.toggle('hidden', hidden); };
+        const rootField = document.getElementById('root-select');
+        if (rootField && rootField.closest('.ex-field')) rootField.closest('.ex-field').classList.toggle('hidden', free);
+        const plus = document.getElementById('comparison-mode');
+        if (plus && plus.closest('.ex-plus')) plus.closest('.ex-plus').classList.toggle('hidden', free);
+        const pattern = document.querySelector('.ex-field--pattern');
+        if (pattern) pattern.classList.toggle('hidden', free);
+        toggle('scale-2-controls', free || !this.comparisonMode);
+        toggle('clear-picks', !free);
+        toggle('legend-root', free);
+        toggle('legend-note', free);
+        toggle('legend-pick', !free);
+        toggle('string-groups', free || !(document.getElementById('triad-mode') || {}).checked);
+        toggle('caged-legend', free || !this.showCaged);
+        
+        const clearBtn = document.getElementById('clear-picks');
+        if (clearBtn) clearBtn.disabled = this.picks.size === 0;
+        const triad = document.getElementById('triad-mode');
+        if (triad) triad.disabled = free;
+        const caged = document.getElementById('caged-toggle');
+        if (caged) caged.disabled = free;
+        
+        if (this.fretboard) {
+            this.fretboard.classList.toggle('free-on', free);
+            this.fretboard.classList.toggle('caged-on', this.showCaged && !free);
+        }
+        if (free) toggle('position-info-bar', true);
+        else this.updatePositionInfo();
+        
+        const hint = document.getElementById('neck-hint');
+        if (hint) hint.textContent = free
+            ? 'Click any spot on the neck to add a note · click it again to remove it · pick a scale from the menu to go back'
+            : 'Click a note to mark it · click a fret number in Vertical to see one position';
+        const paintLabel = document.getElementById('paint-label');
+        if (paintLabel) paintLabel.textContent = free ? 'Paint with a colour, then click a note you picked' : 'Or paint with a colour, then click a note';
     }
     
     updateSelectedNoteDisplay(note, string, fret) {
@@ -353,7 +507,7 @@ class GuitarScaleApp {
         if (!this.fretboard) return;
         for (let string = 0; string < 6; string++) {
             const noteBtn = this.fretboard.querySelector(`button[data-string="${string}"][data-fret="0"]`);
-            if (noteBtn) noteBtn.textContent = this.openNote(string);
+            if (noteBtn && !this.freeMode) noteBtn.textContent = this.openNote(string);
         }
     }
     
@@ -446,6 +600,11 @@ class GuitarScaleApp {
         const clearNotesBtn = document.getElementById('clear-notes');
         if (clearNotesBtn) {
             clearNotesBtn.addEventListener('click', () => this.clearNotes());
+        }
+        
+        const clearPicksBtn = document.getElementById('clear-picks');
+        if (clearPicksBtn) {
+            clearPicksBtn.addEventListener('click', () => this.clearPicks());
         }
         
         const resetAllBtn = document.getElementById('reset-all');
@@ -628,7 +787,11 @@ class GuitarScaleApp {
         const rootNote = rootSelect.value;
         const scaleType = scaleSelect.value;
         
-        this.currentScale1 = this.scaleManager.getScale(rootNote, scaleType);
+        // 'none' = pick your own notes: no scale, picks are kept for when it is chosen again
+        this.freeMode = scaleType === 'none';
+        this.currentScale1 = this.freeMode ? null : this.scaleManager.getScale(rootNote, scaleType);
+        this.savePicks();
+        this.updateFreeUI();
         this.updateScaleDegrees();
         this.updateScaleDisplay();
         this.updateCircleOfFifths();
@@ -734,6 +897,14 @@ class GuitarScaleApp {
     updateScaleDisplay() {
         this.clearFretboard();
         this.clearCagedMarkers();
+        this.updateFreeUI();
+        
+        if (this.freeMode) {
+            this.renderPicks();
+            this.updateScaleInfo();
+            if (this.showTab) this.generateTab();
+            return;
+        }
         
         // Check if triad mode is enabled
         const triadMode = document.getElementById('triad-mode');
@@ -841,9 +1012,11 @@ class GuitarScaleApp {
         for (let string = 0; string < 6; string++) {
             const noteBtn = this.fretboard.querySelector(`button[data-string="${string}"][data-fret="0"]`);
             if (noteBtn) {
-                noteBtn.className = 'note-circle scale-note';
-                noteBtn.textContent = this.openNote(string);
+                noteBtn.className = this.freeMode ? 'note-circle free-empty' : 'note-circle scale-note';
+                noteBtn.textContent = this.freeMode ? '' : this.openNote(string);
                 noteBtn.style.background = '';
+                noteBtn.style.color = '';
+                delete noteBtn.dataset.painted;
             }
         }
     }
@@ -967,6 +1140,7 @@ class GuitarScaleApp {
     }
     
     toggleFretPosition(fret) {
+        if (this.freeMode) return;
         if (this.selectedFret === fret) {
             // Clicking same fret reverts to showing all
             this.selectedFret = null;
@@ -1079,6 +1253,11 @@ class GuitarScaleApp {
     generateTab() {
         const tabContent = document.getElementById('tab-content');
         const tabShapeLabel = document.getElementById('tab-shape-label');
+        if (tabContent && this.freeMode) {
+            if (tabShapeLabel) tabShapeLabel.textContent = '(No scale)';
+            tabContent.textContent = 'No scale selected: TAB follows a scale. Pick one from the Scale menu to see it here.';
+            return;
+        }
         if (!tabContent || !this.currentScale1) return;
         
         // Update label
@@ -1171,9 +1350,9 @@ class GuitarScaleApp {
         }
         
         // Dim the rest of the scale while the shapes are shown, and show the legend
-        if (this.fretboard) this.fretboard.classList.toggle('caged-on', this.showCaged);
+        if (this.fretboard) this.fretboard.classList.toggle('caged-on', this.showCaged && !this.freeMode);
         const cagedLegend = document.getElementById('caged-legend');
-        if (cagedLegend) cagedLegend.classList.toggle('hidden', !this.showCaged);
+        if (cagedLegend) cagedLegend.classList.toggle('hidden', !this.showCaged || this.freeMode);
         
         this.updateScaleDisplay();
     }
@@ -1272,6 +1451,13 @@ class GuitarScaleApp {
         
         degreeButtonsContainer.innerHTML = '';
         
+        if (this.freeMode) {
+            const note = document.createElement('span');
+            note.className = 'ex-hint ex-hint--inline';
+            note.textContent = 'No scale: pick one from the Scale menu to highlight a degree.';
+            degreeButtonsContainer.appendChild(note);
+            return;
+        }
         if (!this.currentScale1) return;
         
         const scaleNotes = this.currentScale1.notes;
@@ -1340,6 +1526,7 @@ class GuitarScaleApp {
     
     toggleTriadMode(enabled) {
         const stringGroups = document.getElementById('string-groups');
+        if (this.freeMode) return;
         if (enabled) {
             if (stringGroups) stringGroups.classList.remove('hidden');
             this.updateTriadDisplay();
@@ -1351,7 +1538,7 @@ class GuitarScaleApp {
     
     updateTriadDisplay() {
         const triadMode = document.getElementById('triad-mode');
-        if (!triadMode || !triadMode.checked) return;
+        if (!triadMode || !triadMode.checked || this.freeMode) return;
         
         const selectedGroups = [];
         document.querySelectorAll('.string-group-option input:checked').forEach(checkbox => {
@@ -1449,6 +1636,21 @@ class GuitarScaleApp {
         const intervalsElement = document.getElementById('scale-intervals');
         const scaleTitleElement = document.getElementById('scale-title');
         const scaleFormulaDisplay = document.getElementById('scale-formula-display');
+        
+        if (this.freeMode) {
+            const h2 = scaleTitleElement && scaleTitleElement.querySelector('h2');
+            if (h2) h2.textContent = 'No scale';
+            if (formulaElement) formulaElement.innerHTML = '<p><strong>Your own notes</strong></p>';
+            if (intervalsElement) intervalsElement.innerHTML = '';
+            if (scaleFormulaDisplay) {
+                const names = [...new Set([...this.picks].map(k => { const [s, f] = k.split(':').map(Number); return this.getNoteAtPosition(s, f); }))]
+                    .sort((a, b) => this.noteNames.indexOf(a) - this.noteNames.indexOf(b));
+                scaleFormulaDisplay.textContent = this.picks.size
+                    ? `${this.picks.size} ${this.picks.size === 1 ? 'spot' : 'spots'} picked · ${names.join(', ')}`
+                    : 'Click the neck to add notes';
+            }
+            return;
+        }
         
         if (this.currentScale1) {
             // Update the main scale title
