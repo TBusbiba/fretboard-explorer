@@ -5,6 +5,7 @@ import { createVoice } from './voice.js';
 import { createSound } from './sound.js';
 import { createSession } from './session.js';
 import { createHistory } from './history.js';
+import { shapeSvg } from './triad-shapes.js';
 import { loadSettings, saveSettings, resetSettings, DEFAULTS } from './settings.js';
 
 const $ = (id) => document.getElementById(id);
@@ -25,7 +26,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '12';
+const BUILD = '13';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -97,12 +98,15 @@ const ui = {
   ring: $('ring'), ringFill: $('ring-fill'), ringLabel: $('ring-label'),
   statCount: $('stat-count'), statAccuracy: $('stat-accuracy'), statAvg: $('stat-avg'), statWrong: $('stat-wrong'),
   earPicker: $('ear-picker'), earToggle: $('ear-toggle'), earReplay: $('ear-replay'), namesToggle: $('names-toggle'),
+  shapesToggle: $('shapes-toggle'), drill: $('drill'), shapes: $('shapes'), shapesTabs: $('shapes-tabs'), shapesList: $('shapes-list'),
   picker: $('interval-picker'), chordPicker: $('chord-picker'), triadPicker: $('triad-picker'), groupPicker: $('group-picker'), inversionPicker: $('inversion-picker'),
   heatReset: $('heat-reset'), heatBody: $('heat-body'),
 };
 
 // ---------- session events ----------
 let wrongTimers = [];
+let shapesType = null;   // triad type shown in the shapes cheat sheet
+let shapesNow = null;    // {triad, group} of the question being drilled, else null
 let lastTriadKey = null; // chord + strings of the previous triad target, to keep the voice short within a sequence
 
 function handleSessionEvent(type, p) {
@@ -135,6 +139,9 @@ function handleSessionEvent(type, p) {
         const low = session.steps[0];
         fretboard.highlightString(null);
         scrollBoardTo(low.fret + 1);
+        shapesNow = { triad: p.target.triad, group: p.target.group };
+        shapesType = p.target.triad;
+        renderShapes();
         setPrompt(`Triad · strings ${group.label} · ${inv.label}`, `${rootNote.name} ${triad.label}`, 'listening');
         setStatus(`Play it low to high, starting on string ${STRINGS[low.string].number}`);
         // Same chord on the same strings as last time (a Root → 1st → 2nd or Climb
@@ -242,6 +249,8 @@ function handleSessionEvent(type, p) {
     case 'stopped':
       promptToken++;
       lastTriadKey = null;
+      shapesNow = null;
+      renderShapes();
       voice.cancel();
       fretboard.clearNotes();
       fretboard.highlightString(null);
@@ -322,6 +331,7 @@ ui.earToggle.addEventListener('click', () => {
 });
 ui.earReplay.addEventListener('click', hearAgain);
 ui.namesToggle.addEventListener('click', () => commit({ showStringNames: !settings.showStringNames }));
+ui.shapesToggle.addEventListener('click', () => commit({ showShapes: !settings.showShapes }));
 
 // A skip is a "couldn't find it" for the heatmap.
 function skipNow() {
@@ -508,7 +518,7 @@ for (const opt of TRIADS.map(t => ({ id: t.id, label: t.label }))) {
     commit({ triadPick: TRIADS.map(t => t.id).filter(id => on.has(id)) });
     if (session.state !== 'idle' && session.mode === 'triads') session.skip();
   });
-  ui.triadPicker.appendChild(b);
+  ui.triadPicker.insertBefore(b, ui.shapesToggle);
 }
 for (const opt of [{ id: 'random', label: 'Any inversion' }, { id: 0, label: 'Root position' }, { id: 1, label: '1st inversion' }, { id: 2, label: '2nd inversion' }, { id: 'ordered', label: 'Root → 1st → 2nd' }, { id: 'cycle', label: 'Climb up the neck' }]) {
   const b = document.createElement('button');
@@ -691,11 +701,39 @@ function setTicker(mode) {
   document.querySelectorAll('#ticker > span').forEach((s) => { s.textContent = text; });
 }
 
+// ---------- triad shapes cheat sheet ----------
+// Movable shapes, degrees only: nothing here shows the current question's frets.
+function renderShapes() {
+  const show = settings.mode === 'triads' && settings.showShapes;
+  ui.shapes.hidden = !show;
+  ui.drill.classList.toggle('has-shapes', show);
+  if (!show) return;
+  const types = selectedTriads(settings.triadPick);
+  if (!types.includes(shapesType)) shapesType = types.includes(shapesNow && shapesNow.triad) ? shapesNow.triad : types[0];
+  const focused = ui.shapes.contains(document.activeElement) ? document.activeElement.dataset.id : null;
+  ui.shapesTabs.replaceChildren(...types.map((id) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip chip--small'; b.dataset.id = id; b.textContent = triadById(id).label;
+    b.setAttribute('aria-pressed', id === shapesType);
+    b.addEventListener('click', () => { shapesType = id; renderShapes(); });
+    return b;
+  }));
+  const on = new Set(settings.triadGroups);
+  ui.shapesList.innerHTML = STRING_GROUPS.map((g) => {
+    const now = shapesNow && shapesNow.group === g.id;
+    return `<figure class="shapes__item${now ? ' is-now' : ''}${on.has(g.id) ? '' : ' is-off'}">
+      <figcaption><span>Strings ${g.label}</span>${now ? '<b>Now</b>' : ''}${on.has(g.id) ? '' : '<i>off</i>'}</figcaption>${shapeSvg(shapesType, g.id)}</figure>`;
+  }).join('');
+  if (focused) ui.shapesTabs.querySelector(`[data-id="${focused}"]`)?.focus();
+}
+
 function applySettingsToUI() {
   const mode = ['intervals', 'arpeggios', 'triads'].includes(settings.mode) ? settings.mode : 'note';
   setTicker(mode);
   ui.triadPicker.hidden = mode !== 'triads';
-  ui.triadPicker.querySelectorAll('.chip').forEach((c) => { const on = selectedTriads(settings.triadPick).includes(c.dataset.id); c.classList.toggle('is-active', on); c.setAttribute('aria-pressed', on); });
+  ui.triadPicker.querySelectorAll('.chip[data-id]').forEach((c) => { const on = selectedTriads(settings.triadPick).includes(c.dataset.id); c.classList.toggle('is-active', on); c.setAttribute('aria-pressed', on); });
+  ui.shapesToggle.setAttribute('aria-pressed', settings.showShapes);
+  renderShapes();
   ui.inversionPicker.hidden = mode !== 'triads';
   ui.inversionPicker.querySelectorAll('.chip').forEach((c) => c.classList.toggle('is-active', c.dataset.id === String(settings.triadInversion ?? 'random')));
   ui.groupPicker.hidden = mode !== 'triads';
