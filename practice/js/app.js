@@ -674,8 +674,21 @@ f.gain.addEventListener('input', () => commit({ gain: +f.gain.value }));
 
 f.reset.addEventListener('click', () => { settings = resetSettings(); applySettingsToUI(); });
 
+const TICKER = {
+  note: ['Press Start or Space and allow the mic', 'Play the note shown, on the string shown', 'Stuck? H shows where it is, N skips', 'Turn on Say + play the note to find it by ear, R plays it again', 'Your fretboard, over time shows which notes need work'],
+  intervals: ['Play the root, then the interval above it', 'Practise one interval, or let it pick at random', 'H shows a tip first, then where both notes are', 'N skips to the next one'],
+  arpeggios: ['Play the chord one note per string, from the low string up', 'Pick a chord type, or let it pick at random', 'Each note counts as soon as you hit it', 'H shows a tip, then where the next note is', 'N skips to the next chord'],
+  triads: ['Play the three notes of the triad on the string group shown', 'Choose the triad, the inversion and which string groups to use', 'H shows a tip, then where the next note is', 'N skips to the next triad'],
+};
+
+function setTicker(mode) {
+  const text = TICKER[mode].join(' ★ ') + ' ★ ';
+  document.querySelectorAll('#ticker > span').forEach((s) => { s.textContent = text; });
+}
+
 function applySettingsToUI() {
   const mode = ['intervals', 'arpeggios', 'triads'].includes(settings.mode) ? settings.mode : 'note';
+  setTicker(mode);
   ui.triadPicker.hidden = mode !== 'triads';
   ui.triadPicker.querySelectorAll('.chip').forEach((c) => c.classList.toggle('is-active', c.dataset.id === (settings.triadPick || 'random')));
   ui.inversionPicker.hidden = mode !== 'triads';

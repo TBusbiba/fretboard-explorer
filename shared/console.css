@@ -231,9 +231,10 @@ body { background: var(--nb-paper) !important; color: var(--nb-ink); font-family
 .ns-sr { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* ---------------------------------------------------------------------------
-   Ticker: a black band under the top bar with yellow note names scrolling.
-   Markup: <div class="nb-ticker" aria-hidden="true"><div class="nb-ticker__track">
-   <span>…</span><span>…same text…</span></div></div>  (two identical halves)
+   Ticker: a black band under the top bar scrolling the page's instructions;
+   it pauses while hovered.
+   Markup: <div class="nb-ticker"><div class="nb-ticker__track">
+   <span>…</span><span aria-hidden="true">…same text…</span></div></div>  (two identical halves)
    --------------------------------------------------------------------------- */
 .nb-ticker {
   overflow: hidden; white-space: nowrap;
@@ -244,6 +245,7 @@ body { background: var(--nb-paper) !important; color: var(--nb-ink); font-family
 }
 .nb-ticker__track { display: inline-flex; animation: nb-tick 40s linear infinite; }
 .nb-ticker__track > span { flex: none; padding-right: 0.6em; }
+.nb-ticker:hover .nb-ticker__track { animation-play-state: paused; }
 @keyframes nb-tick { to { transform: translateX(-50%); } }
 
 /* ---------------------------------------------------------------------------
@@ -269,6 +271,8 @@ body { background: var(--nb-paper) !important; color: var(--nb-ink); font-family
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .nb-ticker__track { animation: none; }
+  .nb-ticker { white-space: normal; padding: 9px 16px; line-height: 1.3; }
+  .nb-ticker__track { animation: none; display: block; }
+  .nb-ticker__track > span + span { display: none; }
   .nb-btn, .nb-chip, .cs-key, .ns-brand, .ns-nav a { transition: none; }
 }
