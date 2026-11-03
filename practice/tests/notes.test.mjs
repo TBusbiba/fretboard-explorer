@@ -219,6 +219,52 @@ test('triad inversion control: random never repeats, fixed sticks, cycle walks r
   }
 });
 
+test('climb up the neck: each chord is asked in neck order (leftmost, middle, rightmost), each inversion once, inside the fret range', async () => {
+  const { pickTriadTarget } = await import('../js/notes.js');
+  const avg = (t) => t.notes.reduce((a, n) => a + n.fret, 0) / 3;
+  const pos = (t) => [Math.min(...t.notes.map(n => n.fret)), avg(t)];
+  const before = (a, b) => pos(a)[0] < pos(b)[0] || (pos(a)[0] === pos(b)[0] && pos(a)[1] < pos(b)[1]);
+  const sameChord = (x, y) => x.group === y.group && x.triad === y.triad && x.rootPc === y.rootPc;
+  let sawLowNotRoot = false;
+  for (const [fretFrom, fretTo] of [[0, 11], [0, 15], [3, 12]]) {
+    const opts = { strings: [0, 1, 2, 3, 4, 5], fretFrom, fretTo, naturalsOnly: false,
+      triads: ['major', 'minor', 'dim', 'dom7'], triadGroups: ['654', '543', '432', '321'], triadInversion: 'cycle' };
+    let prev = null, run = [];
+    for (let i = 0; i < 400; i++) {
+      const t = pickTriadTarget(opts, prev, Math.random);
+      for (const n of t.notes) assert.ok(n.fret >= fretFrom && n.fret <= fretTo, `fret ${n.fret} outside ${fretFrom}-${fretTo}`);
+      if (prev && sameChord(t, prev)) {
+        assert.ok(before(prev, t), 'next shape is further up the neck');
+        assert.equal(t.inversion, (prev.inversion + 1) % 3, 'next inversion in the cycle');
+        run.push(t);
+      } else {
+        if (run.length) assert.ok(new Set(run.map(r => r.inversion)).size === run.length, 'each inversion once');
+        assert.ok(run.length <= 3, 'at most three shapes per chord');
+        run = [t];
+        if (t.inversion !== 0) sawLowNotRoot = true;
+      }
+      prev = t;
+    }
+  }
+  assert.ok(sawLowNotRoot, 'some chords start on a 1st or 2nd inversion because that shape is lowest');
+  // E major on 5-4-3 in 0-11: lowest shape is 1st inversion? (G# major: 1st-inv first)
+  const opts = { strings: [0, 1, 2, 3, 4, 5], fretFrom: 0, fretTo: 11, naturalsOnly: false, triads: ['major'], triadGroups: ['543'], triadInversion: 'cycle' };
+  const seen = new Set();
+  let prev = null;
+  for (let i = 0; i < 300; i++) {
+    const a = pickTriadTarget(opts, prev, Math.random);
+    if (!prev || !sameChord(a, prev)) {
+      const b = pickTriadTarget(opts, a, Math.random), c = pickTriadTarget(opts, b, Math.random);
+      assert.ok(sameChord(a, b) && sameChord(b, c));
+      assert.ok(before(a, b) && before(b, c));
+      assert.deepEqual([a, b, c].map(x => x.inversion).sort(), [0, 1, 2]);
+      seen.add(a.inversion);
+      prev = c;
+    }
+  }
+  assert.ok(seen.has(1) || seen.has(2), 'a climb starts with a non-root shape');
+});
+
 test('ordered inversions: root -> 1st -> 2nd of the same chord on the same strings, then a new chord', async () => {
   const { pickTriadTarget } = await import('../js/notes.js');
   const opts = { strings: [0, 1, 2, 3, 4, 5], fretFrom: 0, fretTo: 11, naturalsOnly: true,
