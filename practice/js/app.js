@@ -3,6 +3,7 @@ import { createFretboard } from './fretboard.js';
 import { createPitchDetector } from './pitch.js';
 import { createVoice } from './voice.js';
 import { createSound } from './sound.js';
+import { createMicGate } from './mic-gate.js';
 import { createSession } from './session.js';
 import { createHistory } from './history.js';
 import { LEVELS, WINDOW, FIRST_TRY_MIN, AVG_MS_MAX, STAR2_MS, STAR3_MS, levelById, levelTitle, createPath, createBoss, positionWeigher } from './path.js';
@@ -27,7 +28,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '15';
+const BUILD = '16';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -36,7 +37,6 @@ if (document.documentElement.dataset.build !== BUILD) {
 }
 const RING_LEN = 113.1;
 const WRONG_MARKER_MS = 1200;
-const SPEECH_TAIL_MS = 250;
 
 let settings = loadSettings();
 
@@ -64,17 +64,16 @@ function weighPosition(string, fret) { return (weigher ||= positionWeigher(histo
 let boss = null;      // the boss round in progress, else null
 let notice = null;    // {text, tone}: shown instead of "Listening…" on the next question
 
-// The mic is muted while the voice speaks or a note plays, plus a short tail.
-const blockers = new Set();
-let muteTimer = 0;
-function block(name, on) {
-  on ? blockers.add(name) : blockers.delete(name);
-  clearTimeout(muteTimer);
-  if (blockers.size) pitch.setMuted(true);
-  else muteTimer = setTimeout(() => pitch.setMuted(false), SPEECH_TAIL_MS);
+// The mic is ignored while the voice speaks or a note plays, plus a grace period
+// after each (the speakers' tail and echo), in every mode.
+const micGate = createMicGate();
+const voice = createVoice({ onSpeaking: (v) => micGate.block('voice', v) });
+const sound = createSound({ onPlaying: (v) => micGate.block('sound', v) });
+
+// Arpeggio and triad cue: the question's notes, one after another, unless Play the notes is off.
+function playCue() {
+  if (settings.playNotes) return sound.playSequence(session.steps.map(n => n.midi));
 }
-const voice = createVoice({ onSpeaking: (v) => block('voice', v) });
-const sound = createSound({ onPlaying: (v) => block('sound', v) });
 
 // Speak, then play. Dropped if the target changed meanwhile.
 let promptToken = 0;
@@ -89,7 +88,8 @@ async function announce(text, playMidi, { speak = settings.voice } = {}) {
 const pitch = createPitchDetector({
   getSettings: () => settings,
   getExpected: () => (session.state === 'listening' && session.note ? session.note.midi : null),
-  onNote: (midi) => session.noteDetected(midi),
+  isMuted: (now) => micGate.isMuted(now),
+  onNote: (midi) => { if (!micGate.isMuted()) session.noteDetected(midi); },
   onLevel: updateMeter,
   onState: updateMicState,
 });
@@ -115,7 +115,7 @@ const ui = {
   noteModePicker: $('note-mode-picker'), path: $('path'), pathMap: $('path-map'), pathTitle: $('path-title'), pathGoal: $('path-goal'),
   pathStats: $('path-stats'), bossBtn: $('boss-btn'), bossNote: $('boss-note'),
   earPicker: $('ear-picker'), earToggle: $('ear-toggle'), earReplay: $('ear-replay'), namesToggle: $('names-toggle'),
-  shapesToggle: $('shapes-toggle'), drill: $('drill'), shapes: $('shapes'), shapesTabs: $('shapes-tabs'), shapesList: $('shapes-list'),
+  shapesToggle: $('shapes-toggle'), prompt: $('prompt'), promptTools: $('prompt-tools'), cueToggle: $('cue-toggle'), cuePicker: $('cue-picker'), shapes: $('shapes'), shapesTabs: $('shapes-tabs'), shapesList: $('shapes-list'),
   picker: $('interval-picker'), chordPicker: $('chord-picker'), triadPicker: $('triad-picker'), groupPicker: $('group-picker'), inversionPicker: $('inversion-picker'),
   heatReset: $('heat-reset'), heatBody: $('heat-body'),
 };
@@ -141,7 +141,7 @@ function handleSessionEvent(type, p) {
         scrollBoardTo(root.fret);
         setPrompt(`${rootNote.name} on string ${STRINGS[root.string].number} · then find`, `${iv.label} ${iv.arrow}`, 'listening');
         setStatus('Play the root first');
-        announce(`${spokenName(rootNote.name)}, string ${STRINGS[root.string].number}. Then ${iv.spoken}`, rootNote.midi);
+        announce(`${spokenName(rootNote.name)}, string ${STRINGS[root.string].number}. Then ${iv.spoken}`, settings.playNotes ? rootNote.midi : null);
       } else if (p.mode === 'arpeggios') {
         const { root } = p.target, chord = session.chord, rootNote = session.rootNote;
         fretboard.highlightString(null);
@@ -150,7 +150,7 @@ function handleSessionEvent(type, p) {
         setPrompt(`Arpeggio · string ${STRINGS[root.string].number} → 1 · ${session.steps.length} notes`, `${rootNote.name} ${chord.label}`, 'listening');
         setStatus('Play the root first');
         announce(`${spokenName(rootNote.name)} ${chord.spoken}, from string ${STRINGS[root.string].number}`, null)
-          .then(() => sound.playSequence(session.steps.map(n => n.midi)));
+          .then(playCue);
       } else if (p.mode === 'triads') {
         const triad = session.triad, rootNote = session.rootNote, inv = INVERSIONS[p.target.inversion], group = stringGroupById(p.target.group);
         const low = session.steps[0];
@@ -169,7 +169,7 @@ function handleSessionEvent(type, p) {
         const text = continuing
           ? inv.label
           : `${spokenName(rootNote.name)} ${triad.spoken}, ${inv.label}, strings ${group.strings.map(s => STRINGS[s].number).join(' ')}`;
-        announce(text, null).then(() => sound.playSequence(session.steps.map(n => n.midi)));
+        announce(text, null).then(playCue);
       } else {
         fretboard.highlightString(p.target.string);
         scrollBoardTo(p.target.fret);
@@ -357,6 +357,7 @@ ui.earToggle.addEventListener('click', () => {
 ui.earReplay.addEventListener('click', hearAgain);
 ui.namesToggle.addEventListener('click', () => commit({ showStringNames: !settings.showStringNames }));
 ui.shapesToggle.addEventListener('click', () => commit({ showShapes: !settings.showShapes }));
+ui.cueToggle.addEventListener('click', () => commit({ playNotes: !settings.playNotes }));
 
 // ---------- level path ----------
 const LOCK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
@@ -711,7 +712,7 @@ for (const opt of TRIADS.map(t => ({ id: t.id, label: t.label }))) {
     commit({ triadPick: TRIADS.map(t => t.id).filter(id => on.has(id)) });
     if (session.state !== 'idle' && session.mode === 'triads') session.skip();
   });
-  ui.triadPicker.insertBefore(b, ui.shapesToggle);
+  ui.triadPicker.appendChild(b);
 }
 for (const opt of [{ id: 'random', label: 'Any inversion' }, { id: 0, label: 'Root position' }, { id: 1, label: '1st inversion' }, { id: 2, label: '2nd inversion' }, { id: 'ordered', label: 'Root → 1st → 2nd' }, { id: 'cycle', label: 'Climb up the neck' }]) {
   const b = document.createElement('button');
@@ -901,9 +902,10 @@ function setTicker(mode) {
 // ---------- triad shapes cheat sheet ----------
 // Movable shapes, degrees only: nothing here shows the current question's frets.
 function renderShapes() {
+  ui.promptTools.hidden = settings.mode !== 'triads';
   const show = settings.mode === 'triads' && settings.showShapes;
   ui.shapes.hidden = !show;
-  ui.drill.classList.toggle('has-shapes', show);
+  ui.prompt.classList.toggle('has-shapes', show);
   if (!show) return;
   const types = selectedTriads(settings.triadPick);
   if (!types.includes(shapesType)) shapesType = types.includes(shapesNow && shapesNow.triad) ? shapesNow.triad : types[0];
@@ -916,10 +918,10 @@ function renderShapes() {
     return b;
   }));
   const on = new Set(settings.triadGroups);
-  ui.shapesList.innerHTML = STRING_GROUPS.map((g) => {
+  ui.shapesList.innerHTML = STRING_GROUPS.filter((g) => on.has(g.id)).map((g) => {
     const now = shapesNow && shapesNow.group === g.id;
-    return `<figure class="shapes__item${now ? ' is-now' : ''}${on.has(g.id) ? '' : ' is-off'}">
-      <figcaption><span>Strings ${g.label}</span>${now ? '<b>Now</b>' : ''}${on.has(g.id) ? '' : '<i>off</i>'}</figcaption>${shapeSvg(shapesType, g.id)}</figure>`;
+    return `<figure class="shapes__item${now ? ' is-now' : ''}">
+      <figcaption><span>Strings ${g.label}</span>${now ? '<b>Now</b>' : ''}</figcaption>${shapeSvg(shapesType, g.id)}</figure>`;
   }).join('');
   if (focused) ui.shapesTabs.querySelector(`[data-id="${focused}"]`)?.focus();
 }
@@ -930,6 +932,8 @@ function applySettingsToUI() {
   ui.triadPicker.hidden = mode !== 'triads';
   ui.triadPicker.querySelectorAll('.chip[data-id]').forEach((c) => { const on = selectedTriads(settings.triadPick).includes(c.dataset.id); c.classList.toggle('is-active', on); c.setAttribute('aria-pressed', on); });
   ui.shapesToggle.setAttribute('aria-pressed', settings.showShapes);
+  ui.cuePicker.hidden = mode === 'note';
+  ui.cueToggle.setAttribute('aria-pressed', settings.playNotes);
   renderShapes();
   ui.inversionPicker.hidden = mode !== 'triads';
   ui.inversionPicker.querySelectorAll('.chip').forEach((c) => c.classList.toggle('is-active', c.dataset.id === String(settings.triadInversion ?? 'random')));

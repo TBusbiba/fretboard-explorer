@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="15">
+<html lang="en" data-build="16">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -36,11 +36,12 @@
     </div>
     <div class="picker" id="interval-picker" role="group" aria-label="Which interval" hidden></div>
     <div class="picker" id="chord-picker" role="group" aria-label="Which chord" hidden></div>
-    <div class="picker" id="triad-picker" role="group" aria-label="Which triad" hidden>
-      <button type="button" class="chip chip--shapes" id="shapes-toggle" aria-pressed="false" title="Show the triad shapes (R · 3 · 5) beside the fretboard">Shapes</button>
-    </div>
+    <div class="picker" id="triad-picker" role="group" aria-label="Which triad" hidden></div>
     <div class="picker" id="inversion-picker" role="group" aria-label="Which inversion" hidden></div>
     <div class="picker picker--groups" id="group-picker" role="group" aria-label="String groups" hidden></div>
+    <div class="picker" id="cue-picker" role="group" aria-label="Play the notes" hidden>
+      <button type="button" class="chip" id="cue-toggle" aria-pressed="true" title="Play the prompt's notes after naming it. Off: the prompt is only spoken">Play the notes</button>
+    </div>
     <div class="picker" id="note-mode-picker" role="group" aria-label="Find the note: path or custom" hidden>
       <button type="button" class="chip" data-id="path" aria-pressed="true" title="Work through the levels, a few notes at a time">Path</button>
       <button type="button" class="chip" data-id="custom" aria-pressed="false" title="Choose the notes and strings yourself">Custom</button>
@@ -67,19 +68,16 @@
       </div>
     </section>
 
-    <section class="prompt" aria-live="polite">
-      <div class="prompt__string" id="string-name">Press start</div>
-      <div class="prompt__note" id="note-name" data-state="idle"></div>
-      <div class="prompt__status" id="status">Pick a string, play the note it names, and the mic will confirm it.</div>
-      <div class="prompt__tip" id="tip" hidden></div>
-    </section>
-
-    <div class="drill" id="drill">
-      <section class="board">
-        <div class="board__scroll" id="board-scroll">
-          <svg class="fretboard" id="fretboard"></svg>
-        </div>
-      </section>
+    <section class="prompt" id="prompt">
+      <div class="prompt__tools" id="prompt-tools" hidden>
+        <button type="button" class="shape-toggle" id="shapes-toggle" aria-pressed="false" title="Show the triad shapes (R · 3 · 5) next to the prompt"><span class="shape-toggle__track" aria-hidden="true"></span>Show shapes</button>
+      </div>
+      <div class="prompt__main" aria-live="polite">
+        <div class="prompt__string" id="string-name">Press start</div>
+        <div class="prompt__note" id="note-name" data-state="idle"></div>
+        <div class="prompt__status" id="status">Pick a string, play the note it names, and the mic will confirm it.</div>
+        <div class="prompt__tip" id="tip" hidden></div>
+      </div>
       <aside class="shapes" id="shapes" aria-label="Triad shapes" hidden>
         <div class="shapes__head">
           <h2>Triad shapes</h2>
@@ -88,7 +86,13 @@
         <div class="shapes__list" id="shapes-list"></div>
         <p class="shapes__note">Movable: slide a shape to any root. R = root.</p>
       </aside>
-    </div>
+    </section>
+
+    <section class="board">
+      <div class="board__scroll" id="board-scroll">
+        <svg class="fretboard" id="fretboard"></svg>
+      </div>
+    </section>
 
     <section class="controls">
       <div class="controls__left">
@@ -212,7 +216,7 @@
       <fieldset class="group">
         <legend>Sound</legend>
         <label class="switch"><input type="checkbox" id="play-note"><span>Say and play the note <small>find-the-note mode, to find it by ear</small></span></label>
-        <p class="note">In Intervals mode the root note is always played.</p>
+        <p class="note">Intervals, Arpeggios and Triads play their notes after naming them; turn off Play the notes in those modes to only hear them said.</p>
         <button type="button" class="btn btn--ghost btn--small" id="sound-test">Test sound</button>
       </fieldset>
 

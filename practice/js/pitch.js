@@ -7,6 +7,9 @@
 // signal drops below the gate (so re-plucking the same note triggers again)
 // or reset() is called.
 //
+// isMuted(now) returns true while the app's own sound is playing or has just
+// stopped; readings are discarded then.
+//
 // getExpected() may return the MIDI note the app is waiting for. A low reading
 // exactly an octave above it is taken as that note when the signal shows any
 // trace of the lower octave: a laptop mic often loses a low string's
@@ -29,11 +32,10 @@ const MIN_HZ = 70;              // just below low E
 const MAX_HZ = 1400;            // above the highest fretted note we care about
 const HIGHPASS_HZ = 70;         // strip room rumble so it doesn't count toward the gate
 
-export function createPitchDetector({ getSettings, getExpected = () => null, onNote, onLevel = () => {}, onState = () => {} }) {
+export function createPitchDetector({ getSettings, getExpected = () => null, isMuted = () => false, onNote, onLevel = () => {}, onState = () => {} }) {
   let ctx = null, stream = null, gainNode = null, analyser = null, detector = null;
   let buf = null;
   let rafId = 0;
-  let muted = false;
   let state = 'idle'; // idle | starting | running | denied | error
 
   let candidate = null, candidateSince = 0, hits = 0, lastHitAt = 0, lastLoudAt = 0;
@@ -57,7 +59,9 @@ export function createPitchDetector({ getSettings, getExpected = () => null, onN
     onLevel(rms, gate);
 
     const now = performance.now();
-    if (muted) { resetHold(); return; }
+    // Speakers playing or just stopped (see mic-gate.js): hear nothing, and forget
+    // every held, reported or "ringing" note so none carries into the next question.
+    if (isMuted(now)) { resetHold(); reported = null; ringing = null; return; }
     if (rms < gate) {
       if (now - lastLoudAt > SILENCE_RESET_MS) { resetHold(); reported = null; ringing = null; }
       return;
@@ -142,7 +146,5 @@ export function createPitchDetector({ getSettings, getExpected = () => null, onN
 
     /** Forget the last reported note so the same pitch can trigger again. */
     reset() { resetHold(); reported = null; },
-
-    setMuted(value) { muted = value; if (value) resetHold(); },
   };
 }

@@ -21,7 +21,8 @@ export const DEFAULTS = Object.freeze({
   triadPick: ['major', 'minor', 'dim', 'aug', 'dom7', 'min7'], // selected triad types; each question picks one at random
   triadGroups: ['654', '543', '432', '321'],
   triadInversion: 'random', // 'random' | 0 | 1 | 2 | 'cycle'
-  showShapes: false,      // triads mode: the movable triad-shape cheat sheet beside the fretboard
+  showShapes: false,      // triads mode: the movable triad-shape cheat sheet inside the prompt card
+  playNotes: true,        // intervals, arpeggios, triads: play the question's notes after naming it; off = only speak it
 
   hintDelayMs: 5000,      // null = never
   pauseMs: 900,           // pause after a correct answer before the next target
