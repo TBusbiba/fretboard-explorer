@@ -46,11 +46,11 @@ test('unlock rule: needs a full window of 20 answers', () => {
   assert.equal(evaluate(entryWith({ n: 0 }), L1, FULL).unlocked, false);
 });
 
-test('unlock rule: 90% first try passes, anything below fails', () => {
-  assert.equal(evaluate(entryWith({ ft: 18 }), L1, FULL).unlocked, true);   // 90%
-  const below = evaluate(entryWith({ ft: 17 }), L1, FULL);                 // 85%
+test('unlock rule: 75% first try passes, anything below fails', () => {
+  assert.equal(evaluate(entryWith({ ft: 15 }), L1, FULL).unlocked, true);   // 75%
+  const below = evaluate(entryWith({ ft: 14 }), L1, FULL);                 // 70%
   assert.equal(below.unlocked, false);
-  assert.equal(below.firstTryPct, 85);
+  assert.equal(below.firstTryPct, 70);
   assert.equal(below.met.firstTry, false);
 });
 
@@ -58,13 +58,13 @@ test('unlock rule: only the last 20 answers count', () => {
   const e = entryWith({ n: 20, ft: 18 });
   e.recent.unshift(...Array.from({ length: 30 }, () => ({ ft: false, ms: 9000 })));  // old, bad answers fall out
   assert.equal(evaluate(e, L1, FULL).unlocked, true);
-  e.recent.push({ ft: false, ms: 2000 }, { ft: false, ms: 2000 });                  // two fresh misses push out two good ones
+  e.recent.push(...Array.from({ length: 4 }, () => ({ ft: false, ms: 2000 })));      // four fresh misses push out four good ones: 14/20
   assert.equal(evaluate(e, L1, FULL).unlocked, false);
 });
 
-test('unlock rule: average time of 4 s passes, slower fails', () => {
-  assert.equal(evaluate(entryWith({ ms: 4000 }), L1, FULL).unlocked, true);
-  const slow = evaluate(entryWith({ ms: 4001 }), L1, FULL);
+test('unlock rule: average time of 6 s passes, slower fails', () => {
+  assert.equal(evaluate(entryWith({ ms: 6000 }), L1, FULL).unlocked, true);
+  const slow = evaluate(entryWith({ ms: 6001 }), L1, FULL);
   assert.equal(slow.unlocked, false);
   assert.equal(slow.met.time, false);
 });

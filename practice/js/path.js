@@ -11,8 +11,8 @@ import { NOTE_NAMES, STRINGS, pitchClass } from './notes.js';
 const KEY = 'fretboard-practice.path.v1';
 
 export const WINDOW = 20;          // answers that count towards the unlock
-export const FIRST_TRY_MIN = 0.9;  // share answered right on the first try
-export const AVG_MS_MAX = 4000;    // average answer time
+export const FIRST_TRY_MIN = 0.75;  // share answered right on the first try
+export const AVG_MS_MAX = 6000;    // average answer time
 export const STAR2_MS = 3000;      // boss average per note for 2 stars
 export const STAR3_MS = 2000;      // ... and for 3 stars
 
@@ -58,7 +58,7 @@ export function blankEntry() { return { recent: [], covered: [], bossUnlocked: f
 
 /**
  * Where a level stands against the unlock rule: over the last WINDOW answers
- * first try >= 90% and average <= 4 s, and every level note answered correctly
+ * first try >= 75% and average <= 6 s, and every level note answered correctly
  * on every string (that has it in range) at least once.
  */
 export function evaluate(entry, level, range) {
@@ -71,7 +71,7 @@ export function evaluate(entry, level, range) {
   const missing = required.filter(k => !have.has(k));
   const met = {
     count: answered >= WINDOW,
-    firstTry: answered > 0 && firstTry * 10 >= answered * 9,
+    firstTry: answered > 0 && firstTry >= answered * FIRST_TRY_MIN - 1e-9,
     time: avgMs != null && avgMs <= AVG_MS_MAX,
     spots: required.length > 0 && missing.length === 0,
   };
