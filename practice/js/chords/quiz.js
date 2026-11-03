@@ -5,6 +5,7 @@ import {
   cardsFor, checkNotes, noteForPitch, chordMidis, pitchClass, pickCard, promote,
   signatureLabel, MASTERED_BOX, ORDER_OF_SHARPS, ORDER_OF_FLATS,
 } from './deck.js';
+import { bestParse } from './speech.js';
 import { createFretboard } from '../fretboard.js';
 import { createSound } from '../sound.js';
 import { noteAt, midiToNoteName } from '../notes.js';
@@ -95,6 +96,43 @@ function removePick(i) {
   renderSlots();
   renderKeypad();
 }
+
+// ---- say it: the browser's speech recogniser fills the slots -----------------
+
+const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let listening = null;
+
+function listen() {
+  if (!Recognition || step !== 'notes' || busy) return;
+  if (listening) { listening.stop(); return; }
+  const rec = new Recognition();
+  rec.lang = 'en-US';
+  rec.interimResults = true;
+  rec.maxAlternatives = 8;
+  rec.onresult = (ev) => {
+    const res = ev.results[ev.results.length - 1];
+    const heard = bestParse([...res].map(a => a.transcript));
+    if (!res.isFinal) { say(`Heard: “${heard.text.trim()}”`); return; }
+    if (!heard.notes.length) { say(`Heard “${heard.text.trim()}” but no notes in it. Try again.`, 'bad'); return; }
+    picked = heard.notes.slice(0, 3).map(pc => CIRCLE[pc]);
+    renderSlots();
+    renderKeypad();
+    say(`Heard “${heard.text.trim()}”: ${picked.join(' – ')}`);
+    if (picked.length === 3) setTimeout(go, 700);
+  };
+  rec.onerror = (ev) => say(ev.error === 'not-allowed' || ev.error === 'service-not-allowed'
+    ? 'The microphone is blocked. Allow it from the address bar, then try again.'
+    : ev.error === 'no-speech' ? "Didn't hear anything. Press Say it and say the three notes." : `Speech recognition failed (${ev.error}).`, 'bad');
+  rec.onend = () => { listening = null; $('btn-say').classList.remove('is-listening'); $('btn-say').setAttribute('aria-pressed', 'false'); };
+  listening = rec;
+  $('btn-say').classList.add('is-listening');
+  $('btn-say').setAttribute('aria-pressed', 'true');
+  say('Listening… say the three notes, like “C sharp, F, G sharp”');
+  rec.start();
+}
+
+$('btn-say').hidden = !Recognition;
+$('btn-say').addEventListener('click', listen);
 
 function filledCount() { return picked.filter(Boolean).length; }
 
@@ -450,6 +488,8 @@ document.addEventListener('keydown', (ev) => {
   } else if (ev.key === 'Backspace' && step === 'notes' && !busy && picked.length) {
     ev.preventDefault();
     removePick(picked.length - 1);
+  } else if (ev.key.toLowerCase() === 's' && !ev.metaKey && !ev.ctrlKey) {
+    listen();
   } else if (ev.key === 'Escape' && step === 'notes' && !busy) {
     picked = []; renderSlots(); renderKeypad();
   }

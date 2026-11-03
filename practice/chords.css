@@ -147,6 +147,7 @@
 #panel-fret .board { align-self: stretch; min-width: 0; }
 .cq-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
 #btn-next.is-ready { background: var(--nb-yellow); }
+.btn-say.is-listening { background: var(--nb-salmon); }
 
 /* keypad: the 12 notes on a circle, naturals white, sharps cyan; the picks
    are joined by a salmon shape drawn underneath */
