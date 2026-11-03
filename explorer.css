@@ -101,7 +101,7 @@ body select option, body select optgroup { color: var(--nb-ink); background: #ff
    white with an ink border and a 3px shadow; on = green; press = the
    shadow collapses and the chip drops 3px */
 body .pattern-btn, body #reset-all, body #tab-toggle, body #caged-toggle, body .triad-toggle,
-body #clear-notes, body #clear-picks, body #toggle-all-strings, .string-group-option span, .string-filter-btn, .degree-btn, .ex-plus span {
+body #clear-notes, body #clear-picks, body #pick-toggle, body #toggle-all-strings, .string-group-option span, .string-filter-btn, .degree-btn, .ex-plus span {
   position: relative;
   display: inline-flex !important; align-items: center; justify-content: center; gap: 6px;
   min-height: var(--nb-tap) !important; height: auto !important;
@@ -114,14 +114,14 @@ body #clear-notes, body #clear-picks, body #toggle-all-strings, .string-group-op
   transition: transform var(--nb-fast) var(--cs-snap), box-shadow var(--nb-fast) var(--cs-snap) !important;
 }
 body .pattern-btn:hover, body #reset-all:hover, body #tab-toggle:hover, body #caged-toggle:hover, body .triad-toggle:hover,
-body #clear-notes:hover, body #clear-picks:hover, body #toggle-all-strings:hover, .string-group-option:hover span, .string-filter-btn:hover, .degree-btn:hover, .ex-plus:hover span {
+body #clear-notes:hover, body #clear-picks:hover, body #pick-toggle:hover, body #toggle-all-strings:hover, .string-group-option:hover span, .string-filter-btn:hover, .degree-btn:hover, .ex-plus:hover span {
   transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--nb-ink) !important;
 }
 body .pattern-btn:active, body #reset-all:active, body #tab-toggle:active, body #caged-toggle:active, body .triad-toggle:active,
-body #clear-notes:active, body #clear-picks:active, body #toggle-all-strings:active, .string-group-option:active span, .string-filter-btn:active, .degree-btn:active, .ex-plus:active span {
+body #clear-notes:active, body #clear-picks:active, body #pick-toggle:active, body #toggle-all-strings:active, .string-group-option:active span, .string-filter-btn:active, .degree-btn:active, .ex-plus:active span {
   transform: translate(3px, 3px); box-shadow: 0 0 0 var(--nb-ink) !important;
 }
-body .pattern-btn.active, body #tab-toggle.bg-primary, body #caged-toggle.bg-primary, body .triad-toggle:has(input:checked),
+body .pattern-btn.active, body #pick-toggle.active, body #tab-toggle.bg-primary, body #caged-toggle.bg-primary, body .triad-toggle:has(input:checked),
 .string-group-option input:checked + span, .string-filter-btn.active, .degree-btn.selected, .ex-plus:has(input:checked) span {
   background: var(--nb-green) !important;
 }

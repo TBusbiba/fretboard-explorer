@@ -59,8 +59,6 @@ class GuitarScaleApp {
     }
     
     init() {
-        const scaleSelect = document.getElementById('scale-select');
-        if (scaleSelect && this.freeMode) scaleSelect.value = 'none';
         this.createFretboard();
         this.setupEventListeners();
         this.patternManager.setApp(this);
@@ -353,6 +351,8 @@ class GuitarScaleApp {
         if (pattern) pattern.classList.toggle('hidden', free);
         toggle('scale-2-controls', free || !this.comparisonMode);
         toggle('clear-picks', !free);
+        const pickBtn = document.getElementById('pick-toggle');
+        if (pickBtn) { pickBtn.setAttribute('aria-pressed', String(free)); pickBtn.classList.toggle('active', free); }
         toggle('legend-root', free);
         toggle('legend-note', free);
         toggle('legend-pick', !free);
@@ -375,7 +375,7 @@ class GuitarScaleApp {
         
         const hint = document.getElementById('neck-hint');
         if (hint) hint.textContent = free
-            ? 'Click any spot on the neck to add a note · click it again to remove it · pick a scale from the menu to go back'
+            ? 'Click any spot on the neck to add a note · click it again to remove it · press Pick notes again to see the scale'
             : 'Click a note to mark it · click a fret number in Vertical to see one position';
         const paintLabel = document.getElementById('paint-label');
         if (paintLabel) paintLabel.textContent = free ? 'Paint with a colour, then click a note you picked' : 'Or paint with a colour, then click a note';
@@ -563,7 +563,7 @@ class GuitarScaleApp {
         // Scale type dropdown
         const scaleSelect = document.getElementById('scale-select');
         if (scaleSelect) {
-            scaleSelect.addEventListener('change', () => this.updateScale1());
+            scaleSelect.addEventListener('change', () => { this.freeMode = false; this.updateScale1(); });
         }
         
         // Scale 2 dropdowns (for comparison)
@@ -602,6 +602,8 @@ class GuitarScaleApp {
             clearNotesBtn.addEventListener('click', () => this.clearNotes());
         }
         
+        const pickToggle = document.getElementById('pick-toggle');
+        if (pickToggle) pickToggle.addEventListener('click', () => { this.freeMode = !this.freeMode; this.updateScale1(); });
         const clearPicksBtn = document.getElementById('clear-picks');
         if (clearPicksBtn) {
             clearPicksBtn.addEventListener('click', () => this.clearPicks());
@@ -787,8 +789,7 @@ class GuitarScaleApp {
         const rootNote = rootSelect.value;
         const scaleType = scaleSelect.value;
         
-        // 'none' = pick your own notes: no scale, picks are kept for when it is chosen again
-        this.freeMode = scaleType === 'none';
+        // Pick notes mode hides the scale; picks are kept for the next time it is on
         this.currentScale1 = this.freeMode ? null : this.scaleManager.getScale(rootNote, scaleType);
         this.savePicks();
         this.updateFreeUI();
@@ -1255,7 +1256,7 @@ class GuitarScaleApp {
         const tabShapeLabel = document.getElementById('tab-shape-label');
         if (tabContent && this.freeMode) {
             if (tabShapeLabel) tabShapeLabel.textContent = '(No scale)';
-            tabContent.textContent = 'No scale selected: TAB follows a scale. Pick one from the Scale menu to see it here.';
+            tabContent.textContent = 'TAB follows the scale. Turn off Pick notes to see it here.';
             return;
         }
         if (!tabContent || !this.currentScale1) return;
@@ -1454,7 +1455,7 @@ class GuitarScaleApp {
         if (this.freeMode) {
             const note = document.createElement('span');
             note.className = 'ex-hint ex-hint--inline';
-            note.textContent = 'No scale: pick one from the Scale menu to highlight a degree.';
+            note.textContent = 'Turn off Pick notes to highlight a degree of the scale.';
             degreeButtonsContainer.appendChild(note);
             return;
         }
