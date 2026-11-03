@@ -233,18 +233,16 @@ class GuitarScaleApp {
         this.toggleNoteMarking(string, fret);
     }
     
-    // ---- Pick your own notes: no scale, only the spots the user clicks.
-    // Stored as "string:fret" positions (not pitches), so they stay put when the tuning
-    // changes and the names follow the tuning. Kept in localStorage 'explorer.picks'. ----
+    // ---- Pick your own notes: no scale, only the notes the user picks. Clicking a
+    // spot picks its note name, and every place that note sits on the neck lights
+    // up (all octaves, all strings). Kept as note names in localStorage
+    // 'explorer.picks', so they follow the tuning. ----
     loadPicks() {
         let saved = null;
         try { saved = JSON.parse(localStorage.getItem('explorer.picks')); } catch {}
         this.picks = new Set();
         if (saved && Array.isArray(saved.notes)) {
-            saved.notes.forEach(key => {
-                const [string, fret] = String(key).split(':').map(Number);
-                if (string >= 0 && string < 6 && fret >= 0 && fret < 22) this.picks.add(`${string}:${fret}`);
-            });
+            saved.notes.forEach(name => { if (this.noteNames.includes(name)) this.picks.add(name); });
         }
         this.freeMode = !!(saved && saved.free);
     }
@@ -253,32 +251,44 @@ class GuitarScaleApp {
         try { localStorage.setItem('explorer.picks', JSON.stringify({ free: this.freeMode, notes: [...this.picks] })); } catch {}
     }
     
+    // Every visible spot on the neck holding this note name
+    spotsOf(note) {
+        const spots = [];
+        for (let string = 0; string < 6; string++) {
+            if (!this.selectedStrings.has(string)) continue;
+            for (let fret = 0; fret < 22; fret++) {
+                if (this.getNoteAtPosition(string, fret) === note) spots.push([string, fret]);
+            }
+        }
+        return spots;
+    }
+    
     handleFreeClick(string, fret) {
         if (!this.selectedStrings.has(string)) return;
-        const key = `${string}:${fret}`;
+        const note = this.getNoteAtPosition(string, fret);
         const circle = this.noteCircleAt(string, fret);
-        // a painted pick goes back to plain on the next click
+        // a painted note goes back to plain on the next click
         if (circle && circle.dataset.painted) { this.unpaint(circle); return; }
         if (this.selectedColor) {
-            // paint just this pick, adding it first when the spot is empty
-            if (!this.picks.has(key)) this.addPick(string, fret);
+            // paint just this spot, picking its note first when it isn't picked yet
+            if (!this.picks.has(note)) this.addPick(note);
             const painted = this.noteCircleAt(string, fret);
             if (painted) this.paint(painted, this.selectedColor, 'one');
             return;
         }
-        if (this.picks.has(key)) this.removePick(string, fret);
-        else this.addPick(string, fret);
+        if (this.picks.has(note)) this.removePick(note);
+        else this.addPick(note);
     }
     
-    addPick(string, fret) {
-        this.picks.add(`${string}:${fret}`);
-        this.drawPick(string, fret);
+    addPick(note) {
+        this.picks.add(note);
+        this.spotsOf(note).forEach(([string, fret]) => this.drawPick(string, fret));
         this.picksChanged();
     }
     
-    removePick(string, fret) {
-        this.picks.delete(`${string}:${fret}`);
-        this.eraseSpot(string, fret);
+    removePick(note) {
+        this.picks.delete(note);
+        this.spotsOf(note).forEach(([string, fret]) => this.eraseSpot(string, fret));
         this.picksChanged();
     }
     
@@ -333,10 +343,7 @@ class GuitarScaleApp {
     }
     
     renderPicks() {
-        this.picks.forEach(key => {
-            const [string, fret] = key.split(':').map(Number);
-            if (this.selectedStrings.has(string)) this.drawPick(string, fret);
-        });
+        this.picks.forEach(note => this.spotsOf(note).forEach(([string, fret]) => this.drawPick(string, fret)));
     }
     
     // Everything that changes between a scale and the empty pick-your-own neck
@@ -375,7 +382,7 @@ class GuitarScaleApp {
         
         const hint = document.getElementById('neck-hint');
         if (hint) hint.textContent = free
-            ? 'Click any spot on the neck to add a note · click it again to remove it · press Pick notes again to see the scale'
+            ? 'Click a spot to show that note everywhere on the neck · click it again to hide it · press Pick notes again to see the scale'
             : 'Click a note to mark it · click a fret number in Vertical to see one position';
         const paintLabel = document.getElementById('paint-label');
         if (paintLabel) paintLabel.textContent = free ? 'Paint with a colour, then click a note you picked' : 'Or paint with a colour, then click a note';
@@ -1644,10 +1651,9 @@ class GuitarScaleApp {
             if (formulaElement) formulaElement.innerHTML = '<p><strong>Your own notes</strong></p>';
             if (intervalsElement) intervalsElement.innerHTML = '';
             if (scaleFormulaDisplay) {
-                const names = [...new Set([...this.picks].map(k => { const [s, f] = k.split(':').map(Number); return this.getNoteAtPosition(s, f); }))]
-                    .sort((a, b) => this.noteNames.indexOf(a) - this.noteNames.indexOf(b));
+                const names = [...this.picks].sort((a, b) => this.noteNames.indexOf(a) - this.noteNames.indexOf(b));
                 scaleFormulaDisplay.textContent = this.picks.size
-                    ? `${this.picks.size} ${this.picks.size === 1 ? 'spot' : 'spots'} picked · ${names.join(', ')}`
+                    ? `${this.picks.size} ${this.picks.size === 1 ? 'note' : 'notes'} picked · ${names.join(', ')}`
                     : 'Click the neck to add notes';
             }
             return;
