@@ -374,33 +374,29 @@ export function pickTriadTarget(opts, previous, rng = Math.random) {
       || vs.sort((a, b) => lowFret(a) - lowFret(b))[0];
   }
   if (want === 'cycle') {
-    // Neck order: the chord's shapes lowest on the neck first, then the next one
-    // up, then the next (each inversion once), then a different chord.
+    // Neck order: each inversion once, at its lowest spot in the fret range,
+    // asked leftmost to rightmost, then a different chord. Placing each shape
+    // in range (instead of stacking three in a row up the neck, which needs
+    // ~14 frets) keeps every chord in play on a 0-11 range.
     const posKey = (c) => lowFret(c) * 100 + c.notes.reduce((t, n) => t + n.fret, 0) / 3;
     const climbOf = (chord) => {
       const vs = candidates.filter(c => sameChord(c, chord)).sort((a, b) => posKey(a) - posKey(b));
-      const run = vs.length ? [vs[0]] : [];
-      while (run.length < 3 && vs.length) {
-        const last = run[run.length - 1];
-        const next = vs.find(c => c.inversion === (last.inversion + 1) % 3 && posKey(c) > posKey(last));
-        if (!next) break;
-        run.push(next);
-      }
-      return run;
+      return [0, 1, 2].map(i => vs.find(c => c.inversion === i)).filter(Boolean).sort((a, b) => posKey(a) - posKey(b));
     };
     if (previous) {
       const run = climbOf(previous);
       const at = run.findIndex(c => same(c, previous));
       if (at >= 0 && at + 1 < run.length) return run[at + 1];
     }
-    // a new chord (different from the last when possible), preferring one with all three shapes in range
+    // a new chord (different from the last when possible). Every chord stays in
+    // play: one whose third shape only fits above the fret range climbs the two
+    // that fit, rather than the same few chords coming back again and again.
     const byChord = new Map();
     for (const c of candidates) {
       const k = `${c.group}|${c.triad}|${c.rootPc}`;
       if (!byChord.has(k)) byChord.set(k, climbOf(c));
     }
     let runs = [...byChord.values()];
-    if (runs.some(r => r.length === 3)) runs = runs.filter(r => r.length === 3);
     if (previous) {
       const other = runs.filter(r => !sameChord(r[0], previous));
       if (other.length) runs = other;

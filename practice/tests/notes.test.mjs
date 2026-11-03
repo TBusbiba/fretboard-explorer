@@ -235,7 +235,6 @@ test('climb up the neck: each chord is asked in neck order (leftmost, middle, ri
       for (const n of t.notes) assert.ok(n.fret >= fretFrom && n.fret <= fretTo, `fret ${n.fret} outside ${fretFrom}-${fretTo}`);
       if (prev && sameChord(t, prev)) {
         assert.ok(before(prev, t), 'next shape is further up the neck');
-        assert.equal(t.inversion, (prev.inversion + 1) % 3, 'next inversion in the cycle');
         run.push(t);
       } else {
         if (run.length) assert.ok(new Set(run.map(r => r.inversion)).size === run.length, 'each inversion once');
@@ -247,8 +246,8 @@ test('climb up the neck: each chord is asked in neck order (leftmost, middle, ri
     }
   }
   assert.ok(sawLowNotRoot, 'some chords start on a 1st or 2nd inversion because that shape is lowest');
-  // E major on 5-4-3 in 0-11: lowest shape is 1st inversion? (G# major: 1st-inv first)
-  const opts = { strings: [0, 1, 2, 3, 4, 5], fretFrom: 0, fretTo: 11, naturalsOnly: false, triads: ['major'], triadGroups: ['543'], triadInversion: 'cycle' };
+  // with frets 0-15 every chord fits all three shapes: each climb is three, left to right
+  const opts = { strings: [0, 1, 2, 3, 4, 5], fretFrom: 0, fretTo: 15, naturalsOnly: false, triads: ['major'], triadGroups: ['543'], triadInversion: 'cycle' };
   const seen = new Set();
   let prev = null;
   for (let i = 0; i < 300; i++) {
@@ -263,6 +262,17 @@ test('climb up the neck: each chord is asked in neck order (leftmost, middle, ri
     }
   }
   assert.ok(seen.has(1) || seen.has(2), 'a climb starts with a non-root shape');
+});
+
+test('climb up the neck: every natural chord comes up on a 0-11 range, not just the few with three shapes in it', async () => {
+  const { pickTriadTarget } = await import('../js/notes.js');
+  for (const group of ['654', '543', '432', '321']) {
+    const opts = { strings: [0, 1, 2, 3, 4, 5], fretFrom: 0, fretTo: 11, naturalsOnly: true, triads: ['minor'], triadGroups: [group], triadInversion: 'cycle' };
+    const roots = new Set();
+    let prev = null;
+    for (let i = 0; i < 600; i++) { prev = pickTriadTarget(opts, prev, Math.random); roots.add(prev.rootPc); }
+    assert.equal(roots.size, 7, `strings ${group}: all seven natural minor chords`);
+  }
 });
 
 test('ordered inversions: root -> 1st -> 2nd of the same chord on the same strings, then a new chord', async () => {
