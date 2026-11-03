@@ -1,10 +1,11 @@
-import { STRINGS, FRET_COUNT, INTERVALS, CHORDS, TRIADS, STRING_GROUPS, INVERSIONS, DEGREE_LABELS, intervalById, chordById, triadById, selectedTriads, stringGroupById, spokenName, tipFor, noteAt } from './notes.js';
+import { STRINGS, FRET_COUNT, INTERVALS, CHORDS, TRIADS, STRING_GROUPS, INVERSIONS, DEGREE_LABELS, intervalById, chordById, triadById, selectedTriads, stringGroupById, spokenName, tipFor, noteAt, pickTarget, pitchClass } from './notes.js';
 import { createFretboard } from './fretboard.js';
 import { createPitchDetector } from './pitch.js';
 import { createVoice } from './voice.js';
 import { createSound } from './sound.js';
 import { createSession } from './session.js';
 import { createHistory } from './history.js';
+import { LEVELS, WINDOW, FIRST_TRY_MIN, AVG_MS_MAX, STAR2_MS, STAR3_MS, levelById, levelTitle, createPath, createBoss, positionWeigher } from './path.js';
 import { shapeSvg } from './triad-shapes.js';
 import { loadSettings, saveSettings, resetSettings, DEFAULTS } from './settings.js';
 
@@ -26,7 +27,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '14';
+const BUILD = '15';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -44,6 +45,8 @@ function sessionSettings() {
   const pick = settings.intervalPick, cpick = settings.chordPick;
   return {
     ...settings,
+    // Path: the level's notes on all six strings, weighted to what is missed or slow.
+    ...(isNoteMode() && settings.noteMode === 'path' ? { notes: path.currentLevel.notes, strings: [0, 1, 2, 3, 4, 5], weigh: weighPosition } : {}),
     intervals: pick && pick !== 'random' ? [pick] : settings.intervals,
     chords: cpick && cpick !== 'random' ? [cpick] : settings.chords,
     triads: selectedTriads(settings.triadPick),
@@ -53,6 +56,13 @@ function sessionSettings() {
 // ---------- modules ----------
 const fretboard = createFretboard($('fretboard'));
 const history = createHistory();
+const path = createPath();
+const isNoteMode = () => !['intervals', 'arpeggios', 'triads'].includes(settings.mode);
+const fretRange = () => ({ from: settings.fretFrom, to: settings.fretTo });
+let weigher = null;   // rebuilt from the history after every answer
+function weighPosition(string, fret) { return (weigher ||= positionWeigher(history.positions()))(string, fret); }
+let boss = null;      // the boss round in progress, else null
+let notice = null;    // {text, tone}: shown instead of "Listening…" on the next question
 
 // The mic is muted while the voice speaks or a note plays, plus a short tail.
 const blockers = new Set();
@@ -86,6 +96,10 @@ const pitch = createPitchDetector({
 
 const session = createSession({
   getSettings: sessionSettings,
+  pickNote: (opts, previous, rng) => {
+    const item = boss && boss.current;
+    return item ? { string: item.string, fret: item.fret } : pickTarget(opts, previous, rng);
+  },
   onEvent: handleSessionEvent,
 });
 
@@ -98,6 +112,8 @@ const ui = {
   ring: $('ring'), ringFill: $('ring-fill'), ringLabel: $('ring-label'),
   statCount: $('stat-count'), statAccuracy: $('stat-accuracy'), statAvg: $('stat-avg'), statWrong: $('stat-wrong'),
   customPicker: $('custom-picker'), customNotes: $('custom-notes'), customStrings: $('custom-strings'),
+  noteModePicker: $('note-mode-picker'), path: $('path'), pathMap: $('path-map'), pathTitle: $('path-title'), pathGoal: $('path-goal'),
+  pathStats: $('path-stats'), bossBtn: $('boss-btn'), bossNote: $('boss-note'),
   earPicker: $('ear-picker'), earToggle: $('ear-toggle'), earReplay: $('ear-replay'), namesToggle: $('names-toggle'),
   shapesToggle: $('shapes-toggle'), drill: $('drill'), shapes: $('shapes'), shapesTabs: $('shapes-tabs'), shapesList: $('shapes-list'),
   picker: $('interval-picker'), chordPicker: $('chord-picker'), triadPicker: $('triad-picker'), groupPicker: $('group-picker'), inversionPicker: $('inversion-picker'),
@@ -157,8 +173,10 @@ function handleSessionEvent(type, p) {
       } else {
         fretboard.highlightString(p.target.string);
         scrollBoardTo(p.target.fret);
-        setPrompt(`String ${STRINGS[p.target.string].number}`, p.note.name, 'listening');
-        setStatus('Listening…');
+        const inBoss = boss && boss.state === 'running';
+        setPrompt(`${inBoss ? `Boss round · ${boss.index + 1} of ${boss.items.length} · ` : ''}String ${STRINGS[p.target.string].number}`, p.note.name, 'listening');
+        if (notice) { setStatus(notice.text, notice.tone); notice = null; }
+        else setStatus(inBoss ? 'Boss round: a wrong note or a skip ends it' : 'Listening…');
         announce(`string ${STRINGS[p.target.string].number}, ${spokenName(p.note.name)}`, settings.playNote ? p.note.midi : null,
           { speak: settings.voice || settings.playNote });
       }
@@ -218,9 +236,11 @@ function handleSessionEvent(type, p) {
       } else {
         fretboard.showNote(p.target.string, p.target.fret, 'correct', session.note.name);
         history.recordPosition(p.target, result);
+        weigher = null;
       }
       ui.noteName.dataset.state = 'correct';
-      setStatus(`Correct · ${(p.ms / 1000).toFixed(1)} s`, 'ok');
+      const extra = session.mode === 'note' ? onNoteCorrect(p) : '';
+      setStatus(`Correct · ${(p.ms / 1000).toFixed(1)} s${extra ? ` · ${extra}` : ''}`, 'ok');
       if (settings.voice && settings.speakFeedback) voice.speak('correct', voiceOpts());
       updateStats();
       renderHeatPanel();
@@ -242,12 +262,16 @@ function handleSessionEvent(type, p) {
       const spoken = p.octaveOff
         ? `octave too ${p.octaveOff > 0 ? 'high' : 'low'}`
         : `that was ${spokenName(p.name)}`;
-      setStatus(text, 'bad');
+      const bossOver = session.mode === 'note' && boss && boss.state === 'running';
+      if (bossOver) failBoss('wrong');
+      setStatus(bossOver ? `${text} · Boss round over, try again anytime` : text, 'bad');
       if (settings.voice && settings.speakFeedback) voice.speak(spoken, voiceOpts());
       updateStats();
       break;
     }
     case 'stopped':
+      boss = null; notice = null;
+      renderPath();
       promptToken++;
       lastTriadKey = null;
       shapesNow = null;
@@ -334,13 +358,133 @@ ui.earReplay.addEventListener('click', hearAgain);
 ui.namesToggle.addEventListener('click', () => commit({ showStringNames: !settings.showStringNames }));
 ui.shapesToggle.addEventListener('click', () => commit({ showShapes: !settings.showShapes }));
 
+// ---------- level path ----------
+const LOCK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
+const stars = (n) => '★'.repeat(n) + '☆'.repeat(3 - n);
+
+const tiles = LEVELS.map((l) => {
+  const li = document.createElement('li');
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'path__tile'; b.dataset.id = l.id;
+  b.innerHTML = `<span class="path__num">${l.id}</span><span class="path__names">${l.short}</span><span class="path__mark"></span>`;
+  b.title = `Level ${l.id} · ${levelTitle(l)}`;
+  b.addEventListener('click', () => {
+    if (l.id === path.current || !path.select(l.id)) return;
+    boss = null; notice = null;
+    renderPath();
+    if (session.state !== 'idle' && session.mode === 'note') session.skip();
+  });
+  li.appendChild(b);
+  ui.pathMap.appendChild(li);
+  return b;
+});
+
+function popTile(id) {
+  const t = tiles[id - 1];
+  t.classList.remove('is-pop'); void t.offsetWidth; t.classList.add('is-pop');
+}
+
+function renderPath() {
+  const show = isNoteMode() && settings.noteMode === 'path';
+  ui.path.hidden = !show;
+  if (!show) return;
+  const range = fretRange();
+  tiles.forEach((b, i) => {
+    const id = i + 1, open = path.isUnlocked(id), done = path.isDone(id), now = id === path.current;
+    b.disabled = !open;
+    b.classList.toggle('is-locked', !open);
+    b.classList.toggle('is-done', done);
+    b.classList.toggle('is-current', now);
+    if (now) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
+    b.querySelector('.path__mark').innerHTML = !open ? LOCK_SVG : done ? stars(path.stars(id)) : '';
+    b.setAttribute('aria-label', `Level ${id}, ${levelTitle(levelById(id))}${!open ? ', locked' : done ? `, done, ${path.stars(id)} of 3 stars` : now ? ', current' : ''}`);
+  });
+  const lvl = path.currentLevel, pr = path.progress(lvl.id, range);
+  const running = boss && boss.state === 'running';
+  ui.pathTitle.textContent = `Level ${lvl.id} · ${levelTitle(lvl)}`;
+  ui.pathGoal.textContent = pr.spotsTotal === 0
+    ? 'No spot of this level falls inside your fret range. Widen the frets in Settings.'
+    : pr.bossUnlocked ? 'Boss round open: find every note on every string.'
+    : `Unlock the boss: last ${WINDOW} answers ${Math.round(FIRST_TRY_MIN * 100)}%+ first try, ${AVG_MS_MAX / 1000} s or less on average, every note on every string.`;
+  const box = (label, value, goal, met) =>
+    `<div class="pstat${met ? ' is-met' : ''}"><span class="pstat__label">${label}</span><span class="pstat__value">${value}${met ? ' ✓' : ''}</span><span class="pstat__goal">${goal}</span></div>`;
+  ui.pathStats.innerHTML =
+    box('Answered', `${pr.answered}/${WINDOW}`, 'last 20', pr.met.count)
+    + box('First try', pr.firstTryPct == null ? '—' : `${pr.firstTryPct}%`, `${Math.round(FIRST_TRY_MIN * 100)}% or more`, pr.met.firstTry)
+    + box('Avg time', pr.avgMs == null ? '—' : `${(pr.avgMs / 1000).toFixed(1)} s`, `${AVG_MS_MAX / 1000} s or less`, pr.met.time)
+    + box('Spots', `${pr.spots}/${pr.spotsTotal}`, 'every string', pr.met.spots);
+  ui.bossBtn.disabled = !pr.bossUnlocked || !!running;
+  ui.bossBtn.classList.toggle('is-ready', pr.bossUnlocked && !running);
+  ui.bossBtn.innerHTML = running ? `Boss ${boss.index}/${boss.items.length}` : `${pr.bossUnlocked ? '' : `${LOCK_SVG} `}${pr.done ? 'Boss again' : 'Boss round'}`;
+  ui.bossNote.textContent = running ? 'A wrong note or a skip ends it.'
+    : pr.bossUnlocked ? `${pr.done ? `Best ${stars(pr.stars)} · ` : ''}★ pass · ★★ avg ${STAR2_MS / 1000} s · ★★★ avg ${STAR3_MS / 1000} s`
+    : '';
+}
+
+// A correct note in note mode: boss progress, or the path's scoring window. Returns text for the status line.
+function onNoteCorrect(p) {
+  let extra = '';
+  if (boss && boss.state === 'running') {
+    if (boss.correct(p.ms) === 'passed') {
+      const lvl = levelById(boss.levelId), r = path.completeBoss(lvl.id, boss.avgMs), next = r.next && levelById(r.next);
+      boss = null;
+      notice = { text: next ? `Level ${next.id} unlocked: ${levelTitle(next)}` : 'Path complete: every level done', tone: 'ok' };
+      popTile(lvl.id);
+      extra = `Level ${lvl.id} complete ${'★'.repeat(r.stars)}`;
+    } else extra = `Boss ${boss.index} of ${boss.items.length}`;
+  } else if (settings.noteMode === 'path') {
+    const pc = pitchClass(noteAt(p.target.string, p.target.fret).midi);
+    const r = path.record(path.current, { pc, string: p.target.string, firstTry: p.firstTry && !p.hinted, ms: p.ms }, fretRange());
+    if (r.bossUnlocked) { extra = 'Boss round unlocked!'; popTile(path.current); }
+  }
+  renderPath();
+  return extra;
+}
+
+function failBoss(reason, text) {
+  boss = null;
+  if (text) notice = { text, tone: 'bad' };
+  ui.stringName.textContent = `String ${STRINGS[session.target.string].number}`;
+  renderPath();
+}
+
+async function startBoss() {
+  const lvl = path.currentLevel;
+  if (!isNoteMode() || !path.progress(lvl.id, fretRange()).bossUnlocked) return;
+  const b = createBoss(lvl, fretRange());
+  if (b.state !== 'running') { setStatus('No spot of this level falls inside your fret range.', 'bad'); return; }
+  boss = b; notice = null;
+  renderPath();
+  if (session.state === 'idle') await toggleSession();
+  else session.skip();
+}
+ui.bossBtn.addEventListener('click', startBoss);
+
+ui.noteModePicker.querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => {
+  if (settings.noteMode === c.dataset.id) return;
+  boss = null; notice = null;
+  commit({ noteMode: c.dataset.id });
+  if (session.state !== 'idle' && session.mode === 'note') session.skip();
+}));
+
+$('path-reset').addEventListener('click', () => {
+  if (!confirm('Reset your level path? Every level goes back to locked except level 1.')) return;
+  path.reset(); boss = null; notice = null;
+  renderPath();
+  if (session.state !== 'idle' && session.mode === 'note') session.skip();
+});
+
 // A skip is a "couldn't find it" for the heatmap.
 function skipNow() {
   if (session.state === 'listening') {
     if (session.mode === 'intervals') history.recordInterval(session.target.interval, { skipped: true });
     else if (session.mode === 'arpeggios') history.recordChord(session.target.chord, { skipped: true });
     else if (session.mode === 'triads') history.recordTriad(session.target.triad, { skipped: true });
-    else history.recordPosition(session.target, { skipped: true });
+    else {
+      history.recordPosition(session.target, { skipped: true });
+      weigher = null;
+      if (boss && boss.state === 'running') failBoss('skipped', 'Boss round over: skipping ends it. Try again anytime');
+    }
     renderHeatPanel();
   }
   session.skip();
@@ -483,6 +627,7 @@ ui.hintBtn.addEventListener('click', () => { session.showHint(); syncButtons(); 
 
 // mode switcher
 document.querySelectorAll('input[name="mode"]').forEach((r) => r.addEventListener('change', () => {
+  boss = null; notice = null;
   commit({ mode: r.value });
   if (session.state !== 'idle') session.skip(); // re-pick in the new mode right away
 }));
@@ -742,7 +887,7 @@ f.gain.addEventListener('input', () => commit({ gain: +f.gain.value }));
 f.reset.addEventListener('click', () => { settings = resetSettings(); applySettingsToUI(); });
 
 const TICKER = {
-  note: ['Press Start or Space and allow the mic', 'Play the note shown, on the string shown', 'Pick which notes and strings to practise', 'Stuck? H shows where it is, N skips', 'Turn on Say + play the note to find it by ear, R plays it again', 'Your fretboard, over time shows which notes need work'],
+  note: ['Press Start or Space and allow the mic', 'Play the note shown, on the string shown', 'Path: clear each level’s boss round to unlock the next', 'Custom: pick your own notes and strings', 'Stuck? H shows where it is, N skips', 'Turn on Say + play the note to find it by ear, R plays it again', 'Your fretboard, over time shows which notes need work'],
   intervals: ['Play the root, then the interval above it', 'Practise one interval, or let it pick at random', 'H shows a tip first, then where both notes are', 'N skips to the next one'],
   arpeggios: ['Play the chord one note per string, from the low string up', 'Pick a chord type, or let it pick at random', 'Each note counts as soon as you hit it', 'H shows a tip, then where the next note is', 'N skips to the next chord'],
   triads: ['Play the three notes of the triad on the string group shown', 'Choose the triad types, the inversion and which string groups to use', 'H shows a tip, then where the next note is', 'N skips to the next triad'],
@@ -798,7 +943,10 @@ function applySettingsToUI() {
   chordList.querySelectorAll('input').forEach((i) => { i.checked = settings.chords.includes(i.value); });
   $('play-note').checked = settings.playNote;
   ui.earPicker.hidden = mode !== 'note';
-  ui.customPicker.hidden = mode !== 'note';
+  ui.noteModePicker.hidden = mode !== 'note';
+  ui.noteModePicker.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', c.dataset.id === settings.noteMode));
+  ui.customPicker.hidden = mode !== 'note' || settings.noteMode !== 'custom';
+  renderPath();
   ui.customNotes.querySelectorAll('.chip[data-pc]').forEach((c) => c.setAttribute('aria-pressed', settings.notes.includes(+c.dataset.pc)));
   $('custom-accidentals').setAttribute('aria-pressed', hasAccidentals(settings.notes));
   ui.customStrings.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', settings.strings.includes(+c.dataset.index)));
@@ -845,4 +993,4 @@ updateStats();
 renderHeatPanel();
 
 // Expose for poking around in devtools.
-window.practice = { session, pitch, voice, sound, fretboard, history, renderHeatPanel, get settings() { return settings; }, DEFAULTS };
+window.practice = { session, pitch, voice, sound, fretboard, history, path, startBoss, renderHeatPanel, get boss() { return boss; }, get settings() { return settings; }, DEFAULTS };

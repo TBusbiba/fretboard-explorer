@@ -23,7 +23,8 @@ import {
   midiToOctave, intervalById, chordById, triadById,
 } from './notes.js';
 
-export function createSession({ getSettings, now = () => performance.now(), rng = Math.random, onEvent }) {
+// `pickNote` lets the host choose find-the-note targets itself (the path's boss round).
+export function createSession({ getSettings, now = () => performance.now(), rng = Math.random, onEvent, pickNote = pickTarget }) {
   const stats = {
     total: 0, firstTry: 0, wrong: 0, skipped: 0, times: [],
     get avgMs() {
@@ -63,7 +64,7 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
     const target = mode === 'intervals' ? pickIntervalTarget(settings, previous, rng)
       : mode === 'arpeggios' ? pickArpeggioTarget(settings, previous, rng)
       : mode === 'triads' ? pickTriadTarget(settings, previous, rng)
-      : pickTarget(settings, previous, rng);
+      : pickNote(settings, previous, rng);
     if (!target) {
       session.state = 'idle';
       emit('error', {

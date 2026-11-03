@@ -8,6 +8,7 @@ export const DEFAULTS = Object.freeze({
   fretFrom: 0,
   fretTo: 11,             // 0-11 covers every note once per string
   naturalsOnly: true,
+  noteMode: 'path',       // note mode: 'path' (the level path) | 'custom' (pick the notes and strings)
   notes: [0, 2, 4, 5, 7, 9, 11], // note mode: pitch classes asked (0 = C ... 11 = B); default C D E F G A B
 
   showStringNames: true,  // note mode: string name labels on the drill fretboard
@@ -65,6 +66,7 @@ export function migrate(saved) {
   } else {
     saved.notes = ALL_NOTES.filter(n => saved.notes.includes(n));
   }
+  if (saved.noteMode !== 'path' && saved.noteMode !== 'custom') delete saved.noteMode;
   return saved;
 }
 

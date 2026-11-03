@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="14">
+<html lang="en" data-build="15">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -41,6 +41,10 @@
     </div>
     <div class="picker" id="inversion-picker" role="group" aria-label="Which inversion" hidden></div>
     <div class="picker picker--groups" id="group-picker" role="group" aria-label="String groups" hidden></div>
+    <div class="picker" id="note-mode-picker" role="group" aria-label="Find the note: path or custom" hidden>
+      <button type="button" class="chip" data-id="path" aria-pressed="true" title="Work through the levels, a few notes at a time">Path</button>
+      <button type="button" class="chip" data-id="custom" aria-pressed="false" title="Choose the notes and strings yourself">Custom</button>
+    </div>
     <div class="picker picker--custom" id="custom-picker" role="group" aria-label="Notes and strings to ask" hidden>
       <div class="picker__group" id="custom-notes" role="group" aria-label="Notes"><span class="picker__label">Notes</span></div>
       <div class="picker__group" id="custom-strings" role="group" aria-label="Strings"><span class="picker__label">Strings</span></div>
@@ -50,6 +54,18 @@
       <button type="button" class="chip" id="names-toggle" aria-pressed="true" title="Show the string names (E B G D A E) beside the fretboard">String names</button>
       <button type="button" class="chip chip--plain" id="ear-replay" disabled title="Say and play the note again">Hear it again <kbd>R</kbd></button>
     </div>
+
+    <section class="path" id="path" aria-label="Level path" hidden>
+      <ol class="path__map" id="path-map"></ol>
+      <div class="path__strip" id="path-strip">
+        <div class="path__head"><strong id="path-title"></strong><span id="path-goal"></span></div>
+        <div class="path__stats" id="path-stats"></div>
+        <div class="path__boss">
+          <button type="button" class="btn btn--small" id="boss-btn" disabled>Boss round</button>
+          <span id="boss-note"></span>
+        </div>
+      </div>
+    </section>
 
     <section class="prompt" aria-live="polite">
       <div class="prompt__string" id="string-name">Press start</div>
@@ -234,6 +250,12 @@
           <span class="slider__head"><span>Gain</span><output id="gain-out"></output></span>
           <input type="range" id="gain" min="0.5" max="5" step="0.1">
         </label>
+      </fieldset>
+
+      <fieldset class="group">
+        <legend>Level path</legend>
+        <p class="note">Find the note, Path: progress through the levels is kept in this browser.</p>
+        <button type="button" class="btn btn--ghost btn--small" id="path-reset">Reset path</button>
       </fieldset>
 
       <button type="button" class="btn btn--ghost btn--small" id="settings-reset">Reset to defaults</button>
