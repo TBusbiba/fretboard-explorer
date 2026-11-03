@@ -5,9 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Vibrato Trainer</title>
   <meta name="description" content="Play a note, add vibrato, and see the pitch move in real time: depth, rate, evenness and return, with feedback on what to fix.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../shared/console.css">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -24,6 +21,7 @@
     <h1 class="top__title ns-sr">Fretboard Practice · Vibrato</h1>
     <span></span>
   </header>
+  <div class="nb-ticker" aria-hidden="true"><div class="nb-ticker__track"><span>C ★ C♯ ★ D ★ E♭ ★ E ★ F ★ F♯ ★ G ★ A♭ ★ A ★ B♭ ★ B ★ C ★ C♯ ★ D ★ E♭ ★ E ★ F ★ F♯ ★ G ★ A♭ ★ A ★ B♭ ★ B ★ C ★ C♯ ★ D ★ E♭ ★ E ★ F ★ F♯ ★ G ★ A♭ ★ A ★ B♭ ★ B ★ C ★ C♯ ★ D ★ E♭ ★ E ★ F ★ F♯ ★ G ★ A♭ ★ A ★ B♭ ★ B ★</span><span>C ★ C♯ ★ D ★ E♭ ★ E ★ F ★ F♯ ★ G ★ A♭ ★ A ★ B♭ ★ B ★ C ★ C♯ ★ D ★ E♭ ★ E ★ F ★ F♯ ★ G ★ A♭ ★ A ★ B♭ ★ B ★ C ★ C♯ ★ D ★ E♭ ★ E ★ F ★ F♯ ★ G ★ A♭ ★ A ★ B♭ ★ B ★ C ★ C♯ ★ D ★ E♭ ★ E ★ F ★ F♯ ★ G ★ A♭ ★ A ★ B♭ ★ B ★</span></div></div>
 
   <main class="stage">
     <div class="mode segmented" aria-label="Practice mode">
@@ -59,12 +57,12 @@
         </div>
         <canvas class="lane" id="lane" aria-label="Live pitch trace"></canvas>
         <div class="vib__legend">
-          <span><i style="border-color:#f2b544"></i>note</span>
-          <span><i style="border-color:#f2b544; border-top-style:dashed"></i>target</span>
-          <span><i style="border-color:rgba(255,255,255,.25)"></i>ideal motion</span>
-          <span><i style="border-color:#4ed19a"></i>on track</span>
-          <span><i style="border-color:#f2b544"></i>drifting</span>
-          <span><i style="border-color:#f0624d"></i>off</span>
+          <span><i style="border-color:#111111"></i>note</span>
+          <span><i style="border-color:#5c5c5c; border-top-style:dashed"></i>target</span>
+          <span><i style="border-color:rgba(17,17,17,.35)"></i>ideal motion</span>
+          <span><i style="border-color:#1a7a3a"></i>on track</span>
+          <span><i style="border-color:#e08a00"></i>drifting</span>
+          <span><i style="border-color:#c42a1b"></i>off</span>
         </div>
       </section>
 

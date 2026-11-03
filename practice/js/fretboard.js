@@ -1,10 +1,9 @@
 // SVG fretboard with true proportional fret spacing. Renders once; later calls
 // only add/remove note markers and toggle classes, so the board never re-lays out.
 //
-// Drawn as the Studio Console neck: a matte black strip, warm-grey strings
-// (thicker toward the low E), crisp frets, orange LED inlays where a real
-// neck has its dots, and notes as flat keys with an ink outline and a hard
-// shadow. A played string vibrates.
+// Drawn as the Neo-Brutalist neck: a white strip with ink strings and frets,
+// yellow inlays where a real neck has its dots, and notes as round discs with
+// an ink outline and a hard shadow. A played string vibrates.
 
 import { STRINGS, FRET_COUNT } from './notes.js';
 
@@ -17,7 +16,7 @@ const TOP = 40, BOTTOM = 44;
 const LAST = FRET_COUNT - 1;
 const SINGLE_INLAYS = [3, 5, 7, 9, 15, 17, 19, 21];
 const STRING_WIDTHS = [1.3, 1.6, 2.0, 2.5, 3.0, 3.5];
-const INK = '#0e0e0d';
+const INK = '#111111';
 
 function el(name, attrs = {}, parent) {
   const node = document.createElementNS(NS, name);

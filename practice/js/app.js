@@ -266,6 +266,7 @@ function setPrompt(stringText, noteText, state) {
   ui.noteName.dataset.state = state;
   if (ui.noteName.textContent !== noteText) {
     ui.noteName.textContent = noteText;
+    ui.noteName.classList.toggle('is-long', noteText.length > 3);
     ui.noteName.classList.remove('is-entering');
     void ui.noteName.offsetWidth; // restart animation
     ui.noteName.classList.add('is-entering');

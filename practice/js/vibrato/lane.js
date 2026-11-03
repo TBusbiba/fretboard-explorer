@@ -4,9 +4,9 @@
 // trace, cycle markers and the "now" dot.
 
 const COL = {
-  bg: '#0f0c0a', grid: 'rgba(255,240,215,0.06)', accent: '#f0b24a', accentDim: 'rgba(240,178,74,0.35)',
-  corridor: 'rgba(240,178,74,0.06)', ghost: 'rgba(255,240,215,0.22)', text: '#b9ae9c', faint: '#7d7364',
-  ok: '#5ad8a2', warn: '#f0b24a', bad: '#f46a54',
+  bg: '#fff8e7', grid: 'rgba(17,17,17,0.12)', accent: '#111111', accentDim: 'rgba(17,17,17,0.4)',
+  corridor: 'rgba(61,224,255,0.22)', ghost: 'rgba(17,17,17,0.4)', text: '#3a3a3a', faint: '#5c5c5c',
+  ok: '#1a7a3a', warn: '#e08a00', bad: '#c42a1b',
 };
 
 export function createLane(canvas, { visibleSeconds = 4 } = {}) {
@@ -43,7 +43,7 @@ export function createLane(canvas, { visibleSeconds = 4 } = {}) {
     ctx.fillStyle = COL.bg; ctx.fillRect(0, 0, W, H);
 
     // grid every 50 cents, labelled on the right
-    ctx.font = '12px Work Sans'; ctx.textAlign = 'left';
+    ctx.font = '700 12px "Space Grotesk", sans-serif'; ctx.textAlign = 'left';
     const step = hi - lo > 400 ? 100 : 50;
     for (let c = Math.ceil(lo / step) * step; c <= hi; c += step) {
       ctx.strokeStyle = COL.grid; ctx.lineWidth = 1;
@@ -57,7 +57,7 @@ export function createLane(canvas, { visibleSeconds = 4 } = {}) {
     const line = (c, color, dash, width) => { ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = width; ctx.setLineDash(dash); ctx.beginPath(); ctx.moveTo(padL, Y(c)); ctx.lineTo(W - padR, Y(c)); ctx.stroke(); ctx.restore(); };
     if (bend) { line(0, COL.accentDim, [], 1.5); line(home, COL.accent, [], 2); }
     else { line(0, COL.accent, [], 2); line(far, COL.accent, [6, 6], 1.5); }
-    ctx.fillStyle = COL.accent; ctx.font = '500 12px "Geist Mono", monospace';
+    ctx.fillStyle = COL.accent; ctx.font = '700 12px "Space Grotesk", sans-serif';
     if (bend) { ctx.fillText(v.labels.base || 'base', padL + 6, Y(0) - 6); ctx.fillText(v.labels.target || 'target', padL + 6, Y(home) - 6); }
     else { ctx.fillText(v.labels.home || 'note', padL + 6, Y(0) - 6); ctx.fillText(v.labels.target || 'target', padL + 6, Y(far) - 6); }
 
@@ -96,16 +96,18 @@ export function createLane(canvas, { visibleSeconds = 4 } = {}) {
     const last = pts[pts.length - 1];
     if (last && v.now - last.t < 0.15) {
       const col = COL[last.band] || COL.ok;
-      ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 18; dot(X(last.t), Y(last.c), col, 7); ctx.restore();
-      ctx.fillStyle = '#f4ecdf'; ctx.font = '600 13px Geist, sans-serif'; ctx.textAlign = 'center';
+      dot(X(last.t), Y(last.c), col, 7, true);
+      ctx.fillStyle = '#111111'; ctx.font = '700 13px "Space Grotesk", sans-serif'; ctx.textAlign = 'center';
       ctx.fillText((last.c >= 0 ? '+' : '') + Math.round(last.c) + '¢', X(last.t), Y(last.c) - 14);
     } else if (v.message) {
-      ctx.fillStyle = COL.text; ctx.font = '500 15px Geist, sans-serif'; ctx.textAlign = 'center';
+      ctx.fillStyle = COL.text; ctx.font = '700 15px "Space Grotesk", sans-serif'; ctx.textAlign = 'center';
+      const room = W - padL - padR - 16, wide = ctx.measureText(v.message).width;
+      if (wide > room) ctx.font = `700 ${Math.max(10, Math.floor(15 * room / wide))}px "Space Grotesk", sans-serif`;
       ctx.fillText(v.message, (padL + W - padR) / 2, H / 2);
     }
   }
 
-  function dot(x, y, color, r) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }
+  function dot(x, y, color, r, outline) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); if (outline) { ctx.strokeStyle = '#111111'; ctx.lineWidth = 2.5; ctx.stroke(); } }
 
   return { draw, resize };
 }
