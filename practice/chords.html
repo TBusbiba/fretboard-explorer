@@ -25,7 +25,7 @@
       <svg class="i-off" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4z"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>
     </button>
   </header>
-  <div class="nb-ticker"><div class="nb-ticker__track"><span>Name the three notes of the chord on the card ★ Then pick its key signature, then find it on the fretboard ★ Choose Major, Minor or Both ★ Turn on Notes only to just name the notes ★ Enter checks your answer, Esc clears it ★ Show answer if you're stuck ★ Build a streak and master all 14 chords ★ </span><span aria-hidden="true">Name the three notes of the chord on the card ★ Then pick its key signature, then find it on the fretboard ★ Choose Major, Minor or Both ★ Turn on Notes only to just name the notes ★ Enter checks your answer, Esc clears it ★ Show answer if you're stuck ★ Build a streak and master all 14 chords ★ </span></div></div>
+  <div class="nb-ticker"><div class="nb-ticker__track"><span>Name the three notes of the chord on the card ★ Then pick its key signature, then find it on the fretboard ★ Choose Major, Minor or Both ★ Turn on Notes only to just name the notes ★ Natural chords leaves out the sharps and flats ★ Enter checks your answer, Esc clears it ★ Show answer if you're stuck ★ Build a streak and master all 14 chords ★ </span><span aria-hidden="true">Name the three notes of the chord on the card ★ Then pick its key signature, then find it on the fretboard ★ Choose Major, Minor or Both ★ Turn on Notes only to just name the notes ★ Natural chords leaves out the sharps and flats ★ Enter checks your answer, Esc clears it ★ Show answer if you're stuck ★ Build a streak and master all 14 chords ★ </span></div></div>
 
   <main class="stage cq">
     <div class="mode segmented" aria-label="Practice mode">
@@ -43,6 +43,9 @@
         <label><input type="radio" name="deck" value="minor"><span>Minor</span></label>
         <label><input type="radio" name="deck" value="both"><span>Both</span></label>
       </div>
+      <label class="switch cq-natural" title="Only the seven chords without a sharp or flat: A B C D E F G">
+        <input type="checkbox" id="natural-toggle"><span>Natural chords</span>
+      </label>
       <label class="switch cq-notes-only" title="Only name the three notes: skip the key signature and fretboard steps">
         <input type="checkbox" id="notes-only-toggle"><span>Notes only</span>
       </label>

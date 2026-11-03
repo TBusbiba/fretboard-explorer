@@ -26,6 +26,12 @@ test('minor cards are spelled properly and carry their key signature', () => {
   assert.equal(card('E♭').relative, 'Cm');
 });
 
+test('natural chords: only the seven roots without a sharp or flat', () => {
+  assert.deepEqual(cardsFor('major', { natural: true }).map(c => c.name).sort(), ['A', 'B', 'C', 'D', 'E', 'F', 'G']);
+  assert.deepEqual(cardsFor('minor', { natural: true }).map(c => c.name).sort(), ['Am', 'Bm', 'Cm', 'Dm', 'Em', 'Fm', 'Gm']);
+  assert.equal(cardsFor('both', { natural: true }).length, 14);
+});
+
 test('spelling and pitch classes', () => {
   assert.equal(spell('C♯', 4, 2), 'E♯');
   assert.equal(pitchClass('E♯'), 5);

@@ -20,7 +20,7 @@ const acc = (name) => name.replace(/([♯♭]+)/g, '<span class="acc">$1</span>'
 
 const KEY = 'practice.chords';
 const saved = (() => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } })();
-const prefs = { deck: 'major', boxes: {}, best: 0, sound: true, rare: false, notesOnly: false, ...saved };
+const prefs = { deck: 'major', boxes: {}, best: 0, sound: true, rare: false, notesOnly: false, natural: false, ...saved };
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(prefs)); } catch { /* private mode */ } };
 
 // ---- round state -------------------------------------------------------------
@@ -334,7 +334,7 @@ async function nextCard({ first = false } = {}) {
     cardEl.classList.add('is-leaving');
     await wait(REDUCED ? 0 : 380);
   }
-  const cards = cardsFor(prefs.deck);
+  const cards = cardsFor(prefs.deck, { natural: prefs.natural });
   card = pickCard(cards, prefs.boxes, card?.id);
   picked = [];
   clean = true;
@@ -375,7 +375,7 @@ function flip(on, instant = false) {
 }
 
 function renderStats(pop = false) {
-  const cards = cardsFor(prefs.deck);
+  const cards = cardsFor(prefs.deck, { natural: prefs.natural });
   const mastered = cards.filter(c => (prefs.boxes[c.id] ?? 0) >= MASTERED_BOX).length;
   $('stat-streak').textContent = streak;
   $('stat-best').textContent = prefs.best;
@@ -473,6 +473,15 @@ document.querySelectorAll('input[name="deck"]').forEach((r) => {
     card = null;
     nextCard({ first: true });
   });
+});
+
+$('natural-toggle').checked = prefs.natural;
+$('natural-toggle').addEventListener('change', (ev) => {
+  prefs.natural = ev.target.checked; save();
+  streak = 0;
+  renderStats();
+  card = null;
+  nextCard({ first: true });
 });
 
 function syncNotesOnly() {

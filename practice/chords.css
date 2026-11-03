@@ -165,7 +165,7 @@
 .key.is-picked { transform: translate(3px, 3px); background: var(--nb-green); box-shadow: 0 0 0 var(--nb-ink); }
 .key.bounce { animation: key-bounce 200ms var(--ease); }
 .keypad.hide-rare .key--rare { visibility: hidden; pointer-events: none; }
-.cq-notes-only { font-size: 13px; color: var(--nb-ink); margin-left: 8px; }
+.cq-natural, .cq-notes-only { font-size: 13px; color: var(--nb-ink); margin-left: 8px; }
 .cq-rare { font-size: 13px; color: var(--nb-ink); margin-right: auto; margin-left: 8px; }
 
 /* key signature options */

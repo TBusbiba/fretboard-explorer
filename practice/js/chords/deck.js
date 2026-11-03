@@ -55,8 +55,9 @@ export const DECKS = {
   minor: MINOR_KEYS.map(([r, s]) => makeCard(r, 'min', s)),
 };
 
-export function cardsFor(deck) {
-  return deck === 'both' ? [...DECKS.major, ...DECKS.minor] : DECKS[deck] || DECKS.major;
+export function cardsFor(deck, { natural = false } = {}) {
+  const cards = deck === 'both' ? [...DECKS.major, ...DECKS.minor] : DECKS[deck] || DECKS.major;
+  return natural ? cards.filter(c => c.root.length === 1) : cards;
 }
 
 export function signatureLabel(sig) {
