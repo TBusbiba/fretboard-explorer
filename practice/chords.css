@@ -142,31 +142,34 @@
 .cq-feedback.is-bad { background: var(--nb-rose); }
 
 /* ---- work area ---- */
-.cq-work { display: grid; }
-.cq-panel { display: flex; flex-direction: column; align-items: center; gap: 22px; }
+.cq-work { display: grid; min-width: 0; }
+.cq-panel { display: flex; flex-direction: column; align-items: center; gap: 22px; min-width: 0; }
+#panel-fret .board { align-self: stretch; min-width: 0; }
 .cq-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
 #btn-next.is-ready { background: var(--nb-yellow); }
 
-/* keypad: naturals white, sharps and flats cyan */
-.keypad { display: grid; grid-template-columns: repeat(7, minmax(0, 68px)); gap: 12px; padding: 4px 6px 8px; }
+/* keypad: the 12 notes on a circle, naturals white, sharps cyan; the picks
+   are joined by a salmon shape drawn underneath */
+.keypad { position: relative; width: min(340px, 100%); aspect-ratio: 1; }
+.keypad__shape { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.keypad__shape polygon { fill: color-mix(in srgb, var(--nb-salmon) 45%, transparent); stroke: var(--nb-ink); stroke-width: 0.9; stroke-linejoin: round; }
+.keypad__mid { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font: 700 13px/1 var(--nb-sans); text-transform: uppercase; letter-spacing: 0.04em; pointer-events: none; }
 .key {
-  position: relative; height: 52px; border-radius: var(--nb-radius-sm);
+  position: absolute; left: calc(var(--x) * 1% - 8.5%); top: calc(var(--y) * 1% - 8.5%);
+  width: 17%; aspect-ratio: 1; min-width: 44px; padding: 0; border-radius: 50%;
   border: var(--nb-border-sm);
   background: var(--nb-card); color: var(--nb-ink);
-  font: 700 19px/1 var(--nb-sans);
+  font: 700 20px/1 var(--nb-sans);
   box-shadow: var(--nb-shadow-sm);
   transition: transform var(--nb-fast) var(--ease), box-shadow var(--nb-fast) var(--ease), background-color var(--nb-fast);
 }
-.key span { font-size: 0.8em; margin-left: 1px; }
-.key--natural { height: 60px; font-size: 22px; }
-.key--sharp, .key--flat { background: var(--nb-cyan); }
+.key .acc { font-size: 0.8em; margin-left: 1px; }
+.key--sharp { background: var(--nb-cyan); }
 .key:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--nb-ink); }
 .key:active { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--nb-ink); }
 .key.is-picked { transform: translate(3px, 3px); background: var(--nb-green); box-shadow: 0 0 0 var(--nb-ink); }
 .key.bounce { animation: key-bounce 200ms var(--ease); }
-.keypad.hide-rare .key--rare { visibility: hidden; pointer-events: none; }
 .cq-natural, .cq-notes-only { font-size: 13px; color: var(--nb-ink); margin-left: 8px; }
-.cq-rare { font-size: 13px; color: var(--nb-ink); margin-right: auto; margin-left: 8px; }
 
 /* key signature options */
 .cq-q { margin: 0; color: var(--nb-ink); text-align: center; font: 700 14px var(--nb-sans); }
@@ -231,9 +234,7 @@
 @media (max-width: 760px) {
   .cq-bar { justify-content: center; }
   .cq-deck { gap: 10px; }
-  .keypad { gap: 6px; padding: 2px 4px 8px; grid-template-columns: repeat(7, minmax(0, 1fr)); width: 100%; }
-  .key { height: 48px; font-size: 17px; }
-  .key--natural { height: 56px; font-size: 19px; }
+  .key { font-size: 17px; }
   .slot { width: 58px; height: 48px; font-size: 22px; }
   .sig { min-width: 46px; padding: 0 10px; height: 48px; font-size: 17px; }
   .cq-step { padding: 0 8px; font-size: 11px; }

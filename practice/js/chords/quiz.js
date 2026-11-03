@@ -20,7 +20,7 @@ const acc = (name) => name.replace(/([♯♭]+)/g, '<span class="acc">$1</span>'
 
 const KEY = 'practice.chords';
 const saved = (() => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } })();
-const prefs = { deck: 'major', boxes: {}, best: 0, sound: true, rare: false, notesOnly: false, natural: false, ...saved };
+const prefs = { deck: 'major', boxes: {}, best: 0, sound: true, notesOnly: false, natural: false, ...saved };
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(prefs)); } catch { /* private mode */ } };
 
 // ---- round state -------------------------------------------------------------
@@ -48,44 +48,32 @@ function strum(midis, gap = 45) {
 
 // ---- keypad ------------------------------------------------------------------
 
-// E♯, B♯, C♭ and F♭ are real spellings (C♯ major is C♯–E♯–G♯) but answers are
-// checked by pitch, so F works for E♯. Hidden unless asked for, which leaves
-// the keypad with gaps where a piano has no black keys.
-const RARE = new Set(['E♯', 'B♯', 'C♭', 'F♭']);
+// The 12 notes around a circle, sharps only. Answers are checked by pitch, so
+// C♯ counts for D♭; after a right answer the slots show the textbook spelling.
+// The picks are joined by a shape: every major chord makes the same triangle.
+const CIRCLE = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
+const spot = (i) => {
+  const a = (i / 12) * 2 * Math.PI;
+  return [50 + 40 * Math.sin(a), 50 - 40 * Math.cos(a)];
+};
 
 function buildKeypad() {
-  const pad = $('keypad');
-  const rows = [['♯', 'sharp'], ['', 'natural'], ['♭', 'flat']];
-  pad.innerHTML = rows.map(([acc, kind]) => LETTERS.map((l) => {
-    const name = l + acc;
-    const rare = RARE.has(name) ? ' key--rare' : '';
-    return `<button class="key key--${kind}${rare}" data-note="${name}" aria-pressed="false">${l}<span>${acc}</span></button>`;
-  }).join('')).join('');
-  syncRare();
+  $('keypad').innerHTML = '<svg class="keypad__shape" viewBox="0 0 100 100" aria-hidden="true"><polygon/></svg>'
+    + '<span class="keypad__mid" aria-hidden="true"></span>'
+    + CIRCLE.map((name, i) => {
+      const [x, y] = spot(i);
+      const kind = name.length > 1 ? 'sharp' : 'natural';
+      return `<button class="key key--${kind}" data-note="${name}" aria-pressed="false" style="--x:${x.toFixed(2)};--y:${y.toFixed(2)}">${acc(name)}</button>`;
+    }).join('');
 }
 
-function syncRare() {
-  $('keypad').classList.toggle('hide-rare', !prefs.rare);
-  $('rare-toggle').checked = prefs.rare;
-}
-
-$('rare-toggle').addEventListener('change', (ev) => {
-  prefs.rare = ev.target.checked;
-  save();
-  if (!prefs.rare && step === 'notes' && !busy && picked.some(n => RARE.has(n))) {
-    picked = picked.map(n => (RARE.has(n) ? null : n));
-    while (picked.length && picked[picked.length - 1] === null) picked.pop();
-    renderSlots();
-    renderKeypad();
-  }
-  syncRare();
-});
+const pickedAt = (name) => picked.findIndex(n => n && pitchClass(n) === pitchClass(name));
 
 $('keypad').addEventListener('click', (ev) => {
   const b = ev.target.closest('[data-note]');
   if (!b || step !== 'notes' || busy) return;
   const name = b.dataset.note;
-  const at = picked.indexOf(name);
+  const at = pickedAt(name);
   if (at >= 0) { removePick(at); return; }
   const free = picked.indexOf(null) >= 0 ? picked.indexOf(null) : picked.length;
   if (free > 2) { nudge($('slots')); return; }
@@ -111,11 +99,14 @@ function removePick(i) {
 function filledCount() { return picked.filter(Boolean).length; }
 
 function renderKeypad() {
-  for (const k of $('keypad').children) {
-    const on = picked.includes(k.dataset.note);
+  for (const k of $('keypad').querySelectorAll('.key')) {
+    const on = pickedAt(k.dataset.note) >= 0;
     k.classList.toggle('is-picked', on);
     k.setAttribute('aria-pressed', String(on));
   }
+  const pcs = picked.filter(Boolean).map(pitchClass).sort((a, b) => a - b);
+  $('keypad').querySelector('polygon').setAttribute('points', pcs.length > 1 ? pcs.map(p => spot(p).join(',')).join(' ') : '');
+  $('keypad').querySelector('.keypad__mid').textContent = pcs.length ? `${pcs.length} / 3` : 'Tap 3 notes';
   $('btn-go').disabled = filledCount() !== 3 || busy;
 }
 
