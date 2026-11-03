@@ -16,6 +16,7 @@ const K_EDGE = 0.05;
 const DAMPING = 0.84;
 const TAP_SLOP = 6;           // px of movement before a press becomes a drag
 const DOUBLE_TAP_MS = 320;
+const CALM = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function el(name, attrs = {}, parent) {
   const e = document.createElementNS(SVG_NS, name);
@@ -94,7 +95,9 @@ export function createMap(svg, { onSelect = () => {}, onTravel = () => {} } = {}
         class: 'dom', 'data-key': e.key, 'data-depth': e.to.depth, tabindex: 0, role: 'button',
         'aria-label': `${e.via.name}, bridge from ${e.from.chord.name} to ${e.to.chord.name}`,
       }, domLayer);
-      el('circle', { r: DOM_R * (e.to.depth > 2 ? 0.9 : 1) }, e.badge);
+      const domR = DOM_R * (e.to.depth > 2 ? 0.9 : 1);
+      el('circle', { class: 'dom__shadow', r: domR }, e.badge);
+      el('circle', { class: 'dom__body', r: domR }, e.badge);
       el('text', { 'text-anchor': 'middle', dy: '0.35em' }, e.badge).textContent = e.via.name;
     }
     for (const n of nodes) {
@@ -103,7 +106,8 @@ export function createMap(svg, { onSelect = () => {}, onTravel = () => {} } = {}
         class: `node node--${n.chord.quality}`, 'data-key': n.key, 'data-depth': n.depth,
         tabindex: 0, role: 'button', 'aria-label': `${n.chord.name} ${n.chord.label}`,
       }, nodeLayer);
-      el('circle', { class: 'node__halo', r: n.r + 6 }, n.g);
+      el('circle', { class: 'node__halo', r: n.r + 7 }, n.g);
+      el('circle', { class: 'node__shadow', r: n.r }, n.g);
       el('circle', { class: 'node__body', r: n.r }, n.g);
       const t = el('text', { 'text-anchor': 'middle', dy: '0.36em' }, n.g);
       t.textContent = n.chord.name;
@@ -164,7 +168,7 @@ export function createMap(svg, { onSelect = () => {}, onTravel = () => {} } = {}
     }
     for (const n of nodes) {
       if (n === dragged) continue;
-      const amp = 4 + n.depth * 1.6;
+      const amp = CALM ? 0 : 4 + n.depth * 1.6;
       const hx = n.home.x + amp * Math.sin(t * 0.00055 + n.phase);
       const hy = n.home.y + amp * Math.cos(t * 0.00047 + n.phase * 1.3);
       const k = n.towed ? K_HOME_TOWED : K_HOME;
