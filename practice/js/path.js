@@ -1,4 +1,4 @@
-// The level path for Find the note: nine levels of pitch classes, each opened
+// The level path for Find the note: eleven levels of pitch classes, each adding one note,, each opened
 // by answering well enough to unlock its boss round. Pure rules plus a small
 // localStorage store; `storage` is injectable for tests.
 //
@@ -8,7 +8,8 @@
 
 import { NOTE_NAMES, STRINGS, pitchClass } from './notes.js';
 
-const KEY = 'fretboard-practice.path.v1';
+const KEY = 'fretboard-practice.path.v2';
+const OLD_KEY = 'fretboard-practice.path.v1';   // level 1 (E A) is unchanged, so its progress carries over
 
 export const WINDOW = 20;          // answers that count towards the unlock
 export const FIRST_TRY_MIN = 0.75;  // share answered right on the first try
@@ -18,17 +19,14 @@ export const STAR3_MS = 2000;      // ... and for 3 stars
 
 const pcs = (names) => names.map(n => NOTE_NAMES.indexOf(n));
 
-export const LEVELS = [
-  { id: 1, notes: pcs(['E', 'A']), short: 'E A' },
-  { id: 2, notes: pcs(['D', 'G']), short: 'D G' },
-  { id: 3, notes: pcs(['E', 'A', 'D', 'G']), short: 'E A D G', title: 'Review E A D G', review: true },
-  { id: 4, notes: pcs(['B', 'C']), short: 'B C' },
-  { id: 5, notes: pcs(['F']), short: 'F' },
-  { id: 6, notes: pcs(['C', 'D', 'E', 'F', 'G', 'A', 'B']), short: 'C–B', title: 'Review all naturals', review: true },
-  { id: 7, notes: pcs(['F♯', 'C♯']), short: 'F♯ C♯' },
-  { id: 8, notes: pcs(['G♯', 'D♯', 'A♯']), short: 'G♯ D♯ A♯' },
-  { id: 9, notes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], short: 'All 12', title: 'Everything' },
-];
+const ORDER = ['E', 'A', 'D', 'G', 'B', 'C', 'F', 'F♯', 'C♯', 'G♯', 'D♯', 'A♯'];
+const TITLES = { 7: 'All naturals', 11: 'Everything' };
+
+/** Each level keeps the notes before it and adds one more: E A, then +D, +G ... up to all 12. */
+export const LEVELS = ORDER.slice(1).map((note, i) => {
+  const id = i + 1;
+  return { id, notes: pcs(ORDER.slice(0, id + 1)), short: id === 1 ? 'E A' : `+${note}`, newNote: id === 1 ? null : NOTE_NAMES.indexOf(note), title: TITLES[id] };
+});
 
 export function levelById(id) { return LEVELS.find(l => l.id === id) || null; }
 
@@ -195,6 +193,11 @@ export function createPath(storage = globalThis.localStorage) {
   try {
     const raw = storage && storage.getItem(KEY);
     if (raw) data = sanitize(JSON.parse(raw));
+    else {
+      const old = storage && storage.getItem(OLD_KEY);
+      const l1 = old && JSON.parse(old)?.levels?.[1];
+      if (l1) data = sanitize({ current: 1, levels: { 1: l1 } });
+    }
   } catch { data = { current: 1, levels: {} }; }
   if (!isUnlocked(data.current)) data.current = 1;
 

@@ -477,7 +477,7 @@ input[type="range"]::-moz-range-thumb {
 
 /* ---------- level path ---------- */
 .path { display: flex; flex-direction: column; gap: 18px; }
-.path__map { list-style: none; margin: 0; padding: 0 4px 4px 0; display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 12px; }
+.path__map { list-style: none; margin: 0; padding: 0 4px 4px 0; display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); gap: 10px; }
 .path__tile {
   width: 100%; min-height: 92px; padding: 8px 4px 6px;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
@@ -675,7 +675,7 @@ input[type="range"]::-moz-range-thumb {
   .picker__label { flex-basis: 100%; }
   .chip--key { min-width: 38px; min-height: 40px; padding: 0 6px; }
   .path { gap: 16px; }
-  .path__map { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .path__map { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
   .path__tile { min-height: 78px; }
   .path__strip { grid-template-columns: minmax(0, 1fr); }
   .path__boss { grid-column: 1; grid-row: auto; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; text-align: left; }

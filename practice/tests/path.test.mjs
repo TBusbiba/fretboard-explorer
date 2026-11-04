@@ -23,16 +23,17 @@ function entryWith({ n = WINDOW, ft = n, ms = 2000, covered = true, level = L1, 
   return e;
 }
 
-test('levels: the nine-level plan, by note name', () => {
+test('levels: each level keeps the earlier notes and adds one', () => {
   const names = LEVELS.map(l => l.notes.map(n => NOTE_NAMES[n]).join(' '));
-  assert.deepEqual(names, ['E A', 'D G', 'E A D G', 'B C', 'F', 'C D E F G A B', 'F♯ C♯', 'G♯ D♯ A♯', 'C C♯ D D♯ E F F♯ G G♯ A A♯ B']);
-  assert.deepEqual(LEVELS.map(l => l.id), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
-  assert.deepEqual(LEVELS.filter(l => l.review).map(l => l.id), [3, 6]);
+  assert.deepEqual(names, ['E A', 'E A D', 'E A D G', 'E A D G B', 'E A D G B C', 'E A D G B C F', 'E A D G B C F F♯',
+    'E A D G B C F F♯ C♯', 'E A D G B C F F♯ C♯ G♯', 'E A D G B C F F♯ C♯ G♯ D♯', 'E A D G B C F F♯ C♯ G♯ D♯ A♯']);
+  assert.deepEqual(LEVELS.map(l => l.short), ['E A', '+D', '+G', '+B', '+C', '+F', '+F♯', '+C♯', '+G♯', '+D♯', '+A♯']);
+  assert.deepEqual(LEVELS.map(l => l.id), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
 });
 
 test('requiredSpots: every level note on every string inside the fret range', () => {
   assert.equal(requiredSpots(L1, FULL).length, 12);                    // 2 notes x 6 strings
-  assert.equal(requiredSpots(LEVELS[8], FULL).length, 72);            // 12 notes x 6 strings
+  assert.equal(requiredSpots(LEVELS.at(-1), FULL).length, 72);            // 12 notes x 6 strings
   assert.deepEqual(requiredSpots(L1, { from: 0, to: 0 }).sort(), ['4:0', '4:5', '9:4']); // open strings only: E on strings 1 and 6, A on string 5 (index 4)
   assert.deepEqual(fretsFor(4, 5, { from: 0, to: 21 }), [0, 12]);     // E on the low E string, both octaves
 });
@@ -176,20 +177,27 @@ test('store: a passed boss completes the level, opens the next and keeps the bes
 
 test('store: the last level has no next, reset clears everything', () => {
   const path = createPath(memoryStorage());
-  for (let i = 1; i <= 9; i++) path.completeBoss(i, 1900);
-  assert.equal(path.completeBoss(9, 1900).next, null);
+  for (let i = 1; i <= 11; i++) path.completeBoss(i, 1900);
+  assert.equal(path.completeBoss(11, 1900).next, null);
   path.reset();
   assert.deepEqual([path.current, path.isDone(1), path.isUnlocked(2)], [1, false, false]);
 });
 
 test('store: corrupt or odd saved data falls back safely', () => {
-  assert.equal(createPath(memoryStorage({ 'fretboard-practice.path.v1': '{nope' })).current, 1);
-  const odd = createPath(memoryStorage({ 'fretboard-practice.path.v1': JSON.stringify({ current: 7, levels: { 1: { recent: 'x', done: false } } }) }));
+  assert.equal(createPath(memoryStorage({ 'fretboard-practice.path.v2': '{nope' })).current, 1);
+  const odd = createPath(memoryStorage({ 'fretboard-practice.path.v2': JSON.stringify({ current: 7, levels: { 1: { recent: 'x', done: false } } }) }));
   assert.equal(odd.current, 1);   // level 7 is locked, so back to 1
   assert.equal(odd.progress(1, FULL).answered, 0);
   const broken = { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); } };
   const p = createPath(broken);
   assert.doesNotThrow(() => p.record(1, { pc: 4, string: 5, firstTry: true, ms: 1000 }, FULL));
+});
+
+test('store: level 1 progress carries over from the old nine-level path, the rest starts fresh', () => {
+  const old = { current: 4, levels: { 1: { recent: [{ ft: true, ms: 900 }], covered: ['4:0'], done: true, stars: 2 }, 2: { done: true } } };
+  const p = createPath(memoryStorage({ 'fretboard-practice.path.v1': JSON.stringify(old) }));
+  assert.deepEqual([p.current, p.isDone(1), p.stars(1), p.isDone(2), p.isUnlocked(2), p.isUnlocked(3)], [1, true, 2, false, true, false]);
+  assert.equal(p.progress(1, FULL).answered, 1);
 });
 
 test('weighting: picks stay on the level notes, and favour weak spots', () => {
