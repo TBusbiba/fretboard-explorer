@@ -6,7 +6,7 @@ import { createSound } from './sound.js';
 import { createMicGate } from './mic-gate.js';
 import { createSession } from './session.js';
 import { createHistory } from './history.js';
-import { LEVELS, WINDOW, FIRST_TRY_MIN, AVG_MS_MAX, STAR2_MS, STAR3_MS, levelById, levelTitle, createPath, createBoss, positionWeigher } from './path.js';
+import { LEVELS, WINDOW, FIRST_TRY_MIN, AVG_MS_MAX, STAR2_MS, STAR3_MS, levelById, levelTitle, createPath, createBoss, createSpotBag, positionWeigher } from './path.js';
 import { shapeSvg } from './triad-shapes.js';
 import { loadSettings, saveSettings, resetSettings, DEFAULTS } from './settings.js';
 
@@ -62,6 +62,7 @@ const fretRange = () => ({ from: settings.fretFrom, to: settings.fretTo });
 let weigher = null;   // rebuilt from the history after every answer
 function weighPosition(string, fret) { return (weigher ||= positionWeigher(history.positions()))(string, fret); }
 let boss = null;      // the boss round in progress, else null
+const spotBag = createSpotBag();
 let notice = null;    // {text, tone}: shown instead of "Listening…" on the next question
 
 // The mic is ignored while the voice speaks or a note plays, plus a grace period
@@ -98,7 +99,12 @@ const session = createSession({
   getSettings: sessionSettings,
   pickNote: (opts, previous, rng) => {
     const item = boss && boss.current;
-    return item ? { string: item.string, fret: item.fret } : pickTarget(opts, previous, rng);
+    if (item) return { string: item.string, fret: item.fret };
+    if (isNoteMode() && settings.noteMode === 'path') {
+      const range = fretRange();
+      return spotBag.next(path.currentLevel, range, path.progress(path.current, range).missing, weighPosition);
+    }
+    return pickTarget(opts, previous, rng);
   },
   onEvent: handleSessionEvent,
 });

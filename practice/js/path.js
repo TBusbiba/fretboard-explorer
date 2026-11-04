@@ -123,6 +123,41 @@ export function createBoss(level, range, rng = Math.random) {
 // ---------- question weighting ----------
 
 /**
+ * Path questions come from a shuffled bag of the level's note-on-string spots:
+ * every spot is asked once before any repeats, so none can hide for long, and
+ * spots not found yet go to the front of each new bag. Within a spot the fret
+ * leans to what is missed or slow (`weigh`).
+ */
+export function createSpotBag(rng = Math.random) {
+  let bag = [], key = '', last = null;
+  const shuffle = (a) => {
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  };
+  return {
+    next(level, range, missing = [], weigh = () => 1) {
+      const required = requiredSpots(level, range);
+      if (!required.length) return null;
+      const k = `${level.id}|${range.from}-${range.to}`;
+      if (k !== key) { key = k; bag = []; }
+      bag = bag.filter(s => required.includes(s));
+      if (!bag.length) {
+        const open = new Set(missing);
+        bag = [...shuffle(required.filter(s => open.has(s))), ...shuffle(required.filter(s => !open.has(s)))];
+        if (bag.length > 1 && bag[0] === last) bag.push(bag.shift());
+      }
+      last = bag.shift();
+      const [pc, string] = last.split(':').map(Number);
+      const frets = fretsFor(pc, string, range);
+      const w = frets.map(f => Math.max(1e-6, weigh(string, f)));
+      let r = rng() * w.reduce((a, b) => a + b, 0);
+      const fret = frets.find((f, i) => (r -= w[i]) < 0) ?? frets[frets.length - 1];
+      return { string, fret };
+    },
+  };
+}
+
+/**
  * Likelier picks for spots the player misses or is slow on, from
  * history.positions(): unpractised spots weigh 2, practised ones 1 to 4 by (1 - mastery).
  */

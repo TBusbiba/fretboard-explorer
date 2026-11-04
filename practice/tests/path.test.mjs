@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { NOTE_NAMES, STRINGS, noteAt, pickTarget, pitchClass } from '../js/notes.js';
 import {
-  LEVELS, WINDOW, evaluate, requiredSpots, fretsFor, blankEntry, createBoss, starsFor, positionWeigher, createPath,
+  LEVELS, WINDOW, createSpotBag, evaluate, requiredSpots, fretsFor, blankEntry, createBoss, starsFor, positionWeigher, createPath,
 } from '../js/path.js';
 import { createSession } from '../js/session.js';
 import { migrate } from '../js/settings.js';
@@ -241,4 +241,22 @@ test('session: pickNote hands the host the choice of the next note target', () =
   t += 200; s.tick();
   assert.equal(s.target.string, 4);
   assert.equal(s.note.midi, 45);
+});
+
+test('spot bag: every spot once per round, missing spots first, no spot hides', () => {
+  const range = { from: 0, to: 11 };
+  const all = requiredSpots(L1, range);
+  const bag = createSpotBag(Math.random);
+  const key = (t) => `${pitchClass(STRINGS[t.string].midi + t.fret)}:${t.string}`;
+  for (let round = 0; round < 20; round++) {
+    const seen = Array.from({ length: all.length }, () => key(bag.next(L1, range)));
+    assert.deepEqual([...seen].sort(), [...all].sort(), 'a full round asks each spot exactly once');
+  }
+  // a fresh bag with one spot still missing asks it first
+  const missing = [all[7]];
+  const fresh = createSpotBag(Math.random);
+  assert.equal(key(fresh.next(L1, range, missing)), all[7]);
+  // never the same spot twice in a row across rounds
+  let prev = null;
+  for (let i = 0; i < 500; i++) { const k = key(bag.next(L1, range)); assert.notEqual(k, prev); prev = k; }
 });
