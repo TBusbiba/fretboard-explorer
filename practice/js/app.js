@@ -32,7 +32,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '25';
+const BUILD = '26';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -549,22 +549,22 @@ const BOSS_INTRO_MS = 1800;
 function hideChainIntro() {
   clearTimeout(introTimer);
   ui.chainIntro.hidden = true;
-  ui.chainIntro.classList.remove('is-on');
+  ui.chainIntro.classList.remove('is-on', 'is-chain');
 }
 
 /** The big announcement over the card; the answer clock starts when it lifts. Returns the spoken text. */
 function showChainIntro(c, noteName) {
   const s = STRINGS[c.current.string];
   const stringName = c.current.string === 5 ? 'low E' : s.name;
-  ui.chainKicker.textContent = 'Quick note chain round!';
-  ui.chainBig.textContent = `${c.spots.length} ${noteName} notes!`;
+  ui.chainIntro.classList.add('is-chain');
+  ui.chainKicker.textContent = `${c.spots.length} notes`;
+  ui.chainBig.textContent = 'Quick note chain round!';
   ui.chainStart.textContent = `Start with the ${stringName} string —`;
   ui.chainIntro.hidden = false;
   ui.chainIntro.classList.remove('is-on'); void ui.chainIntro.offsetWidth; ui.chainIntro.classList.add('is-on');
   clearTimeout(introTimer);
   introTimer = setTimeout(() => { hideChainIntro(); if (!session.held) session.restartClock(); }, INTRO_MS);
-  const count = ['Three', 'Four', 'Five'][c.spots.length - 3] || c.spots.length;
-  return `Quick note chain round! ${count} ${spokenName(noteName)} notes! Start with the ${stringLabel(c.current.string)} string!`;
+  return `Quick note chain round! Start with the ${stringLabel(c.current.string)} string!`;
 }
 
 /** A chain note was answered (called after the streak and path were scored). */

@@ -1,4 +1,4 @@
-// Note chains for the Path: one note, 3 to 5 times, always moving right along the
+// Note chains for the Path: one note, 3 to 6 times, always moving right along the
 // board (the fret never goes down). Pure rules, no DOM. "Down" means toward the
 // thinner strings, the way the player says it (A -> G is 2 strings down).
 //
@@ -10,7 +10,7 @@ import { STRINGS, pitchClass } from './notes.js';
 import { levelRange } from './path.js';
 
 export const CHAIN_MIN = 3;                  // a chain is at least this long
-export const CHAIN_MAX = 5;                  // ... and at most this long
+export const CHAIN_MAX = 6;                  // ... and at most this long
 export const CHAIN_STARTS = [5, 4];          // low E, A
 export const CHAIN_GAP = [6, 9];             // normal questions between chains (inclusive)
 export const CHAIN_BONUS = 250;              // x the current points multiplier
@@ -21,37 +21,38 @@ export function octaveShift(string) { return string >= 4 ? 2 : 3; }
 /** Frets up for the same pitch one string up (thicker): 5, except B to G which is 4. */
 export function unisonShift(string) { return string === 1 ? 4 : 5; }
 
-/** The steps that can follow a spot: octaves first, then unisons. Frets only ever go up. */
+/** The steps that can follow a spot, in priority order: octave, mirror (high E to low E, same fret), unison. Frets never go down. */
 function stepsFrom(spot) {
   const out = [];
   if (spot.string >= 2) out.push({ string: spot.string - 2, fret: spot.fret + octaveShift(spot.string), octave: true });
+  if (spot.string === 0) out.push({ string: 5, fret: spot.fret, octave: false });
   if (spot.string <= 4) out.push({ string: spot.string + 1, fret: spot.fret + unisonShift(spot.string), octave: false });
   return out;
 }
 
 /**
- * The longest chain (up to CHAIN_MAX notes, octave steps preferred) from a start spot,
+ * The longest chain (up to CHAIN_MAX notes, steps tried in priority order) from a start spot,
  * moving right along the board inside `range`. null when it cannot reach CHAIN_MIN.
  */
 export function chainSpots(string, fret, range) {
   const inRange = (s) => s.fret >= range.from && s.fret <= range.to;
   const start = { string, fret };
   if (!inRange(start)) return null;
-  let best = { spots: [start], octaves: 0 };
-  const walk = (spots, octaves) => {
-    if (spots.length > best.spots.length || (spots.length === best.spots.length && octaves > best.octaves)) best = { spots: [...spots], octaves };
+  let best = { spots: [start] };
+  const walk = (spots) => {
+    if (spots.length > best.spots.length) best = { spots: [...spots] };
     if (spots.length >= CHAIN_MAX) return;
     for (const step of stepsFrom(spots[spots.length - 1])) {
       if (!inRange(step)) continue;
-      walk([...spots, { string: step.string, fret: step.fret }], octaves + (step.octave ? 1 : 0));
+      walk([...spots, { string: step.string, fret: step.fret }]);
     }
   };
-  walk([start], 0);
+  walk([start]);
   return best.spots.length >= CHAIN_MIN ? best.spots : null;
 }
 
 /**
- * Every chain (3 to 5 notes) that starts on low E or A, with a level note, and fits the fret range.
+ * Every chain (3 to 6 notes) that starts on low E or A, with a level note, and fits the fret range.
  */
 export function chainOptions(level, fretRange) {
   const range = levelRange(level, fretRange);
@@ -80,6 +81,7 @@ export function pickChain(level, range, rng = Math.random, prefer = () => false)
 export function chainHint(spots, index) {
   if (index < 1 || index >= spots.length) return null;
   const prev = spots[index - 1], cur = spots[index];
+  if (prev.string === 0 && cur.string === 5 && cur.fret === prev.fret) return 'Same fret on the low E string';
   return `${cur.string < prev.string ? '2 strings down' : '1 string up'}, ${cur.fret - prev.fret} frets up`;
 }
 

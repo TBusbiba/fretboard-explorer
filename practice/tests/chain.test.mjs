@@ -17,10 +17,10 @@ test('unison shift: 5 frets up to the next thicker string, 4 from B to G', () =>
   assert.deepEqual([0, 1, 2, 3, 4].map(unisonShift), [5, 4, 5, 5, 5]);
 });
 
-test('chains: 3 to 5 notes, all one pitch, frets never go down, octave steps preferred', () => {
+test('chains: 3 to 6 notes, all one pitch, frets never go down, octave steps preferred', () => {
   const R12 = { from: 0, to: 12 };
-  assert.deepEqual(chainSpots(4, 0, R12), [{ string: 4, fret: 0 }, { string: 2, fret: 2 }, { string: 0, fret: 5 }, { string: 1, fret: 10 }]);
-  assert.deepEqual(chainSpots(5, 3, R12), [{ string: 5, fret: 3 }, { string: 3, fret: 5 }, { string: 1, fret: 8 }, { string: 2, fret: 12 }]);
+  assert.deepEqual(chainSpots(4, 0, R12), [[4, 0], [2, 2], [0, 5], [5, 5], [3, 7], [1, 10]].map(([string, fret]) => ({ string, fret })));
+  assert.deepEqual(chainSpots(5, 3, R12), [[5, 3], [3, 5], [1, 8], [2, 12]].map(([string, fret]) => ({ string, fret })));
   let longest = 0;
   for (const start of [5, 4]) for (let f = 0; f <= 12; f++) {
     const spots = chainSpots(start, f, R12);
@@ -28,13 +28,13 @@ test('chains: 3 to 5 notes, all one pitch, frets never go down, octave steps pre
     longest = Math.max(longest, spots.length);
     assert.ok(spots.length >= CHAIN_MIN && spots.length <= CHAIN_MAX);
     for (let i = 1; i < spots.length; i++) {
-      assert.ok(spots[i].fret > spots[i - 1].fret, 'fret goes up');
+      assert.ok(spots[i].fret >= spots[i - 1].fret, 'fret never goes down');
       const gap = midi(spots[i]) - midi(spots[i - 1]);
-      assert.ok(gap === 12 || gap === 0, `octave or unison, got ${gap}`);
+      assert.ok([12, 0, -24].includes(gap), `octave, unison or mirror, got ${gap}`);
     }
     assert.ok(spots.every(s => s.string >= 0 && s.string <= 5 && s.fret >= 0 && s.fret <= 12));
   }
-  assert.equal(longest, 5, 'some start reaches the full 5');
+  assert.equal(longest, 6, 'some start reaches the full 6');
 });
 
 test('a chain that cannot reach 3 notes, or leaves the fret range, is rejected', () => {
@@ -69,9 +69,11 @@ test('hints count from the previous spot: octave steps and unison steps', () => 
   assert.equal(chainHint(spots, 1), '2 strings down, 2 frets up');
   assert.equal(chainHint(spots, 2), '2 strings down, 3 frets up');
   assert.equal(chainHint(spots, 3), '1 string up, 4 frets up');
-  const a = chainSpots(4, 0, { from: 0, to: 12 });         // A0 -> G2 -> e5 -> B10
-  assert.equal(chainHint(a, 3), '1 string up, 5 frets up');
-  assert.equal(chainHint(a, 4), null);
+  const a = chainSpots(4, 0, { from: 0, to: 12 });         // A0 -> G2 -> e5 -> E5 -> D7 -> B10
+  assert.equal(chainHint(a, 3), 'Same fret on the low E string');
+  assert.equal(chainHint(a, 4), '2 strings down, 2 frets up');
+  assert.equal(chainHint(a, 6), null);
+  assert.equal(chainHint([{ string: 2, fret: 0 }, { string: 3, fret: 5 }], 1), '1 string up, 5 frets up');
 });
 
 test('schedule: a chain every 6 to 9 normal questions', () => {
