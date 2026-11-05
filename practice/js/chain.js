@@ -1,58 +1,39 @@
-// Note chains for the Path: one note, 3 to 6 times, always moving right along the
-// board (the fret never goes down). Pure rules, no DOM. "Down" means toward the
-// thinner strings, the way the player says it (A -> G is 2 strings down).
-//
-// Octave two strings down: from low E or A it sits 2 frets up; from D or G it sits
-// 3 frets up (the kink between G and B). Unison, the same pitch one string up
-// (thicker): 5 frets up, 4 from B to G. Unisons let a chain keep going right.
+// Note chains for the Path: one note, walked left to right up the neck. From the start
+// spot the chain visits every later spot of that note (a higher fret each time) up to
+// fret 12. "Down" means toward the thinner strings, the way the player says it.
 
 import { STRINGS, pitchClass } from './notes.js';
 import { levelRange } from './path.js';
 
 export const CHAIN_MIN = 3;                  // a chain is at least this long
-export const CHAIN_MAX = 6;                  // ... and at most this long
+export const CHAIN_LAST_FRET = 12;           // the neck repeats after this
 export const CHAIN_STARTS = [5, 4];          // low E, A
 export const CHAIN_GAP = [6, 9];             // normal questions between chains (inclusive)
 export const CHAIN_BONUS = 250;              // x the current points multiplier
 
-/** Frets up for the octave two strings down from `string`. */
-export function octaveShift(string) { return string >= 4 ? 2 : 3; }
-
-/** Frets up for the same pitch one string up (thicker): 5, except B to G which is 4. */
-export function unisonShift(string) { return string === 1 ? 4 : 5; }
-
-/** The steps that can follow a spot, in priority order: octave, mirror (high E to low E, same fret), unison. Frets never go down. */
-function stepsFrom(spot) {
-  const out = [];
-  if (spot.string >= 2) out.push({ string: spot.string - 2, fret: spot.fret + octaveShift(spot.string), octave: true });
-  if (spot.string === 0) out.push({ string: 5, fret: spot.fret, octave: false });
-  if (spot.string <= 4) out.push({ string: spot.string + 1, fret: spot.fret + unisonShift(spot.string), octave: false });
-  return out;
-}
-
 /**
- * The longest chain (up to CHAIN_MAX notes, steps tried in priority order) from a start spot,
- * moving right along the board inside `range`. null when it cannot reach CHAIN_MIN.
+ * The chain from a start spot: the start, then every spot of the same note inside `range` (never past fret 12) with a higher fret, left to right. Spots on the same fret (the two E
+ * strings) go nearest-string-first from the previous spot. null when shorter than CHAIN_MIN.
  */
 export function chainSpots(string, fret, range) {
-  const inRange = (s) => s.fret >= range.from && s.fret <= range.to;
-  const start = { string, fret };
-  if (!inRange(start)) return null;
-  let best = { spots: [start] };
-  const walk = (spots) => {
-    if (spots.length > best.spots.length) best = { spots: [...spots] };
-    if (spots.length >= CHAIN_MAX) return;
-    for (const step of stepsFrom(spots[spots.length - 1])) {
-      if (!inRange(step)) continue;
-      walk([...spots, { string: step.string, fret: step.fret }]);
+  const last = Math.min(range.to, CHAIN_LAST_FRET);
+  if (fret < range.from || fret > last) return null;
+  const pc = pitchClass(STRINGS[string].midi + fret);
+  const spots = [{ string, fret }];
+  for (let f = fret + 1; f <= last; f++) {
+    const here = [];
+    for (let s = 0; s < STRINGS.length; s++) if (pitchClass(STRINGS[s].midi + f) === pc) here.push({ string: s, fret: f });
+    while (here.length) {
+      const prev = spots[spots.length - 1];
+      here.sort((x, y) => Math.abs(x.string - prev.string) - Math.abs(y.string - prev.string));
+      spots.push(here.shift());
     }
-  };
-  walk([start]);
-  return best.spots.length >= CHAIN_MIN ? best.spots : null;
+  }
+  return spots.length >= CHAIN_MIN ? spots : null;
 }
 
 /**
- * Every chain (3 to 6 notes) that starts on low E or A, with a level note, and fits the fret range.
+ * Every chain (3 or more notes) that starts on low E or A, with a level note, and fits the fret range.
  */
 export function chainOptions(level, fretRange) {
   const range = levelRange(level, fretRange);
@@ -81,8 +62,11 @@ export function pickChain(level, range, rng = Math.random, prefer = () => false)
 export function chainHint(spots, index) {
   if (index < 1 || index >= spots.length) return null;
   const prev = spots[index - 1], cur = spots[index];
-  if (prev.string === 0 && cur.string === 5 && cur.fret === prev.fret) return 'Same fret on the low E string';
-  return `${cur.string < prev.string ? '2 strings down' : '1 string up'}, ${cur.fret - prev.fret} frets up`;
+  const frets = cur.fret - prev.fret, strings = cur.string - prev.string;
+  const n = (k, word) => `${k} ${word}${k === 1 ? '' : 's'}`;
+  if (frets === 0) return `Same fret on the ${cur.string === 5 ? 'low' : 'high'} E string`;
+  const move = strings === 0 ? '' : `${n(Math.abs(strings), 'string')} ${strings < 0 ? 'down' : 'up'}, `;
+  return `${move}${n(frets, 'fret')} up`;
 }
 
 /** Calls the next chain after 6 to 9 normal questions. Chain questions do not count. */
