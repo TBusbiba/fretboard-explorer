@@ -139,10 +139,21 @@ test('boss: the group is only the notes the level adds', () => {
 test('boss: every spot of the note in frets 0-12, left to right, thicker string first at one fret', () => {
   const A = NOTE_NAMES.indexOf('A');
   const spots = noteSpots(A);
-  assert.deepEqual(spots.map(s => `${s.string}@${s.fret}`), ['4@0', '2@2', '5@5', '0@5', '3@7', '1@10', '4@12']);
+  assert.deepEqual(spots.map(s => `${s.string}@${s.fret}`), ['4@0', '2@2', '0@5', '5@5', '3@7', '1@10', '4@12']);
   for (const s of spots) { assert.ok(s.fret >= 0 && s.fret <= 12); assert.equal(noteAt(s.string, s.fret).name, 'A'); }
   const E = noteSpots(NOTE_NAMES.indexOf('E')).map(s => `${s.string}@${s.fret}`);
-  assert.deepEqual(E, ['5@0', '0@0', '3@2', '1@5', '4@7', '2@9', '5@12', '0@12']);
+  assert.deepEqual(E, ['5@0', '0@0', '3@2', '1@5', '4@7', '2@9', '0@12', '5@12']);
+});
+
+test('boss: uses the level fret range (0-11 by default), nearer string first at a tie', () => {
+  const R = { from: 0, to: 11 };
+  const seq = (pc, range) => noteSpots(pc, range).map(s => `${s.string}@${s.fret}`);
+  assert.deepEqual(seq(NOTE_NAMES.indexOf('A'), R), ['4@0', '2@2', '0@5', '5@5', '3@7', '1@10']);
+  assert.deepEqual(seq(NOTE_NAMES.indexOf('E'), R), ['5@0', '0@0', '3@2', '1@5', '4@7', '2@9']);
+  assert.deepEqual(seq(NOTE_NAMES.indexOf('E'), { from: 0, to: 12 }).slice(-3), ['2@9', '0@12', '5@12']);
+  const boss = createBoss(L1, R);
+  assert.ok(boss.items.every(i => i.fret <= 11));
+  assert.equal(boss.items.length, 12);
 });
 
 test('boss: items carry the run, the position in it and the run size', () => {
@@ -367,4 +378,5 @@ test('bossFretLabel names the fret only when the string repeats the note in 0-12
   assert.equal(bossFretLabel(5, 0), 'open');
   assert.equal(bossFretLabel(5, 12), 'fret 12');
   assert.equal(bossFretLabel(5, 5), '');
+  assert.equal(bossFretLabel(5, 0, { from: 0, to: 11 }), '');
 });

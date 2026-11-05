@@ -3,7 +3,7 @@
 // fret 12. "Down" means toward the thinner strings, the way the player says it.
 
 import { STRINGS, pitchClass } from './notes.js';
-import { levelRange } from './path.js';
+import { levelRange, orderSpots } from './path.js';
 
 export const CHAIN_MIN = 3;                  // a chain is at least this long
 export const CHAIN_LAST_FRET = 12;           // the neck repeats after this
@@ -19,16 +19,12 @@ export function chainSpots(string, fret, range) {
   const last = Math.min(range.to, CHAIN_LAST_FRET);
   if (fret < range.from || fret > last) return null;
   const pc = pitchClass(STRINGS[string].midi + fret);
-  const spots = [{ string, fret }];
+  const start = { string, fret };
+  const later = [];
   for (let f = fret + 1; f <= last; f++) {
-    const here = [];
-    for (let s = 0; s < STRINGS.length; s++) if (pitchClass(STRINGS[s].midi + f) === pc) here.push({ string: s, fret: f });
-    while (here.length) {
-      const prev = spots[spots.length - 1];
-      here.sort((x, y) => Math.abs(x.string - prev.string) - Math.abs(y.string - prev.string));
-      spots.push(here.shift());
-    }
+    for (let s = 0; s < STRINGS.length; s++) if (pitchClass(STRINGS[s].midi + f) === pc) later.push({ string: s, fret: f });
   }
+  const spots = [start, ...orderSpots(later, start)];
   return spots.length >= CHAIN_MIN ? spots : null;
 }
 

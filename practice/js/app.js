@@ -32,7 +32,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '27';
+const BUILD = '28';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -234,8 +234,9 @@ function handleSessionEvent(type, p) {
         let spokenIntro = '';
         if (inBoss) {
           const item = boss.current;
+          const bossLabel = bossFretLabel(item.string, item.fret, boss.range);
           for (const f of boss.found) fretboard.showNote(f.string, f.fret, 'correct', p.note.name, true);
-          setPrompt(`Every ${p.note.name} · ${item.n} of ${item.of} · String ${STRINGS[item.string].number}${bossFretLabel(item.string, item.fret) ? ` · ${bossFretLabel(item.string, item.fret)}` : ''}`, p.note.name, 'listening');
+          setPrompt(`Every ${p.note.name} · ${item.n} of ${item.of} · String ${STRINGS[item.string].number}${bossLabel ? ` · ${bossLabel}` : ''}`, p.note.name, 'listening');
           if (boss.runStart) spokenIntro = `${showBossIntro(boss, p.note.name)} `;
         } else setPrompt(`${prefix}String ${STRINGS[p.target.string].number}`, p.note.name, 'listening');
         if (notice) { setStatus(notice.text, notice.tone); notice = null; }
@@ -774,7 +775,7 @@ function failBoss(reason, text) {
 async function startBoss() {
   const lvl = path.currentLevel;
   if (!isNoteMode() || !path.progress(lvl.id, fretRange()).bossUnlocked) return;
-  const b = createBoss(lvl);
+  const b = createBoss(lvl, fretRange());
   if (b.state !== 'running') { setStatus('No spot of this level falls inside your fret range.', 'bad'); return; }
   boss = b; notice = null; chain = null; bossFinale = null; hideBossEnd();
   renderPath();

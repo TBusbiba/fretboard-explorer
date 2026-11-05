@@ -51,10 +51,10 @@ export function fretsFor(pc, string, { from, to }) {
   return out;
 }
 
-/** Fret suffix for a boss prompt when the same note sounds twice on that string in 0-12 (open vs 12th); '' otherwise. */
-export function bossFretLabel(string, fret) {
+/** Fret suffix for a boss prompt when the same note sounds twice on that string inside `range` (open vs 12th); '' otherwise. */
+export function bossFretLabel(string, fret, range = { from: 0, to: MAX_FRET }) {
   const pc = pitchClass(STRINGS[string].midi + fret);
-  if (fretsFor(pc, string, { from: 0, to: MAX_FRET }).length < 2) return '';
+  if (fretsFor(pc, string, range).length < 2) return '';
   return fret === 0 ? 'open' : `fret ${fret}`;
 }
 
@@ -110,24 +110,46 @@ export function starsFor(avgMs, mistakes = 0) {
 /** The notes a boss runs through: the ones this level adds. */
 export function bossNotes(level) { return [...level.added]; }
 
-/** Every spot of a note in frets 0-12, left to right: by fret, and at one fret the thicker (lower) string first. */
-export function noteSpots(pc) {
+/**
+ * Orders spots of one note left to right: by fret, and at a tie on the same fret the spot
+ * nearest (in strings) to the previous one first. With no `prev` the thicker string goes first.
+ * Shared by the chains and the boss round.
+ */
+export function orderSpots(spots, prev = null) {
+  const left = [...spots].sort((a, b) => a.fret - b.fret || b.string - a.string);
   const out = [];
-  for (const s of STRINGS) for (const fret of fretsFor(pc, s.index, { from: 0, to: MAX_FRET })) out.push({ string: s.index, fret });
-  return out.sort((a, b) => a.fret - b.fret || b.string - a.string);
+  while (left.length) {
+    const fret = left[0].fret;
+    const tie = left.filter(s => s.fret === fret);
+    left.splice(0, tie.length);
+    while (tie.length) {
+      if (prev) tie.sort((x, y) => Math.abs(x.string - prev.string) - Math.abs(y.string - prev.string));
+      prev = tie.shift();
+      out.push(prev);
+    }
+  }
+  return out;
+}
+
+/** Every spot of a note inside `range` (default 0-12), ordered by `orderSpots`. */
+export function noteSpots(pc, range = { from: 0, to: MAX_FRET }) {
+  const out = [];
+  for (const s of STRINGS) for (const fret of fretsFor(pc, s.index, range)) out.push({ string: s.index, fret });
+  return orderSpots(out);
 }
 
 /**
  * One run per note of the level's group; in each run the player plays every spot of
- * that note from fret 0 to 12, left to right. The user's fret range does not apply.
+ * that note inside the level's fret range (the user's range kept within 0-12), left to right.
  * Wrong notes are counted, not fatal; skipping ends the round. The average answer
  * time and the mistakes set the stars.
  */
-export function createBoss(level) {
-  const runs = bossNotes(level).map(pc => ({ pc, spots: noteSpots(pc) }));
+export function createBoss(level, range = { from: 0, to: MAX_FRET }) {
+  const r = levelRange(level, range);
+  const runs = bossNotes(level).map(pc => ({ pc, spots: noteSpots(pc, r) }));
   const items = runs.flatMap((r, run) => r.spots.map((s, i) => ({ ...s, pc: r.pc, run, n: i + 1, of: r.spots.length })));
   const boss = {
-    levelId: level.id, runs, items, index: 0, times: [], mistakes: 0,
+    levelId: level.id, range: r, runs, items, index: 0, times: [], mistakes: 0,
     state: items.length ? 'running' : 'failed', reason: items.length ? null : 'empty',
     get current() { return boss.state === 'running' ? boss.items[boss.index] : null; },
     get avgMs() { return boss.times.length ? boss.times.reduce((a, b) => a + b, 0) / boss.times.length : null; },
