@@ -1,7 +1,7 @@
 import { STRINGS, FRET_COUNT, INTERVALS, CHORDS, TRIADS, STRING_GROUPS, INVERSIONS, DEGREE_LABELS, NOTE_NAMES, intervalById, chordById, triadById, selectedTriads, stringGroupById, spokenName, tipFor, noteAt, pickTarget, pitchClass } from './notes.js';
 import { createFretboard } from './fretboard.js';
 import { createPitchDetector } from './pitch.js';
-import { createVoice } from './voice.js';
+import { createVoice, CLIP_VOICE, usesClips } from './voice.js';
 import { createSound } from './sound.js';
 import { createMicGate } from './mic-gate.js';
 import { createSession } from './session.js';
@@ -32,7 +32,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '21';
+const BUILD = '22';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -94,7 +94,7 @@ let promptToken = 0;
 // `speak` forces the voice on (Say + play the note) even when spoken prompts are off.
 async function announce(text, playMidi, { speak = settings.voice } = {}) {
   const token = ++promptToken;
-  if (speak && text) await voice.speak(text, voiceOpts());
+  if (speak && text) await voice.speak(text, { ...voiceOpts(), wait: true });
   if (token !== promptToken) return;
   if (playMidi != null) await sound.play(playMidi);
 }
@@ -218,7 +218,7 @@ function handleSessionEvent(type, p) {
           const item = boss.current;
           for (const f of boss.found) fretboard.showNote(f.string, f.fret, 'correct', p.note.name, true);
           setPrompt(`Every ${p.note.name} · ${item.n} of ${item.of} · String ${STRINGS[item.string].number}`, p.note.name, 'listening');
-          if (boss.runStart) spokenIntro = `${showBossIntro(boss, p.note.name)}, `;
+          if (boss.runStart) spokenIntro = `${showBossIntro(boss, p.note.name)} `;
         } else setPrompt(`${prefix}String ${STRINGS[p.target.string].number}`, p.note.name, 'listening');
         if (notice) { setStatus(notice.text, notice.tone); notice = null; }
         else setStatus(inBoss ? `Next: ${stringLabel(p.target.string)} string${boss.mistakes ? ` · ${boss.mistakes} mistake${boss.mistakes > 1 ? 's' : ''}` : ''}` : inReview ? 'Review from an earlier level' : 'Listening…');
@@ -228,9 +228,9 @@ function handleSessionEvent(type, p) {
             fretboard.showNote(prev.string, prev.fret, 'root', p.note.name);
             fretboard.showArrow(prev, p.target);
             setStatus(`${chain.hint} →`, 'chain');
-          } else spokenIntro = `${showChainIntro(chain, p.note.name)}, `;
+          } else spokenIntro = `${showChainIntro(chain, p.note.name)} `;
         }
-        announce(`${spokenIntro}string ${STRINGS[p.target.string].number}${inBoss ? '' : `, ${spokenName(p.note.name)}`}`, settings.playNote ? p.note.midi : null,
+        announce(`${spokenIntro}String ${STRINGS[p.target.string].number}, ${spokenName(p.note.name)}`, settings.playNote ? p.note.midi : null,
           { speak: settings.voice || settings.playNote });
       }
       break;
@@ -245,7 +245,7 @@ function handleSessionEvent(type, p) {
         const { root } = session.target, iv = session.interval;
         fretboard.showNote(root.string, root.fret, 'correct', session.rootNote.name);
         setStatus(`Root ✓ — now the ${iv.label} ${iv.arrow}`, 'ok');
-        if (settings.voice && settings.speakFeedback) voice.speak('good', voiceOpts());
+        if (settings.voice && settings.speakFeedback) voice.speak('Good', voiceOpts());
       }
       break;
     }
@@ -299,7 +299,7 @@ function handleSessionEvent(type, p) {
       if (comboActive() && !bossFinale && p.firstTry && !p.hinted) comboHit(p.ms);
       if (chain && session.mode === 'note' && !boss) onChainCorrect(p);
       setStatus(`Correct · ${(p.ms / 1000).toFixed(1)} s${extra ? ` · ${extra}` : ''}`, 'ok');
-      if (settings.voice && settings.speakFeedback) voice.speak('correct', voiceOpts());
+      if (settings.voice && settings.speakFeedback) speakCorrect();
       updateStats();
       renderHeatPanel();
       break;
@@ -356,6 +356,27 @@ function handleSessionEvent(type, p) {
 }
 
 function voiceOpts() { return { voiceName: settings.voiceName, rate: settings.voiceRate }; }
+
+// Shouts earned by this answer (streak shouts, chain complete, new best): spoken after "Correct"
+// when they have a recorded clip. "Legendary ×40" and the like stay silent.
+let pendingShouts = [];
+function queueShout(text) {
+  if (settings.voice && settings.speakFeedback && usesClips(settings.voiceName) && voice.clipsFor(text)) pendingShouts.push(text);
+}
+function speakCorrect() {
+  const shouts = usesClips(settings.voiceName) ? pendingShouts : [];
+  pendingShouts = [];
+  voice.speak(['Correct!', ...shouts].join(' '), voiceOpts());
+}
+// The common clips, fetched on the first Start so the first prompt does not lag.
+let clipsWarm = false;
+function warmClips() {
+  if (clipsWarm || !usesClips(settings.voiceName)) return;
+  clipsWarm = true;
+  voice.preload(['Correct', 'Good', 'Octave too high', 'Octave too low', 'Nice!', 'Great!', 'On fire!', 'Unstoppable!', 'Legendary!', 'Chain complete!',
+    'New best streak!', 'Quick note chain round!', 'Boss round!',
+    ...['low E', 'A', 'D', 'G', 'B', 'E', 'high E'].map(n => `Start with the ${n} string!`)]);
+}
 
 function setPrompt(stringText, noteText, state) {
   ui.stringName.textContent = stringText;
@@ -485,8 +506,8 @@ function comboHit(ms) {
   flash(ui.comboGain, `+${r.points}`, 1100);
   const lift = r.heat * 0.07 + 1.1;
   ui.prompt.style.setProperty('--pop', lift.toFixed(2));
-  if (r.shout) flash(ui.comboShout, r.shout, 1400);
-  if (r.newBest) { ui.comboFlag.dataset.kind = 'best'; flash(ui.comboFlag, 'New best streak!', 1800); }
+  if (r.shout) { flash(ui.comboShout, r.shout, 1400); queueShout(r.shout); }
+  if (r.newBest) { ui.comboFlag.dataset.kind = 'best'; flash(ui.comboFlag, 'New best streak!', 1800); queueShout('New best streak!'); }
 }
 
 function comboMiss() {
@@ -523,7 +544,8 @@ function showChainIntro(c, noteName) {
   ui.chainIntro.classList.remove('is-on'); void ui.chainIntro.offsetWidth; ui.chainIntro.classList.add('is-on');
   clearTimeout(introTimer);
   introTimer = setTimeout(() => { hideChainIntro(); session.restartClock(); }, INTRO_MS);
-  return `Quick note chain round. ${c.spots.length} ${spokenName(noteName)} notes. Start with the ${stringName} string`;
+  const count = ['Three', 'Four', 'Five'][c.spots.length - 3] || c.spots.length;
+  return `Quick note chain round! ${count} ${spokenName(noteName)} notes! Start with the ${stringLabel(c.current.string)} string!`;
 }
 
 /** A chain note was answered (called after the streak and path were scored). */
@@ -535,6 +557,7 @@ function onChainCorrect(p) {
   const bonus = CHAIN_BONUS * combo.multiplier;
   if (comboActive()) { combo.bonus(bonus); saveComboBests(); renderCombo(); flash(ui.comboGain, `+${bonus}`, 1400); }
   flash(ui.comboShout, 'Chain complete!', 1700);
+  queueShout('Chain complete!');
 }
 
 // ---------- boss round: interstitial, progress strip, finale ----------
@@ -551,7 +574,7 @@ function showBossIntro(b, noteName) {
   ui.chainIntro.classList.remove('is-on'); void ui.chainIntro.offsetWidth; ui.chainIntro.classList.add('is-on');
   clearTimeout(introTimer);
   introTimer = setTimeout(() => { hideChainIntro(); session.restartClock(); }, BOSS_INTRO_MS);
-  return first ? `Boss round. Every ${spokenName(noteName)}` : `Next. Every ${spokenName(noteName)}`;
+  return first ? `Boss round! Find every ${spokenName(noteName)}!` : `Next: every ${spokenName(noteName)}!`;
 }
 
 /** The run strip: one chip per note of the group, then a pip per spot of the current note. */
@@ -896,6 +919,7 @@ ui.heatReset.addEventListener('click', () => {
 // ---------- controls ----------
 async function toggleSession() {
   if (session.state === 'idle') {
+    warmClips();
     await pitch.start();
     session.start();
   } else {
@@ -1108,7 +1132,7 @@ f.voiceOn.addEventListener('change', () => commit({ voice: f.voiceOn.checked }))
 f.voiceFeedback.addEventListener('change', () => commit({ speakFeedback: f.voiceFeedback.checked }));
 f.voiceSelect.addEventListener('change', () => commit({ voiceName: f.voiceSelect.value }));
 f.voiceRate.addEventListener('input', () => commit({ voiceRate: +f.voiceRate.value }));
-f.voiceTest.addEventListener('click', () => voice.speak('string 5, C sharp', voiceOpts()));
+f.voiceTest.addEventListener('click', () => voice.speak('String 5, C sharp', voiceOpts()));
 $('play-note').addEventListener('change', (e) => { commit({ playNote: e.target.checked }); syncButtons(); });
 $('sound-test').addEventListener('click', () => sound.play(48));
 
@@ -1146,17 +1170,17 @@ for (const iv of INTERVALS) {
 
 function populateVoices() {
   const list = voice.getVoices();
-  f.voiceSelect.innerHTML = '<option value="">Browser default</option>';
+  f.voiceSelect.innerHTML = `<option value="${CLIP_VOICE}">Adam (recorded)</option><option value="__browser">Browser default</option>`;
   for (const v of list) {
     const o = document.createElement('option');
     o.value = v.name; o.textContent = `${v.name} (${v.lang})`;
     f.voiceSelect.appendChild(o);
   }
-  f.voiceSelect.value = list.some(v => v.name === settings.voiceName) ? settings.voiceName : '';
+  f.voiceSelect.value = list.some(v => v.name === settings.voiceName) || settings.voiceName === '__browser' ? settings.voiceName : CLIP_VOICE;
 }
 if (voice.supported) {
   populateVoices();
-  speechSynthesis.addEventListener('voiceschanged', populateVoices);
+  if ('speechSynthesis' in window) speechSynthesis.addEventListener('voiceschanged', populateVoices);
 } else {
   f.voiceOn.disabled = f.voiceFeedback.disabled = f.voiceSelect.disabled = f.voiceTest.disabled = true;
   commit({ voice: false });

@@ -28,7 +28,7 @@ export const DEFAULTS = Object.freeze({
   pauseMs: 900,           // pause after a correct answer before the next target
 
   voice: true,
-  voiceName: '',          // '' = browser default English voice
+  voiceName: 'adam',      // 'adam' = recorded clips (TTS where a phrase has none); '__browser' = browser default voice; else a browser voice name
   voiceRate: 1,
   speakFeedback: true,
 
