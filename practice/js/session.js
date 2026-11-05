@@ -114,6 +114,7 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
     session.note = session.steps[0];
     session.startedAt = now();
     session.hintAnchor = session.startedAt;
+    session.held = false;
     session.hintStage = 0;
     session.wrongSeen = new Set();
     session.hadWrong = false;
@@ -150,10 +151,14 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
 
   // The host held the question back (an announcement): the clock and the hint countdown start now.
   session.restartClock = () => {
+    session.held = false;
     if (session.state !== 'listening') return;
     session.startedAt = now();
     session.hintAnchor = session.startedAt;
   };
+
+  // Hold the clock and hint countdown at zero until restartClock (the voice is still saying what to play).
+  session.holdClock = () => { if (session.state === 'listening') session.held = true; };
 
   session.showHint = showHint;
 
@@ -174,7 +179,7 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
         emit('step', { step: session.step, total: session.steps.length, note: session.note });
         return;
       }
-      const ms = now() - session.startedAt;
+      const ms = Math.max(1, session.held ? 0 : now() - session.startedAt);
       const firstTry = !session.hadWrong;
       stats.total += 1;
       if (firstTry) stats.firstTry += 1;
@@ -204,7 +209,7 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
     if (session.state === 'listening') {
       const { hintDelayMs } = getSettings();
       // Each hint stage arrives one delay after the previous stage (or step).
-      if (hintDelayMs != null && session.hintStage < session.hintStages && t - session.hintAnchor >= hintDelayMs) showHint();
+      if (!session.held && hintDelayMs != null && session.hintStage < session.hintStages && t - session.hintAnchor >= hintDelayMs) showHint();
     } else if (session.state === 'resolved') {
       const { pauseMs = 900 } = getSettings();
       if (t - session.resolvedAt >= pauseMs) nextTarget();
@@ -215,7 +220,7 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
   session.hintProgress = () => {
     const { hintDelayMs } = getSettings();
     if (session.state !== 'listening' || hintDelayMs == null || session.hintStage >= session.hintStages) return null;
-    const elapsed = now() - session.hintAnchor;
+    const elapsed = session.held ? 0 : now() - session.hintAnchor;
     return { fraction: Math.min(1, Math.max(0, elapsed / hintDelayMs)), remainingMs: Math.max(0, hintDelayMs - elapsed) };
   };
 

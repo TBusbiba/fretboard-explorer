@@ -352,3 +352,18 @@ test('find-the-note: octave feedback only when no fret in range matches; exact w
   c.s.noteDetected(52);
   assert.equal(c.events.find(e => e.type === 'wrong').octaveOff, 1);
 });
+
+test('a held clock stays at zero until restartClock, and an answer never takes 0 ms', () => {
+  const { s, events, advance } = harness({ hintDelayMs: 1000 });
+  s.start();
+  s.holdClock();
+  advance(5000);
+  assert.equal(s.hintProgress().fraction, 0);
+  assert.ok(!events.some(e => e.type === 'hint'));
+  s.restartClock();
+  advance(400);
+  assert.ok(Math.abs(s.hintProgress().fraction - 0.4) < 1e-9);
+  s.holdClock();
+  s.noteDetected(s.note.midi);
+  assert.equal(events.find(e => e.type === 'correct').ms, 1);
+});

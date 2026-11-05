@@ -52,7 +52,7 @@ export function createVoice({ onSpeaking = () => {} } = {}) {
     return a;
   }
 
-  function playOne(file, rate) {
+  function playOne(file, rate, onStart) {
     return new Promise((resolve, reject) => {
       const a = audioFor(file);
       current = a;
@@ -70,18 +70,18 @@ export function createVoice({ onSpeaking = () => {} } = {}) {
       const onPause = () => { if (!a.ended) finish(resolve); };   // cancel() paused it
       a.addEventListener('ended', onEnd); a.addEventListener('error', onErr); a.addEventListener('pause', onPause);
       timer = setTimeout(() => finish(resolve), CLIP_TIMEOUT_MS);
-      a.play().catch(err => finish(reject, err));
+      a.play().then(() => { if (onStart) onStart(); }, err => finish(reject, err));
     });
   }
 
   /** Play the clips back to back. Resolves true when played (or cancelled), false when the very first could not start. */
-  async function playClips(files, rate, my) {
+  async function playClips(files, rate, my, onPromptStart) {
     setSpeaking(true);
     let first = true;
     try {
-      for (const f of files) {
+      for (let i = 0; i < files.length; i++) {
         if (my !== run) return true;
-        try { await playOne(f, rate); } catch (err) { if (first) return false; return true; }
+        try { await playOne(files[i], rate, i === files.length - 1 ? onPromptStart : null); } catch (err) { if (first) return false; return true; }
         first = false;
       }
       return true;
@@ -90,7 +90,7 @@ export function createVoice({ onSpeaking = () => {} } = {}) {
     }
   }
 
-  function speakTts(text, rate, voiceName) {
+  function speakTts(text, rate, voiceName, onPromptStart) {
     if (!ttsSupported) return Promise.resolve();
     speechSynthesis.cancel();
     return new Promise((resolve) => {
@@ -99,7 +99,7 @@ export function createVoice({ onSpeaking = () => {} } = {}) {
       if (v) u.voice = v;
       u.lang = v ? v.lang : 'en-US';
       u.rate = rate;
-      u.onstart = () => setSpeaking(true);
+      u.onstart = () => { setSpeaking(true); if (onPromptStart) onPromptStart(); };
       const done = () => { setSpeaking(false); resolve(); };
       u.onend = done;
       u.onerror = done;
@@ -133,9 +133,12 @@ export function createVoice({ onSpeaking = () => {} } = {}) {
      * Speak text, cancelling anything playing. Resolves when done. With the recorded
      * voice every phrase of the text that has a clip is played; if any phrase lacks
      * one the whole text goes to speechSynthesis (or, with `clipsOnly`, stays silent).
+     * `onPromptStart` is called once when the last phrase starts playing (or the TTS utterance starts).
      * `wait` lets a clip still playing finish first instead of cutting it off.
      */
-    async speak(text, { voiceName = CLIP_VOICE, rate = 1, clipsOnly = false, wait = false } = {}) {
+    async speak(text, { voiceName = CLIP_VOICE, rate = 1, clipsOnly = false, wait = false, onPromptStart = null } = {}) {
+      let started = false;   // fires once, when the last phrase (the prompt) begins playing
+      const promptStart = onPromptStart ? () => { if (!started) { started = true; onPromptStart(); } } : null;
       const clips = usesClips(voiceName);
       if (clips) await manifestReady;
       const files = clips ? clipFiles(text, manifest) : null;
@@ -147,7 +150,7 @@ export function createVoice({ onSpeaking = () => {} } = {}) {
       const my = ++run;
       if (current) { current.pause(); current = null; }
       if (files) {
-        const p = playClips(files, rate, my);
+        const p = playClips(files, rate, my, promptStart);
         const tracked = p.then(() => {}, () => {});
         clipDone = tracked;
         tracked.then(() => { if (clipDone === tracked) clipDone = null; });
@@ -156,7 +159,7 @@ export function createVoice({ onSpeaking = () => {} } = {}) {
         if (clipsOnly || my !== run) return;
       }
       clipDone = null;
-      return speakTts(text, rate, clips ? '' : voiceName);
+      return speakTts(text, rate, clips ? '' : voiceName, promptStart);
     },
 
     cancel() {

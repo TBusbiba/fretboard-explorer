@@ -32,7 +32,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '24';
+const BUILD = '25';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -91,9 +91,26 @@ function playCue() {
 // Speak, then play. Dropped if the target changed meanwhile.
 let promptToken = 0;
 // `speak` forces the voice on (Say + play the note) even when spoken prompts are off.
-async function announce(text, playMidi, { speak = settings.voice } = {}) {
+// `holdClock` (note prompts): the answer clock stays at zero until the prompt phrase itself starts playing.
+const CLOCK_HOLD_MAX_MS = 4500;      // never freeze the clock longer than this once the voice has gone quiet
+const CLOCK_HOLD_SPEECH_MS = 20000;  // ...or longer than this even while it is still talking (long chain/boss intros)
+async function announce(text, playMidi, { speak = settings.voice, holdClock = false } = {}) {
   const token = ++promptToken;
-  if (speak && text) await voice.speak(text, { ...voiceOpts(), wait: true });
+  let release = () => {};
+  const held = holdClock && speak && !!text;
+  if (held) {
+    session.holdClock();
+    let done = false;
+    const t0 = performance.now();
+    let safety = 0;
+    const guard = () => (voice.speaking && performance.now() - t0 < CLOCK_HOLD_SPEECH_MS ? (safety = setTimeout(guard, 1000)) : release());
+    safety = setTimeout(guard, CLOCK_HOLD_MAX_MS);
+    release = () => { if (done) return; done = true; clearTimeout(safety); if (token === promptToken) session.restartClock(); };
+  }
+  if (speak && text) {
+    try { await voice.speak(text, { ...voiceOpts(), wait: true, onPromptStart: held ? release : null }); }
+    finally { release(); }
+  }
   if (token !== promptToken) return;
   if (playMidi != null) await sound.play(playMidi);
 }
@@ -232,7 +249,7 @@ function handleSessionEvent(type, p) {
           } else spokenIntro = `${showChainIntro(chain, p.note.name)} `;
         }
         announce(`${spokenIntro}String ${STRINGS[p.target.string].number}, ${spokenName(p.note.name)}`, settings.playNote ? p.note.midi : null,
-          { speak: settings.voice || settings.playNote });
+          { speak: settings.voice || settings.playNote, holdClock: true });
       }
       break;
     }
@@ -545,7 +562,7 @@ function showChainIntro(c, noteName) {
   ui.chainIntro.hidden = false;
   ui.chainIntro.classList.remove('is-on'); void ui.chainIntro.offsetWidth; ui.chainIntro.classList.add('is-on');
   clearTimeout(introTimer);
-  introTimer = setTimeout(() => { hideChainIntro(); session.restartClock(); }, INTRO_MS);
+  introTimer = setTimeout(() => { hideChainIntro(); if (!session.held) session.restartClock(); }, INTRO_MS);
   const count = ['Three', 'Four', 'Five'][c.spots.length - 3] || c.spots.length;
   return `Quick note chain round! ${count} ${spokenName(noteName)} notes! Start with the ${stringLabel(c.current.string)} string!`;
 }
@@ -575,7 +592,7 @@ function showBossIntro(b, noteName) {
   ui.chainIntro.hidden = false;
   ui.chainIntro.classList.remove('is-on'); void ui.chainIntro.offsetWidth; ui.chainIntro.classList.add('is-on');
   clearTimeout(introTimer);
-  introTimer = setTimeout(() => { hideChainIntro(); session.restartClock(); }, BOSS_INTRO_MS);
+  introTimer = setTimeout(() => { hideChainIntro(); if (!session.held) session.restartClock(); }, BOSS_INTRO_MS);
   return first ? `Boss round! Find every ${spokenName(noteName)}!` : `Next: every ${spokenName(noteName)}!`;
 }
 
@@ -812,7 +829,7 @@ function frame() {
   requestAnimationFrame(frame);
   if (session.state === 'idle') return;
   session.tick();
-  if (session.state === 'listening' && comboActive()) setSpeedBar(speedLeft(performance.now() - session.startedAt));
+  if (session.state === 'listening' && comboActive()) setSpeedBar(speedLeft(session.held ? 0 : performance.now() - session.startedAt));
   const prog = session.hintProgress();
   if (prog) {
     setRing(prog.fraction);
