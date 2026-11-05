@@ -86,6 +86,6 @@ test('path keeps best streak and score per level', () => {
   p.saveBests(1, { streak: 4, score: 1200 });
   assert.deepEqual(createPath(st).bests(1), { streak: 6, score: 1200 });
   assert.deepEqual(createPath(st).bests(2), { streak: 0, score: 0 });
-  const bad = memoryStorage({ 'fretboard-practice.path.v2': JSON.stringify({ current: 1, levels: { 1: { bestStreak: -3, bestScore: 'x', recent: [], covered: [] } } }) });
+  const bad = memoryStorage({ 'fretboard-practice.path.v3': JSON.stringify({ current: 1, levels: { 1: { bestStreak: -3, bestScore: 'x', recent: [], covered: [] } } }) });
   assert.deepEqual(createPath(bad).bests(1), { streak: 0, score: 0 });
 });

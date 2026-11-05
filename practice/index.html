@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="18">
+<html lang="en" data-build="19">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -59,13 +59,27 @@
     <section class="path" id="path" aria-label="Level path" hidden>
       <ol class="path__map" id="path-map"></ol>
       <div class="path__strip" id="path-strip">
-        <div class="path__head"><strong id="path-title"></strong><span id="path-goal"></span></div>
+        <div class="path__head">
+          <div class="path__titlerow"><strong id="path-title"></strong><button type="button" class="chip chip--plain path__tipbtn" id="tip-btn" aria-controls="tip-card" aria-expanded="false" title="Show the tip for this level">Tip</button></div>
+          <span id="path-goal"></span>
+        </div>
         <div class="path__stats" id="path-stats"></div>
         <div class="path__boss">
           <button type="button" class="btn btn--small" id="boss-btn" disabled>Boss round</button>
           <span id="boss-note"></span>
         </div>
       </div>
+      <aside class="tipcard" id="tip-card" role="region" aria-labelledby="tip-head" hidden>
+        <div class="tipcard__text">
+          <span class="tipcard__tag" id="tip-tag">Tip</span>
+          <h3 class="tipcard__head" id="tip-head"></h3>
+          <p class="tipcard__line" id="tip-line"></p>
+          <p class="tipcard__note" id="tip-note"></p>
+          <button type="button" class="btn btn--small tipcard__got" id="tip-got">Got it</button>
+        </div>
+        <div class="tipcard__fig" id="tip-fig"></div>
+        <p class="tipcard__swipe" id="tip-swipe" hidden>Swipe the diagram sideways →</p>
+      </aside>
     </section>
 
     <section class="prompt" id="prompt">

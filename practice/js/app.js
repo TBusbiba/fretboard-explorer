@@ -8,7 +8,9 @@ import { createSession } from './session.js';
 import { pickChain, createChain, createChainSchedule, CHAIN_LENGTH, CHAIN_BONUS } from './chain.js';
 import { createCombo, createCustomBest, speedLeft, BADGE_FROM } from './combo.js';
 import { createHistory } from './history.js';
-import { LEVELS, WINDOW, FIRST_TRY_MIN, AVG_MS_MAX, STAR2_MS, STAR3_MS, levelById, levelTitle, createPath, createBoss, createSpotBag, positionWeigher } from './path.js';
+import { LEVELS, WINDOW, FIRST_TRY_MIN, AVG_MS_MAX, STAR2_MS, STAR3_MS, levelById, levelTitle, createPath, createBoss, createSpotBag, createReviewMixer, levelRange, positionWeigher } from './path.js';
+import { landmarkHint } from './landmarks.js';
+import { levelTip } from './tips.js';
 import { shapeSvg } from './triad-shapes.js';
 import { loadSettings, saveSettings, resetSettings, DEFAULTS } from './settings.js';
 
@@ -30,7 +32,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '18';
+const BUILD = '19';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -63,10 +65,14 @@ const customBest = createCustomBest();
 const combo = createCombo();
 const isNoteMode = () => !['intervals', 'arpeggios', 'triads'].includes(settings.mode);
 const fretRange = () => ({ from: settings.fretFrom, to: settings.fretTo });
+// The frets actually drilled: in the Path, the level's own (landmark levels use their own frets whatever the setting says).
+const boardRange = () => (isNoteMode() && settings.noteMode === 'path' ? levelRange(path.currentLevel, fretRange()) : fretRange());
+function syncBoardRange() { const r = boardRange(); fretboard.setRange(r.from, r.to); }
 let weigher = null;   // rebuilt from the history after every answer
 function weighPosition(string, fret) { return (weigher ||= positionWeigher(history.positions()))(string, fret); }
 let boss = null;      // the boss round in progress, else null
 const spotBag = createSpotBag();
+const reviewMixer = createReviewMixer();
 const chainSchedule = createChainSchedule();
 let chain = null;     // the note chain in progress (Path only), else null
 let notice = null;    // {text, tone}: shown instead of "Listening…" on the next question
@@ -115,6 +121,8 @@ const session = createSession({
         if (pick) chain = createChain(pick, path.current);
       }
       if (chain) return { ...chain.current };
+      const review = reviewMixer.next(path.currentLevel, range, weighPosition);
+      if (review) return { ...review, review: true };
       return spotBag.next(path.currentLevel, range, path.progress(path.current, range).missing, weighPosition);
     }
     return pickTarget(opts, previous, rng);
@@ -137,6 +145,7 @@ const ui = {
   shapesToggle: $('shapes-toggle'), prompt: $('prompt'), promptTools: $('prompt-tools'), cueToggle: $('cue-toggle'), cuePicker: $('cue-picker'), shapes: $('shapes'), shapesTabs: $('shapes-tabs'), shapesList: $('shapes-list'),
   picker: $('interval-picker'), chordPicker: $('chord-picker'), triadPicker: $('triad-picker'), groupPicker: $('group-picker'), inversionPicker: $('inversion-picker'),
   combo: $('combo'), comboBadge: $('combo-badge'), comboN: $('combo-n'), comboMult: $('combo-mult'), comboScore: $('combo-score'), comboGain: $('combo-gain'), comboBest: $('combo-best'),
+  tipBtn: $('tip-btn'), tipCard: $('tip-card'), tipTag: $('tip-tag'), tipHead: $('tip-head'), tipLine: $('tip-line'), tipNote: $('tip-note'), tipFig: $('tip-fig'), tipSwipe: $('tip-swipe'), tipGot: $('tip-got'),
   chainIntro: $('chain-intro'), chainBig: $('chain-big'), chainStart: $('chain-start'),
   comboBar: $('combo-bar'), comboFill: $('combo-fill'), comboShout: $('combo-shout'), comboFlag: $('combo-flag'),
   heatReset: $('heat-reset'), heatBody: $('heat-body'),
@@ -200,10 +209,11 @@ function handleSessionEvent(type, p) {
         scrollBoardTo(p.target.fret);
         const inBoss = boss && boss.state === 'running';
         const inChain = !inBoss && chain && chain.current && chain.current.string === p.target.string && chain.current.fret === p.target.fret;
-        const prefix = inBoss ? `Boss round · ${boss.index + 1} of ${boss.items.length} · ` : inChain ? `Chain ${chain.index + 1} of ${CHAIN_LENGTH} · ` : '';
+        const inReview = !inBoss && !inChain && p.target.review;
+        const prefix = inBoss ? `Boss round · ${boss.index + 1} of ${boss.items.length} · ` : inChain ? `Chain ${chain.index + 1} of ${CHAIN_LENGTH} · ` : inReview ? 'Review · ' : '';
         setPrompt(`${prefix}String ${STRINGS[p.target.string].number}`, p.note.name, 'listening');
         if (notice) { setStatus(notice.text, notice.tone); notice = null; }
-        else setStatus(inBoss ? 'Boss round: a wrong note or a skip ends it' : 'Listening…');
+        else setStatus(inBoss ? 'Boss round: a wrong note or a skip ends it' : inReview ? 'Review from an earlier level' : 'Listening…');
         let spokenIntro = '';
         if (inChain) {
           const prev = chain.previous;
@@ -257,6 +267,7 @@ function handleSessionEvent(type, p) {
       } else {
         fretboard.showNote(p.target.string, p.target.fret, 'hint', session.note.name);
         setStatus(`Fret ${p.target.fret}`);
+        showLandmarkHint(p.target);
         ui.ring.classList.add('is-done');
       }
       break;
@@ -289,7 +300,7 @@ function handleSessionEvent(type, p) {
     case 'wrong': {
       // Only mark positions inside the practised range; an octave-off note is
       // explained in words instead of pointing at a fret you aren't studying.
-      if (p.fret >= settings.fretFrom && p.fret <= settings.fretTo && !p.octaveOff) {
+      if (p.fret >= boardRange().from && p.fret <= boardRange().to && !p.octaveOff) {
         fretboard.showNote(session.target.string, p.fret, 'wrong', p.name);
         const { string } = session.target, fret = p.fret;
         wrongTimers.push(setTimeout(() => fretboard.hideNote(string, fret), WRONG_MARKER_MS));
@@ -307,6 +318,7 @@ function handleSessionEvent(type, p) {
       const bossOver = session.mode === 'note' && boss && boss.state === 'running';
       if (bossOver) failBoss('wrong');
       setStatus(bossOver ? `${text} · Boss round over, try again anytime` : text, 'bad');
+      if (session.mode === 'note' && !bossOver) showLandmarkHint(session.target);
       if (settings.voice && settings.speakFeedback) voice.speak(spoken, voiceOpts());
       updateStats();
       break;
@@ -519,6 +531,45 @@ function onChainCorrect(p) {
 const LOCK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
 const stars = (n) => '★'.repeat(n) + '☆'.repeat(3 - n);
 
+// ---------- level tip card + landmark hints ----------
+let tipId = null;   // the level whose tip card is open, else null
+
+function renderTip() {
+  const show = tipId != null && tipId === path.current && isNoteMode() && settings.noteMode === 'path';
+  ui.tipCard.hidden = !show;
+  ui.tipBtn.setAttribute('aria-expanded', String(show));
+  ui.tipBtn.classList.toggle('is-on', show);
+  if (!show || ui.tipCard.dataset.id === String(tipId)) return;
+  const t = levelTip(tipId);
+  ui.tipCard.dataset.id = tipId;
+  ui.tipTag.textContent = `Level ${tipId} tip`;
+  ui.tipHead.textContent = t.headline;
+  ui.tipLine.textContent = t.line;
+  ui.tipNote.textContent = t.note;
+  ui.tipFig.innerHTML = t.svg;
+  ui.tipSwipe.hidden = ui.tipFig.scrollWidth <= ui.tipFig.clientWidth + 2;
+}
+
+function openTip(id = path.current) {
+  tipId = id;
+  path.markTip(id);
+  delete ui.tipCard.dataset.id;
+  renderTip();
+}
+
+function closeTip() { tipId = null; renderTip(); }
+
+ui.tipBtn.addEventListener('click', () => (tipId === path.current ? closeTip() : openTip()));
+ui.tipGot.addEventListener('click', closeTip);
+
+/** After a miss in the Path: count from the nearest landmark, and mark that landmark on the board. */
+function showLandmarkHint(target) {
+  if (!isNoteMode() || settings.noteMode !== 'path' || (boss && boss.state === 'running')) return;
+  const h = landmarkHint(target.string, target.fret);
+  setTip(h.text);
+  if (h.from) fretboard.showNote(h.from.string, h.from.fret, 'root', noteAt(h.from.string, h.from.fret).name);
+}
+
 const tiles = LEVELS.map((l) => {
   const li = document.createElement('li');
   const b = document.createElement('button');
@@ -528,6 +579,7 @@ const tiles = LEVELS.map((l) => {
   b.addEventListener('click', () => {
     if (l.id === path.current || !path.select(l.id)) return;
     boss = null; notice = null;
+    openTip(l.id);
     renderPath();
     if (session.state !== 'idle' && session.mode === 'note') session.skip();
   });
@@ -546,6 +598,8 @@ function renderPath() {
   renderCombo();
   const show = isNoteMode() && settings.noteMode === 'path';
   ui.path.hidden = !show;
+  syncBoardRange();
+  renderTip();
   if (!show) return;
   const range = fretRange();
   tiles.forEach((b, i) => {
@@ -563,15 +617,15 @@ function renderPath() {
   ui.pathTitle.textContent = `Level ${lvl.id} · ${levelTitle(lvl)}`;
   ui.pathGoal.textContent = pr.spotsTotal === 0
     ? 'No spot of this level falls inside your fret range. Widen the frets in Settings.'
-    : pr.bossUnlocked ? 'Boss round open: find every note on every string.'
-    : `Unlock the boss: last ${WINDOW} answers ${Math.round(FIRST_TRY_MIN * 100)}%+ first try, ${AVG_MS_MAX / 1000} s or less on average, every note on every string.`;
+    : pr.bossUnlocked ? 'Boss round open: find every spot of this level.'
+    : `Unlock the boss: last ${WINDOW} answers ${Math.round(FIRST_TRY_MIN * 100)}%+ first try, ${AVG_MS_MAX / 1000} s or less on average, every spot of the level.`;
   const box = (label, value, goal, met) =>
     `<div class="pstat${met ? ' is-met' : ''}"><span class="pstat__label">${label}</span><span class="pstat__value">${value}${met ? ' ✓' : ''}</span><span class="pstat__goal">${goal}</span></div>`;
   ui.pathStats.innerHTML =
     box('Answered', `${pr.answered}/${WINDOW}`, 'last 20', pr.met.count)
     + box('First try', pr.firstTryPct == null ? '—' : `${pr.firstTryPct}%`, `${Math.round(FIRST_TRY_MIN * 100)}% or more`, pr.met.firstTry)
     + box('Avg time', pr.avgMs == null ? '—' : `${(pr.avgMs / 1000).toFixed(1)} s`, `${AVG_MS_MAX / 1000} s or less`, pr.met.time)
-    + box('Spots', `${pr.spots}/${pr.spotsTotal}`, 'every string', pr.met.spots);
+    + box('Spots', `${pr.spots}/${pr.spotsTotal}`, 'every spot', pr.met.spots);
   ui.bossBtn.disabled = !pr.bossUnlocked || !!running;
   ui.bossBtn.classList.toggle('is-ready', pr.bossUnlocked && !running);
   ui.bossBtn.innerHTML = running ? `Boss ${boss.index}/${boss.items.length}` : `${pr.bossUnlocked ? '' : `${LOCK_SVG} `}${pr.done ? 'Boss again' : 'Boss round'}`;
@@ -589,11 +643,11 @@ function onNoteCorrect(p) {
       boss = null;
       notice = { text: next ? `Level ${next.id} unlocked: ${levelTitle(next)}` : 'Path complete: every level done', tone: 'ok' };
       popTile(lvl.id);
+      if (next) openTip(next.id);
       extra = `Level ${lvl.id} complete ${'★'.repeat(r.stars)}`;
     } else extra = `Boss ${boss.index} of ${boss.items.length}`;
   } else if (settings.noteMode === 'path') {
-    const pc = pitchClass(noteAt(p.target.string, p.target.fret).midi);
-    const r = path.record(path.current, { pc, string: p.target.string, firstTry: p.firstTry && !p.hinted, ms: p.ms }, fretRange());
+    const r = path.record(path.current, { string: p.target.string, fret: p.target.fret, firstTry: p.firstTry && !p.hinted, ms: p.ms, review: !!p.target.review }, fretRange());
     if (r.bossUnlocked) { extra = 'Boss round unlocked!'; popTile(path.current); }
   }
   renderPath();
@@ -629,6 +683,7 @@ ui.noteModePicker.querySelectorAll('.chip').forEach((c) => c.addEventListener('c
 $('path-reset').addEventListener('click', () => {
   if (!confirm('Reset your level path? Every level goes back to locked except level 1.')) return;
   path.reset(); boss = null; notice = null;
+  openTip(path.current);
   renderPath();
   if (session.state !== 'idle' && session.mode === 'note') session.skip();
 });
@@ -1126,7 +1181,7 @@ function applySettingsToUI() {
   f.fretTo.value = settings.fretTo;
   f.presets.querySelectorAll('.chip').forEach((c) =>
     c.classList.toggle('is-active', +c.dataset.from === settings.fretFrom && +c.dataset.to === settings.fretTo));
-  fretboard.setRange(settings.fretFrom, settings.fretTo);
+  syncBoardRange();
   if (typeof renderHeatPanel === 'function') renderHeatPanel();
 
   document.querySelector(`input[name="noteset"][value="${settings.naturalsOnly ? 'naturals' : 'chromatic'}"]`).checked = true;
@@ -1153,6 +1208,7 @@ function applySettingsToUI() {
 }
 
 applySettingsToUI();
+if (isNoteMode() && settings.noteMode === 'path' && !path.tipSeen(path.current)) openTip();
 syncButtons();
 updateStats();
 renderHeatPanel();

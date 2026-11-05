@@ -481,7 +481,7 @@ input[type="range"]::-moz-range-thumb {
 
 /* ---------- level path ---------- */
 .path { display: flex; flex-direction: column; gap: 18px; }
-.path__map { list-style: none; margin: 0; padding: 0 4px 4px 0; display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); gap: 10px; }
+.path__map { list-style: none; margin: 0; padding: 0 4px 4px 0; display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 10px; }
 .path__tile {
   width: 100%; min-height: 92px; padding: 8px 4px 6px;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
@@ -495,7 +495,7 @@ input[type="range"]::-moz-range-thumb {
 .path__tile:hover:not(:disabled) { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--nb-ink); }
 .path__tile:active:not(:disabled) { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--nb-ink); }
 .path__num { font: 700 26px/1 var(--nb-sans); font-variant-numeric: tabular-nums; }
-.path__names { font: 700 12px/1.2 var(--nb-sans); text-align: center; }
+.path__names { font: 700 12px/1.2 var(--nb-sans); text-align: center; word-spacing: 0.3em; }
 .path__mark { min-height: 16px; display: flex; align-items: center; font: 700 13px/1 var(--nb-sans); letter-spacing: 0.04em; }
 .path__tile.is-done { background: var(--nb-green); }
 .path__tile.is-current { background: var(--nb-cyan); transform: translate(-3px, -3px); box-shadow: var(--nb-shadow-md); }
@@ -684,6 +684,65 @@ input[type="range"]::-moz-range-thumb {
   .path__strip { grid-template-columns: minmax(0, 1fr); }
   .path__boss { grid-column: 1; grid-row: auto; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; text-align: left; }
   .path__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+}
+
+/* ---------- level tip card: a sentence and a small diagram of the idea ---------- */
+.path__titlerow { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; }
+.path__tipbtn { min-height: 30px; padding: 0 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+.path__tipbtn.is-on { background: var(--nb-yellow); }
+.tipcard {
+  display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 18px 24px; align-items: center;
+  padding: 20px 22px;
+  background: var(--nb-card);
+  border: var(--nb-border);
+  border-radius: var(--nb-radius);
+  box-shadow: var(--nb-shadow);
+}
+.tipcard[hidden] { display: none; }
+.tipcard__text { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+.tipcard__tag {
+  display: inline-block; padding: 3px 10px 4px;
+  background: var(--nb-yellow); border: var(--nb-border-sm); border-radius: 6px; box-shadow: var(--nb-shadow-sm);
+  font: 700 12px var(--nb-sans); letter-spacing: 0.08em; text-transform: uppercase; transform: rotate(-2deg);
+}
+.tipcard__head { margin: 14px 0 8px; font: 700 28px/1.1 var(--nb-sans); letter-spacing: -0.01em; }
+.tipcard__line { margin: 0 0 8px; font: 500 17px/1.45 var(--nb-sans); }
+.tipcard__note { margin: 0 0 16px; font: 500 14px/1.45 var(--nb-sans); color: var(--nb-ink-2); }
+.tipcard__got { background: var(--nb-green); text-transform: uppercase; letter-spacing: 0.04em; }
+.tipcard__fig { min-width: 0; overflow-x: auto; padding: 12px; background: var(--nb-paper); border: var(--nb-border-sm); border-radius: var(--nb-radius-sm); }
+.tipcard__swipe { grid-column: 1 / -1; margin: -6px 0 0; font: 700 12px var(--nb-sans); letter-spacing: 0.04em; text-transform: uppercase; color: var(--nb-ink-3); text-align: right; }
+.tipcard__swipe[hidden] { display: none; }
+.tipsvg { display: block; width: 100%; max-width: 640px; height: auto; margin: 0 auto; font-family: var(--nb-sans); }
+.tipsvg .tn-board { fill: #fff; stroke: var(--nb-ink); stroke-width: 3; }
+.tipsvg .tn-band { fill: var(--nb-yellow); opacity: 0.4; }
+.tipsvg .tn-inlay { fill: var(--nb-yellow); stroke: var(--nb-ink); stroke-width: 1.5; }
+.tipsvg .tn-fret { stroke: var(--nb-ink); stroke-width: 1.5; opacity: 0.5; }
+.tipsvg .tn-fret--12 { stroke-width: 3.5; opacity: 1; }
+.tipsvg .tn-nut { fill: var(--nb-ink); }
+.tipsvg .tn-string { stroke: var(--nb-ink); }
+.tipsvg .tn-name { font: 700 13px var(--nb-sans); fill: var(--nb-ink); }
+.tipsvg .is-dim { opacity: 0.25; }
+.tipsvg .tn-guide { stroke: var(--nb-ink); stroke-width: 1.5; stroke-dasharray: 4 4; opacity: 0.45; }
+.tipsvg .tn-num { font: 500 11px var(--nb-sans); fill: var(--nb-ink-3); text-anchor: middle; }
+.tipsvg .tn-num--mark { font-weight: 700; fill: var(--nb-ink); }
+.tipsvg .tn-empty { fill: none; stroke: var(--nb-ink-3); stroke-width: 1.5; opacity: 0.55; }
+.tipsvg .tn-sh { fill: var(--nb-ink); }
+.tipsvg .tn-dot { fill: #fff; stroke: var(--nb-ink); stroke-width: 2.5; }
+.tipsvg .tn-disc text { font: 700 14px var(--nb-sans); fill: var(--nb-ink); text-anchor: middle; }
+.tipsvg .tn-disc--a .tn-dot { fill: var(--nb-yellow); }
+.tipsvg .tn-disc--b .tn-dot { fill: var(--nb-cyan); }
+.tipsvg .tn-disc--c .tn-dot { fill: var(--nb-salmon); }
+.tipsvg .tn-disc--d .tn-dot { fill: var(--nb-green); }
+.tipsvg .tn-disc--p .tn-dot { fill: var(--nb-pink); }
+.tipsvg .tn-disc--g { opacity: 0.4; }
+.tipsvg .tn-arc path { fill: none; stroke: var(--nb-ink); stroke-width: 2.5; stroke-linecap: round; }
+.tipsvg .tn-arc polygon { fill: var(--nb-ink); }
+.tipsvg .tn-arc text { font: 700 13px var(--nb-sans); fill: var(--nb-ink); text-anchor: middle; paint-order: stroke; stroke: var(--nb-paper); stroke-width: 4px; }
+.tipsvg .tn-arc--g { opacity: 0.55; }
+@media (max-width: 760px) {
+  .tipcard { grid-template-columns: minmax(0, 1fr); padding: 16px; }
+  .tipcard__head { font-size: 24px; }
+  .tipcard__fig { padding: 8px; }
 }
 
 /* ---------- streak combo: badge, score, shout, speed bar ---------- */

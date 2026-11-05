@@ -6,6 +6,7 @@
 // from D or G it sits 3 frets up (the kink between G and B).
 
 import { STRINGS, pitchClass } from './notes.js';
+import { levelRange } from './path.js';
 
 export const CHAIN_LENGTH = 3;
 export const CHAIN_STARTS = [5, 4];          // low E, A
@@ -25,8 +26,13 @@ export function chainSpots(string, fret, range) {
   return spots.every(s => s.string >= 0 && s.fret >= range.from && s.fret <= range.to) ? spots : null;
 }
 
-/** Every chain that starts on low E or A, with a level note, and fits the fret range. */
-export function chainOptions(level, range) {
+/**
+ * Every chain that starts on low E or A, with a level note, and fits the fret range.
+ * Spot levels (the landmark levels) are made of fixed spots a chain cannot follow: none.
+ */
+export function chainOptions(level, fretRange) {
+  if (level.spots) return [];
+  const range = levelRange(level, fretRange);
   const out = [];
   for (const string of CHAIN_STARTS) {
     for (let fret = range.from; fret <= range.to; fret++) {

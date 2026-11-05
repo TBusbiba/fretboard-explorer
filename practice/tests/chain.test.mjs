@@ -37,13 +37,14 @@ test('every option is in range, starts on E or A, and holds one pitch class of t
       assert.ok(c.spots.every(s => s.fret >= 0 && s.fret <= 11 && pitchClass(midi(s)) === c.pc));
     }
   }
-  assert.ok(chainOptions(LEVELS[0], R).length > 0);
+  assert.ok(chainOptions(LEVELS[4], R).length > 0);
+  for (const id of [0, 1, 2, 3]) assert.deepEqual(chainOptions(LEVELS[id], R), [], 'spot levels have no chains');
 });
 
 test('pickChain: null when nothing fits, honours the prefer filter', () => {
-  assert.equal(pickChain(LEVELS[0], { from: 9, to: 11 }), null);
-  const a = chainOptions(LEVELS[0], R)[0];
-  const c = pickChain(LEVELS[0], R, () => 0, (pc, spots) => spots[0].fret === a.spots[0].fret && spots[0].string === a.spots[0].string);
+  assert.equal(pickChain(LEVELS[4], { from: 9, to: 11 }), null);
+  const a = chainOptions(LEVELS[4], R)[0];
+  const c = pickChain(LEVELS[4], R, () => 0, (pc, spots) => spots[0].fret === a.spots[0].fret && spots[0].string === a.spots[0].string);
   assert.deepEqual(c.spots[0], a.spots[0]);
 });
 
@@ -64,7 +65,7 @@ test('schedule: a chain every 6 to 9 normal questions', () => {
 });
 
 test('chain: three clean answers make it perfect; one slip does not', () => {
-  const spec = chainOptions(LEVELS[0], R)[0];
+  const spec = chainOptions(LEVELS[4], R)[0];
   const a = createChain(spec, 1);
   assert.deepEqual(a.current, spec.spots[0]);
   a.advance(true); a.advance(true);
