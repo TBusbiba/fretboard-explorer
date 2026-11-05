@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { LEVELS } from '../js/path.js';
 import { levelTip, TIPS, neckSvg } from '../js/tips.js';
+import { noteAt } from '../js/notes.js';
 
 const discs = (svg) => [...svg.matchAll(/<g class="tn-disc tn-disc--(\w)" data-note="([^"]*)">/g)].map(m => ({ kind: m[1], note: m[2] }));
 
@@ -18,18 +19,28 @@ test('every level has a tip: headline, one sentence, a note and an SVG diagram',
 });
 
 test('diagram discs carry the real notes of the idea', () => {
-  assert.deepEqual(discs(levelTip(2).svg).map(d => d.note), ['B', 'E', 'A', 'D']);               // BEAD
-  assert.deepEqual(discs(levelTip(3).svg).map(d => d.note), ['G', 'A', 'B', 'G', 'A', 'B']);
-  assert.deepEqual(discs(levelTip(4).svg).filter(d => d.kind === 'c').map(d => d.note), ['C', 'D', 'E']);
-  const open = discs(levelTip(1).svg);
-  assert.equal(open.length, 12);
-  assert.deepEqual(open.map(d => d.note).sort(), ['A', 'A', 'B', 'B', 'D', 'D', 'E', 'E', 'E', 'E', 'G', 'G']);
-  const neighbours = discs(levelTip(5).svg);
-  assert.deepEqual(neighbours.filter(d => d.kind === 'c').map(d => d.note), ['E', 'F', 'B', 'C']);
-  assert.ok(neighbours.every(d => !d.note.includes('♯')));
-  const sharps = discs(levelTip(7).svg);
-  assert.deepEqual(sharps.filter(d => d.kind === 'p').map(d => d.note), ['F♯', 'G♯', 'A♯', 'C♯', 'D♯']);
-  assert.deepEqual(discs(levelTip(6).svg).filter(d => d.kind === 'a').map(d => d.note), ['A', 'C', 'D', 'E', 'A']);
+  const notes = (id, kind) => discs(levelTip(id).svg).filter(d => !kind || d.kind === kind).map(d => d.note);
+  assert.deepEqual(notes(1), ['E', 'A', 'E', 'A', 'A']);            // fret 12 repeats the open note; fret 5 on low E is A
+  assert.deepEqual(notes(2), ['B', 'E', 'A', 'D']);                 // fret 7 on strings 6-3 (+ D on the G string)
+  assert.deepEqual(notes(3), ['B', 'E', 'A', 'D']);                 // BEAD
+  assert.deepEqual(notes(4), ['G', 'A', 'B', 'G', 'A', 'B']);
+  assert.deepEqual(notes(5), ['B', 'C', 'D', 'E']);
+  assert.deepEqual(notes(5, 'c'), ['C', 'D', 'E']);
+  assert.deepEqual(notes(6, 'c'), ['E', 'F', 'B', 'C']);
+  assert.ok(discs(levelTip(6).svg).every(d => !d.note.includes('♯')));
+  const pairs = { 7: ['F', 'F♯'], 8: ['C', 'C♯'], 9: ['G', 'G♯'], 10: ['D', 'D♯'], 11: ['A', 'A♯'] };
+  for (const [id, [nat, sharp]] of Object.entries(pairs)) {
+    assert.deepEqual(notes(id, 'w'), Array(6).fill(nat), `level ${id}`);
+    assert.deepEqual(notes(id, 'p'), Array(6).fill(sharp), `level ${id}`);
+  }
+});
+
+test('fret positions: BEAD at fret 7, G A B at 3-5-7, the neighbours one fret apart', () => {
+  assert.deepEqual([5, 4, 3, 2].map(s => noteAt(s, 7).name), ['B', 'E', 'A', 'D']);
+  assert.deepEqual([3, 5, 7].map(f => noteAt(5, f).name), ['G', 'A', 'B']);
+  assert.deepEqual([3, 5, 7].map(f => noteAt(0, f).name), ['G', 'A', 'B']);
+  assert.deepEqual([3, 5, 7].map(f => noteAt(4, f).name), ['C', 'D', 'E']);
+  assert.equal(noteAt(5, 5).name, 'A');
 });
 
 test('every disc label matches the note on the board (labels are computed, never typed)', () => {

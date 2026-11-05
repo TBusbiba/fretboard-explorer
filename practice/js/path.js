@@ -1,17 +1,16 @@
-// The level path for Find the note: eight landmark levels, each opened by
-// answering well enough to unlock its boss round. Levels 1-4 are defined by
-// explicit spots (string + fret) that carry a trick to remember: fret 12 = fret 0,
-// BEAD at fret 7, the G A B dots on the E strings, the same dots on the A string.
-// Levels 5-8 are notes on every string. Pure rules plus a small localStorage
-// store; `storage` is injectable for tests.
+// The level path for Find the note: eleven cumulative levels, each opened by
+// answering well enough to unlock its boss round. Level 1 is E and A; every
+// level after adds one note (D, B, G, C, F, then the sharps F♯ C♯ G♯ D♯ A♯), and
+// a level asks all the notes so far on every string. Pure rules plus a small
+// localStorage store; `storage` is injectable for tests.
 //
 // Level progress lives per level: the last WINDOW answers (first try or not,
-// how fast) and every spot answered correctly so far. A level's boss round
-// unlocks once, then stays unlocked.
+// how fast) and every note-on-string answered correctly so far. A level's boss
+// round unlocks once, then stays unlocked.
 
 import { NOTE_NAMES, STRINGS, pitchClass } from './notes.js';
 
-const KEY = 'fretboard-practice.path.v3';
+const KEY = 'fretboard-practice.path.v4';
 
 export const WINDOW = 20;          // answers that count towards the unlock
 export const FIRST_TRY_MIN = 0.75;  // share answered right on the first try
@@ -19,44 +18,29 @@ export const AVG_MS_MAX = 6000;    // average answer time
 export const STAR2_MS = 3000;      // boss average per note for 2 stars
 export const STAR3_MS = 2000;      // ... and for 3 stars (with no mistakes)
 export const STAR2_MISTAKES = 2;   // most mistakes that still earn 2 stars
-export const BOSS_ALL_NOTES = 4;   // notes the "All" level's boss runs through
 export const MAX_FRET = 12;        // every level lives in frets 0-12
-export const REVIEW_P = 0.25;      // chance of a review question after a normal one; never twice in a row, so ~20% overall
 
-const pcs = (names) => names.map(n => NOTE_NAMES.indexOf(n));
-const spotsOf = (strings, frets) => strings.flatMap(string => frets.map(fret => ({ string, fret })));
-const uniquePcs = (spots) => [...new Set(spots.map(s => pitchClass(STRINGS[s.string].midi + s.fret)))];
-const NATURALS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
-const SHARPS = ['C♯', 'D♯', 'F♯', 'G♯', 'A♯'];
+// The order notes join the path; level 1 starts with the first two.
+const ORDER = ['E', 'A', 'D', 'B', 'G', 'C', 'F', 'F♯', 'C♯', 'G♯', 'D♯', 'A♯'];
+const TITLES = ['E and A', 'Add D', 'BEAD', 'Gift of the gab', 'Add C', 'All naturals', 'Add F♯', 'Add C♯', 'Add G♯', 'Add D♯', 'Everything'];
+const pc = (name) => NOTE_NAMES.indexOf(name);
 
-const SPOT_LEVELS = [
-  { short: 'Open', title: 'Open strings', spots: spotsOf([5, 4, 3, 2, 1, 0], [0, 12]) },
-  { short: 'BEAD', title: 'BEAD', spots: spotsOf([5, 4, 3, 2], [7]) },
-  { short: 'G A B', title: 'Gift of the gab', spots: [...spotsOf([5], [3, 5, 7]), ...spotsOf([0], [3, 5, 7])] },
-  { short: 'C D E', title: 'A-string dots', spots: spotsOf([4], [3, 5, 7]) },
-];
-const NOTE_LEVELS = [
-  { short: 'E F B C', title: 'Neighbours', notes: pcs(['E', 'F', 'B', 'C']) },
-  { short: 'Naturals', title: 'All naturals', notes: pcs(NATURALS) },
-  { short: 'Sharps', title: 'Sharps', notes: pcs(SHARPS) },
-  { short: 'All', title: 'Everything', notes: NOTE_NAMES.map((_, i) => i) },
-];
-
-/** Levels 1-4 carry `spots`; 5-8 only `notes` (asked on every string). `notes` is always the pitch classes involved. */
-export const LEVELS = [...SPOT_LEVELS.map(l => ({ ...l, notes: uniquePcs(l.spots) })), ...NOTE_LEVELS]
-  .map((l, i) => ({ id: i + 1, ...l }));
+/** `notes`: every pitch class the level asks; `added`: the ones this level brings in (the boss group). */
+export const LEVELS = TITLES.map((title, i) => {
+  const added = ORDER.slice(i === 0 ? 0 : i + 1, i + 2).map(pc);
+  return {
+    id: i + 1, title, added,
+    short: i === 0 ? 'E A' : `+${ORDER[i + 1]}`,
+    notes: ORDER.slice(0, i + 2).map(pc),
+  };
+});
 
 export function levelById(id) { return LEVELS.find(l => l.id === id) || null; }
 
 export function levelTitle(level) { return level.title; }
 
-/**
- * The frets a level is asked in. Spot levels (1-4) are the lesson itself, so they
- * always use their own frets whatever the fret-range setting says; note levels use
- * the setting, kept inside 0-12.
- */
+/** The frets a level is asked in: the fret-range setting, kept inside 0-12. */
 export function levelRange(level, range) {
-  if (level.spots) return { from: 0, to: MAX_FRET };
   return { from: Math.max(0, range.from), to: Math.min(MAX_FRET, range.to) };
 }
 
@@ -74,27 +58,16 @@ export function bossFretLabel(string, fret) {
   return fret === 0 ? 'open' : `fret ${fret}`;
 }
 
-/** Coverage key: `string@fret` for a spot level, `pc:string` (any fret) for a note level. */
+/** Coverage key: the note and the string (any fret). */
 export function spotKey(level, string, fret) {
-  return level.spots ? `${string}@${fret}` : `${pitchClass(STRINGS[string].midi + fret)}:${string}`;
+  return `${pitchClass(STRINGS[string].midi + fret)}:${string}`;
 }
 
 /** What the level asks, as coverage keys, inside the fret range. */
 export function requiredSpots(level, range) {
-  if (level.spots) return level.spots.map(s => spotKey(level, s.string, s.fret));
   const r = levelRange(level, range), out = [];
   for (const pc of level.notes) {
     for (const s of STRINGS) if (fretsFor(pc, s.index, r).length) out.push(`${pc}:${s.index}`);
-  }
-  return out;
-}
-
-/** Every concrete {string, fret} the level can ask inside the fret range. */
-export function levelSpots(level, range) {
-  if (level.spots) return level.spots.map(s => ({ ...s }));
-  const r = levelRange(level, range), out = [];
-  for (const s of STRINGS) {
-    for (let fret = r.from; fret <= r.to; fret++) if (level.notes.includes(pitchClass(s.midi + fret))) out.push({ string: s.index, fret });
   }
   return out;
 }
@@ -134,17 +107,8 @@ export function starsFor(avgMs, mistakes = 0) {
 
 // ---------- boss round ----------
 
-/**
- * The notes a boss runs through: a spot level's own notes (level 2 BEAD: B, E, A, D),
- * a note level's notes. The "All" level has twelve, too many for one run, so it
- * gets BOSS_ALL_NOTES of them at random (kept in pitch order).
- */
-export function bossNotes(level, rng = Math.random) {
-  if (level.notes.length <= BOSS_ALL_NOTES * 2) return [...level.notes];
-  const pool = [...level.notes];
-  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
-  return pool.slice(0, BOSS_ALL_NOTES).sort((a, b) => a - b);
-}
+/** The notes a boss runs through: the ones this level adds. */
+export function bossNotes(level) { return [...level.added]; }
 
 /** Every spot of a note in frets 0-12, left to right: by fret, and at one fret the thicker (lower) string first. */
 export function noteSpots(pc) {
@@ -159,8 +123,8 @@ export function noteSpots(pc) {
  * Wrong notes are counted, not fatal; skipping ends the round. The average answer
  * time and the mistakes set the stars.
  */
-export function createBoss(level, range, rng = Math.random) {
-  const runs = bossNotes(level, rng).map(pc => ({ pc, spots: noteSpots(pc) }));
+export function createBoss(level) {
+  const runs = bossNotes(level).map(pc => ({ pc, spots: noteSpots(pc) }));
   const items = runs.flatMap((r, run) => r.spots.map((s, i) => ({ ...s, pc: r.pc, run, n: i + 1, of: r.spots.length })));
   const boss = {
     levelId: level.id, runs, items, index: 0, times: [], mistakes: 0,
@@ -217,51 +181,12 @@ export function createSpotBag(rng = Math.random) {
         if (bag.length > 1 && bag[0] === last) bag.push(bag.shift());
       }
       last = bag.shift();
-      if (level.spots) { const [string, fret] = last.split('@').map(Number); return { string, fret }; }
       const [pc, string] = last.split(':').map(Number);
       const frets = fretsFor(pc, string, lr);
       const w = frets.map(f => Math.max(1e-6, weigh(string, f)));
       let r = rng() * w.reduce((a, b) => a + b, 0);
       const fret = frets.find((f, i) => (r -= w[i]) < 0) ?? frets[frets.length - 1];
       return { string, fret };
-    },
-  };
-}
-
-// ---------- review questions ----------
-
-/** Every spot of the levels before `level`, as {string, fret}, without duplicates. */
-export function reviewPool(level, range) {
-  const seen = new Set(), out = [];
-  for (const l of LEVELS) {
-    if (l.id >= level.id) break;
-    for (const s of levelSpots(l, range)) {
-      const k = `${s.string}:${s.fret}`;
-      if (!seen.has(k)) { seen.add(k); out.push(s); }
-    }
-  }
-  return out;
-}
-
-/**
- * Review questions: about one in five comes from an earlier level so old landmarks
- * stay warm. `next(level, range, weigh)` returns a review spot or null (a normal
- * question). Never twice in a row, never on level 1.
- */
-export function createReviewMixer(rng = Math.random) {
-  let prev = false, last = null;
-  return {
-    next(level, range, weigh = () => 1) {
-      const wasReview = prev;
-      prev = false;
-      if (wasReview || level.id <= 1 || rng() >= REVIEW_P) return null;
-      const pool = reviewPool(level, range).filter(s => !last || s.string !== last.string || s.fret !== last.fret);
-      if (!pool.length) return null;
-      const w = pool.map(s => Math.max(1e-6, weigh(s.string, s.fret)));
-      let r = rng() * w.reduce((a, b) => a + b, 0);
-      const pick = pool.find((_, i) => (r -= w[i]) < 0) ?? pool[pool.length - 1];
-      prev = true; last = pick;
-      return { string: pick.string, fret: pick.fret };
     },
   };
 }
@@ -339,14 +264,13 @@ export function createPath(storage = globalThis.localStorage) {
     },
     /**
      * Log a correct answer in a level; `bossUnlocked` is true only the moment it opens.
-     * A review answer counts for the window but not for the level's coverage.
      */
-    record(id, { string, fret, firstTry, ms, review = false }, range) {
+    record(id, { string, fret, firstTry, ms }, range) {
       const e = entry(id);
       e.recent.push({ ft: !!firstTry, ms });
       if (e.recent.length > WINDOW) e.recent.splice(0, e.recent.length - WINDOW);
       const key = spotKey(levelById(id), string, fret);
-      if (!review && !e.covered.includes(key)) e.covered.push(key);
+      if (!e.covered.includes(key)) e.covered.push(key);
       let opened = false;
       if (!e.bossUnlocked && evaluate(e, levelById(id), range).unlocked) { e.bossUnlocked = true; opened = true; }
       save();

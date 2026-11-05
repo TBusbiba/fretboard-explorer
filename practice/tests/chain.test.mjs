@@ -53,7 +53,7 @@ test('every option is in range, starts on E or A, and holds one pitch class of t
     }
   }
   assert.ok(chainOptions(LEVELS[4], R).length > 0);
-  for (const id of [0, 1, 2, 3]) assert.deepEqual(chainOptions(LEVELS[id], R), [], 'spot levels have no chains');
+  assert.ok(chainOptions(LEVELS[0], R).length > 0, 'level 1 has chains too');
 });
 
 test('pickChain: null when nothing fits, honours the prefer filter', () => {

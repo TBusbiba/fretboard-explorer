@@ -8,7 +8,7 @@ import { createSession } from './session.js';
 import { pickChain, createChain, createChainSchedule, CHAIN_BONUS } from './chain.js';
 import { createCombo, createCustomBest, speedLeft, BADGE_FROM } from './combo.js';
 import { createHistory } from './history.js';
-import { LEVELS, WINDOW, FIRST_TRY_MIN, AVG_MS_MAX, STAR2_MS, STAR3_MS, levelById, levelTitle, createPath, createBoss, createSpotBag, createReviewMixer, levelRange, positionWeigher, bossFretLabel } from './path.js';
+import { LEVELS, WINDOW, FIRST_TRY_MIN, AVG_MS_MAX, STAR2_MS, STAR3_MS, levelById, levelTitle, createPath, createBoss, createSpotBag, levelRange, positionWeigher, bossFretLabel } from './path.js';
 import { landmarkHint } from './landmarks.js';
 import { levelTip } from './tips.js';
 import { shapeSvg } from './triad-shapes.js';
@@ -32,7 +32,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '23';
+const BUILD = '24';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -65,14 +65,13 @@ const customBest = createCustomBest();
 const combo = createCombo();
 const isNoteMode = () => !['intervals', 'arpeggios', 'triads'].includes(settings.mode);
 const fretRange = () => ({ from: settings.fretFrom, to: settings.fretTo });
-// The frets actually drilled: in the Path, the level's own (landmark levels use their own frets whatever the setting says).
+// The frets actually drilled: in the Path, the setting kept inside 0-12.
 const boardRange = () => (isNoteMode() && settings.noteMode === 'path' ? levelRange(path.currentLevel, fretRange()) : fretRange());
 function syncBoardRange() { const r = boardRange(); fretboard.setRange(r.from, r.to); }
 let weigher = null;   // rebuilt from the history after every answer
 function weighPosition(string, fret) { return (weigher ||= positionWeigher(history.positions()))(string, fret); }
 let boss = null;      // the boss round in progress, else null
 const spotBag = createSpotBag();
-const reviewMixer = createReviewMixer();
 const chainSchedule = createChainSchedule();
 let chain = null;     // the note chain in progress (Path only), else null
 let bossFinale = null; // set when a boss round is cleared: the board lights up once the session stops
@@ -122,8 +121,6 @@ const session = createSession({
         if (pick) chain = createChain(pick, path.current);
       }
       if (chain) return { ...chain.current };
-      const review = reviewMixer.next(path.currentLevel, range, weighPosition);
-      if (review) return { ...review, review: true };
       return spotBag.next(path.currentLevel, range, path.progress(path.current, range).missing, weighPosition);
     }
     return pickTarget(opts, previous, rng);
@@ -216,8 +213,7 @@ function handleSessionEvent(type, p) {
         scrollBoardTo(p.target.fret);
         const inBoss = boss && boss.state === 'running';
         const inChain = !inBoss && chain && chain.current && chain.current.string === p.target.string && chain.current.fret === p.target.fret;
-        const inReview = !inBoss && !inChain && p.target.review;
-        const prefix = inChain ? `Chain ${chain.index + 1} of ${chain.spots.length} · ` : inReview ? 'Review · ' : '';
+        const prefix = inChain ? `Chain ${chain.index + 1} of ${chain.spots.length} · ` : '';
         let spokenIntro = '';
         if (inBoss) {
           const item = boss.current;
@@ -226,7 +222,7 @@ function handleSessionEvent(type, p) {
           if (boss.runStart) spokenIntro = `${showBossIntro(boss, p.note.name)} `;
         } else setPrompt(`${prefix}String ${STRINGS[p.target.string].number}`, p.note.name, 'listening');
         if (notice) { setStatus(notice.text, notice.tone); notice = null; }
-        else setStatus(inBoss ? `Next: ${stringLabel(p.target.string)} string${boss.mistakes ? ` · ${boss.mistakes} mistake${boss.mistakes > 1 ? 's' : ''}` : ''}` : inReview ? 'Review from an earlier level' : 'Listening…');
+        else setStatus(inBoss ? `Next: ${stringLabel(p.target.string)} string${boss.mistakes ? ` · ${boss.mistakes} mistake${boss.mistakes > 1 ? 's' : ''}` : ''}` : 'Listening…');
         if (inChain) {
           const prev = chain.previous;
           if (prev) {
@@ -727,12 +723,6 @@ function renderPath() {
 }
 
 // A correct note in note mode: boss progress, or the path's scoring window. Returns text for the status line.
-// The spot to credit: the one actually played, unless a spot-defined level doesn't contain it.
-function pathSpot(p) {
-  const at = p.played || p.target, lvl = path.currentLevel;
-  if (lvl.spots && !lvl.spots.some(s => s.string === at.string && s.fret === at.fret)) return p.target;
-  return at;
-}
 
 function onNoteCorrect(p) {
   let extra = '';
@@ -749,7 +739,8 @@ function onNoteCorrect(p) {
       setTimeout(() => { if (session.state !== 'idle') toggleSession(); }, 0);
     } else extra = `${boss.index} of ${boss.items.length}`;
   } else if (settings.noteMode === 'path') {
-    const r = path.record(path.current, { string: pathSpot(p).string, fret: pathSpot(p).fret, firstTry: p.firstTry && !p.hinted, ms: p.ms, review: !!p.target.review }, fretRange());
+    const at = p.played || p.target;
+    const r = path.record(path.current, { string: at.string, fret: at.fret, firstTry: p.firstTry && !p.hinted, ms: p.ms }, fretRange());
     if (r.bossUnlocked) { extra = 'Boss round unlocked!'; popTile(path.current); }
   }
   renderPath();
@@ -766,7 +757,7 @@ function failBoss(reason, text) {
 async function startBoss() {
   const lvl = path.currentLevel;
   if (!isNoteMode() || !path.progress(lvl.id, fretRange()).bossUnlocked) return;
-  const b = createBoss(lvl, fretRange());
+  const b = createBoss(lvl);
   if (b.state !== 'running') { setStatus('No spot of this level falls inside your fret range.', 'bad'); return; }
   boss = b; notice = null; chain = null; bossFinale = null; hideBossEnd();
   renderPath();

@@ -52,10 +52,8 @@ export function chainSpots(string, fret, range) {
 
 /**
  * Every chain (3 to 5 notes) that starts on low E or A, with a level note, and fits the fret range.
- * Spot levels (the landmark levels) are made of fixed spots a chain cannot follow: none.
  */
 export function chainOptions(level, fretRange) {
-  if (level.spots) return [];
   const range = levelRange(level, fretRange);
   const out = [];
   for (const string of CHAIN_STARTS) {

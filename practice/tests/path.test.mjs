@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import { NOTE_NAMES, STRINGS, noteAt, pickTarget, pitchClass } from '../js/notes.js';
 import {
   LEVELS, WINDOW, createSpotBag, evaluate, requiredSpots, fretsFor, blankEntry, createBoss, bossNotes, noteSpots, starsFor, positionWeigher, createPath,
-  levelRange, levelSpots, spotKey, reviewPool, createReviewMixer, REVIEW_P,
+  levelRange, spotKey,
 } from '../js/path.js';
 import { createSession } from '../js/session.js';
 import { migrate } from '../js/settings.js';
 
 const FULL = { from: 0, to: 11 };
-const L1 = LEVELS[0];   // Open strings: every string at fret 0 and 12
-const L5 = LEVELS[4];   // Neighbours: E F B C on every string
+const L1 = LEVELS[0];   // E A
+const L5 = LEVELS[4];   // E A D B G C
 const keyOf = (t) => `${pitchClass(STRINGS[t.string].midi + t.fret)}:${t.string}`;
 
 function memoryStorage(initial = {}) {
@@ -26,44 +26,54 @@ function entryWith({ n = WINDOW, ft = n, ms = 2000, covered = true, level = L1, 
   return e;
 }
 
-test('levels: eight landmark levels, the first four defined by spots', () => {
-  assert.deepEqual(LEVELS.map(l => l.id), [1, 2, 3, 4, 5, 6, 7, 8]);
-  assert.deepEqual(LEVELS.map(l => l.short), ['Open', 'BEAD', 'G A B', 'C D E', 'E F B C', 'Naturals', 'Sharps', 'All']);
-  assert.deepEqual(LEVELS.map(l => l.title), ['Open strings', 'BEAD', 'Gift of the gab', 'A-string dots', 'Neighbours', 'All naturals', 'Sharps', 'Everything']);
-  const names = (l) => l.notes.map(n => NOTE_NAMES[n]).join(' ');
-  assert.equal(LEVELS[0].spots.length, 12);                                   // 6 strings x fret 0 and 12
-  assert.deepEqual(LEVELS[1].spots.map(s => noteAt(s.string, s.fret).name), ['B', 'E', 'A', 'D']);   // BEAD
-  assert.ok(LEVELS[1].spots.every(s => s.fret === 7 && [5, 4, 3, 2].includes(s.string)));
-  assert.deepEqual(LEVELS[2].spots.map(s => `${s.string}:${s.fret}:${noteAt(s.string, s.fret).name}`),
-    ['5:3:G', '5:5:A', '5:7:B', '0:3:G', '0:5:A', '0:7:B']);
-  assert.deepEqual(LEVELS[3].spots.map(s => `${s.string}:${s.fret}:${noteAt(s.string, s.fret).name}`), ['4:3:C', '4:5:D', '4:7:E']);
-  assert.equal(names(LEVELS[3]), 'C D E');
-  assert.equal(names(L5), 'E F B C');
-  assert.equal(names(LEVELS[5]), 'C D E F G A B');
-  assert.equal(names(LEVELS[6]), 'C♯ D♯ F♯ G♯ A♯');
-  assert.equal(LEVELS[7].notes.length, 12);
-  assert.ok(LEVELS.slice(0, 4).every(l => l.spots.every(s => s.fret >= 0 && s.fret <= 12)));
+test('levels: eleven cumulative note levels, each adding one note after E A', () => {
+  assert.deepEqual(LEVELS.map(l => l.id), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+  assert.deepEqual(LEVELS.map(l => l.short), ['E A', '+D', '+B', '+G', '+C', '+F', '+F♯', '+C♯', '+G♯', '+D♯', '+A♯']);
+  assert.deepEqual(LEVELS.map(l => l.title), ['E and A', 'Add D', 'BEAD', 'Gift of the gab', 'Add C', 'All naturals', 'Add F♯', 'Add C♯', 'Add G♯', 'Add D♯', 'Everything']);
+  const names = (ids) => ids.map(n => NOTE_NAMES[n]).join(' ');
+  assert.equal(names(L1.notes), 'E A');
+  assert.equal(names(LEVELS[1].notes), 'E A D');
+  assert.equal(names(LEVELS[2].notes), 'E A D B');
+  assert.equal(names(LEVELS[5].notes.slice().sort((a, b) => a - b)), 'C D E F G A B'.split(' ').map(n => NOTE_NAMES.indexOf(n)).sort((a, b) => a - b).map(n => NOTE_NAMES[n]).join(' '));
+  assert.equal(LEVELS[10].notes.length, 12);
+  assert.deepEqual(LEVELS.map(l => names(l.added)), ['E A', 'D', 'B', 'G', 'C', 'F', 'F♯', 'C♯', 'G♯', 'D♯', 'A♯']);
+  LEVELS.forEach((l, i) => { if (i) assert.deepEqual(l.notes, [...LEVELS[i - 1].notes, ...l.added]); });   // cumulative
 });
 
-test('levelRange: spot levels ignore the fret setting, note levels follow it inside 0-12', () => {
-  assert.deepEqual(levelRange(L1, { from: 0, to: 4 }), { from: 0, to: 12 });
+test('levelRange: the fret setting, kept inside 0-12', () => {
   assert.deepEqual(levelRange(L5, { from: 2, to: 21 }), { from: 2, to: 12 });
-  assert.deepEqual(levelRange(L5, { from: 0, to: 4 }), { from: 0, to: 4 });
+  assert.deepEqual(levelRange(L1, { from: 0, to: 4 }), { from: 0, to: 4 });
 });
 
-test('requiredSpots: spot levels are their own spots, note levels are note-on-string in range', () => {
-  assert.equal(requiredSpots(L1, FULL).length, 12);
-  assert.deepEqual(requiredSpots(L1, { from: 0, to: 2 }), requiredSpots(L1, FULL));          // narrow range changes nothing
-  assert.equal(new Set(requiredSpots(L1, FULL)).size, 12);                                  // fret 0 and 12 are separate spots
-  assert.equal(requiredSpots(L5, FULL).length, 24);                                         // 4 notes x 6 strings
+test('requiredSpots: note-on-string keys in the fret range', () => {
+  assert.equal(requiredSpots(L1, FULL).length, 12);                                         // 2 notes x 6 strings
+  assert.equal(requiredSpots(L5, FULL).length, 36);                                         // 6 notes x 6 strings
   assert.equal(requiredSpots(LEVELS.at(-1), FULL).length, 72);                              // 12 notes x 6 strings
   assert.equal(requiredSpots(LEVELS.at(-1), { from: 0, to: 21 }).length, 72);               // capped at fret 12
-  assert.deepEqual(requiredSpots(L5, { from: 0, to: 0 }), ['4:0', '4:5', '11:1']);          // open strings: E twice, B
+  assert.deepEqual(requiredSpots(L1, { from: 0, to: 0 }), ['4:0', '4:5', '9:4']);           // open strings: E twice, A
   assert.deepEqual(fretsFor(4, 5, { from: 0, to: 21 }), [0, 12]);
-  assert.equal(spotKey(L1, 5, 12), '5@12');
-  assert.equal(spotKey(L5, 5, 12), '4:5');
-  assert.deepEqual(levelSpots(LEVELS[3], FULL), [{ string: 4, fret: 3 }, { string: 4, fret: 5 }, { string: 4, fret: 7 }]);
-  assert.ok(levelSpots(L5, FULL).every(s => L5.notes.includes(pitchClass(STRINGS[s.string].midi + s.fret))));
+  assert.equal(spotKey(L1, 5, 12), '4:5');
+  assert.equal(spotKey(L1, 5, 0), '4:5');
+});
+
+test('coverage: answering every question with the open-string fret still completes the level', () => {
+  for (const level of LEVELS) {
+    const bag = createSpotBag(Math.random);
+    const path = createPath(memoryStorage());
+    const all = requiredSpots(level, FULL);
+    for (let i = 0; i < all.length * 3 && path.progress(level.id, FULL).missing.length; i++) {
+      const asked = bag.next(level, FULL, path.progress(level.id, FULL).missing);
+      const played = fretsFor(pitchClass(STRINGS[asked.string].midi + asked.fret), asked.string, FULL)[0];   // the lowest fret
+      path.record(level.id, { string: asked.string, fret: played, firstTry: true, ms: 1000 }, FULL);
+    }
+    const pr = path.progress(level.id, FULL);
+    assert.deepEqual([pr.missing, pr.met.spots], [[], true], `level ${level.id}`);
+  }
+  const e = blankEntry();
+  e.covered = ['4:5'];   // low E answered at fret 12 ...
+  const path = createPath(memoryStorage());
+  path.record(1, { string: 5, fret: 12, firstTry: true, ms: 1000 }, FULL);
+  assert.ok(!path.progress(1, FULL).missing.includes('4:5'));   // ... covers the same key as open
 });
 
 test('unlock rule: needs a full window of 20 answers', () => {
@@ -100,45 +110,30 @@ test('unlock rule: average time of 6 s passes, slower fails', () => {
 
 test('unlock rule: every level spot must be covered', () => {
   const e = entryWith();
-  e.covered = e.covered.filter(k => k !== '0@12');   // high E at fret 12 never answered
+  e.covered = e.covered.filter(k => k !== '4:0');   // high E never answered with an E
   const r = evaluate(e, L1, FULL);
   assert.equal(r.unlocked, false);
-  assert.deepEqual(r.missing, ['0@12']);
+  assert.deepEqual(r.missing, ['4:0']);
   assert.equal(r.spots, 11);
   assert.equal(evaluate(entryWith({ covered: false }), L1, FULL).unlocked, false);
 });
 
-test('unlock rule: a narrow fret range only asks for the spots that exist in it (note levels)', () => {
+test('unlock rule: a narrow fret range only asks for the spots that exist in it', () => {
   const range = { from: 0, to: 4 };
   assert.equal(evaluate(entryWith({ range, covered: true, level: L5 }), L5, range).unlocked, true);
   const nothing = { from: 0, to: 0 };   // no sharp on any open string
-  assert.equal(evaluate(entryWith({ range: nothing, covered: true, level: LEVELS[6] }), LEVELS[6], nothing).unlocked, false);
-});
-
-test('unlock rule: spot levels keep all their spots whatever the fret range', () => {
-  const range = { from: 0, to: 4 };
-  const r = evaluate(entryWith({ range, covered: false }), LEVELS[1], range);   // BEAD is fret 7
-  assert.equal(r.spotsTotal, 4);
-  assert.equal(evaluate(entryWith({ range, covered: true, level: LEVELS[1] }), LEVELS[1], range).unlocked, true);
+  assert.equal(evaluate(entryWith({ range: nothing, covered: true, level: LEVELS[6] }), LEVELS[6], nothing).unlocked, true);   // earlier notes still count
 });
 
 const names = (items) => [...new Set(items.map(i => NOTE_NAMES[i.pc]))];
 
-test('boss: the group is the level\'s own notes (a spot level: the distinct notes of its spots)', () => {
-  assert.deepEqual(names(createBoss(LEVELS[1], FULL).items), ['B', 'E', 'A', 'D']);   // BEAD
-  assert.deepEqual(names(createBoss(LEVELS[2], FULL).items), ['G', 'A', 'B']);
-  assert.deepEqual(names(createBoss(L1, FULL).items), ['E', 'A', 'D', 'G', 'B']);
-  assert.deepEqual(names(createBoss(L5, FULL).items), ['E', 'F', 'B', 'C']);
-  assert.equal(createBoss(LEVELS[5], FULL).runs.length, 7);
-  assert.equal(createBoss(LEVELS[6], FULL).runs.length, 5);
-});
-
-test('boss: the All level runs 4 random notes, in pitch order, and the pick follows rng', () => {
-  const a = bossNotes(LEVELS[7], () => 0), b = bossNotes(LEVELS[7], () => 0.99);
-  assert.equal(a.length, 4); assert.equal(b.length, 4);
-  assert.deepEqual(a, [...a].sort((x, y) => x - y));
-  assert.notDeepEqual(a, b);
-  assert.equal(new Set(bossNotes(LEVELS[7])).size, 4);
+test('boss: the group is only the notes the level adds', () => {
+  assert.deepEqual(names(createBoss(L1).items), ['E', 'A']);
+  assert.deepEqual(names(createBoss(LEVELS[1]).items), ['D']);
+  assert.deepEqual(names(createBoss(LEVELS[5]).items), ['F']);
+  assert.deepEqual(names(createBoss(LEVELS[10]).items), ['A♯']);
+  assert.equal(createBoss(L1).runs.length, 2);
+  assert.equal(bossNotes(LEVELS[3]).length, 1);
 });
 
 test('boss: every spot of the note in frets 0-12, left to right, thicker string first at one fret', () => {
@@ -151,7 +146,7 @@ test('boss: every spot of the note in frets 0-12, left to right, thicker string 
 });
 
 test('boss: items carry the run, the position in it and the run size', () => {
-  const boss = createBoss(L5, FULL);
+  const boss = createBoss(L1);
   const first = boss.items[0];
   assert.deepEqual([first.run, first.n, first.of], [0, 1, boss.runs[0].spots.length]);
   assert.equal(boss.items.length, boss.runs.reduce((t, r) => t + r.spots.length, 0));
@@ -159,12 +154,12 @@ test('boss: items carry the run, the position in it and the run size', () => {
   assert.equal(boss.runStart, true);
 });
 
-test('boss: the fret range setting is ignored', () => {
-  assert.equal(createBoss(L5, { from: 0, to: 4 }).items.length, createBoss(L5, FULL).items.length);
+test('boss: plays every spot of E and A from fret 0 to 12', () => {
+  assert.equal(createBoss(L1).items.length, noteSpots(NOTE_NAMES.indexOf('E')).length + noteSpots(NOTE_NAMES.indexOf('A')).length);
 });
 
 test('boss: answering every spot passes it; found spots and runStart follow along', () => {
-  const boss = createBoss(L1, FULL);
+  const boss = createBoss(L1);
   const total = boss.items.length;
   const firstRun = boss.runs[0].spots.length;
   boss.correct(1500);
@@ -181,7 +176,7 @@ test('boss: answering every spot passes it; found spots and runStart follow alon
 });
 
 test('boss: wrong notes are counted and do not end it; a skip fails it for good', () => {
-  const a = createBoss(L1, FULL);
+  const a = createBoss(L1);
   a.correct(1000);
   assert.equal(a.wrong(), 1);
   assert.equal(a.wrong(), 2);
@@ -205,21 +200,21 @@ test('boss stars: 3 = avg <= 2 s and no mistakes, 2 = avg <= 3 s and <= 2 mistak
   assert.equal(starsFor(2000, 3), 1);
   assert.equal(starsFor(3000, 3), 1);
   assert.equal(starsFor(3001, 0), 1);
-  const boss = createBoss(L1, FULL);
+  const boss = createBoss(L1);
   boss.items.forEach(() => boss.correct(1800));
   assert.equal(boss.stars, 3);
-  const b2 = createBoss(L1, FULL);
+  const b2 = createBoss(L1);
   b2.wrong();
   b2.items.forEach(() => b2.correct(1800));
   assert.equal(b2.stars, 2);
-  const b3 = createBoss(L1, FULL);
+  const b3 = createBoss(L1);
   b3.items.forEach(() => b3.correct(2400));
   assert.equal(b3.stars, 2);
 });
 
 test('store: the boss round opens on the 20th good answer and stays open', () => {
   const path = createPath(memoryStorage());
-  const spots = L1.spots;
+  const spots = requiredSpots(L1, FULL).map(k => { const [pc, string] = k.split(':').map(Number); return { string, fret: fretsFor(pc, string, FULL)[0] }; });
   let opened = 0;
   for (let i = 0; i < 20; i++) {
     const { string, fret } = spots[i % spots.length];
@@ -258,15 +253,15 @@ test('store: a passed boss completes the level, opens the next and keeps the bes
 
 test('store: the last level has no next, reset clears everything', () => {
   const path = createPath(memoryStorage());
-  for (let i = 1; i <= 8; i++) path.completeBoss(i, 1900);
-  assert.equal(path.completeBoss(8, 1900).next, null);
+  for (let i = 1; i <= 11; i++) path.completeBoss(i, 1900);
+  assert.equal(path.completeBoss(11, 1900).next, null);
   path.reset();
   assert.deepEqual([path.current, path.isDone(1), path.isUnlocked(2)], [1, false, false]);
 });
 
 test('store: corrupt or odd saved data falls back safely', () => {
-  assert.equal(createPath(memoryStorage({ 'fretboard-practice.path.v3': '{nope' })).current, 1);
-  const odd = createPath(memoryStorage({ 'fretboard-practice.path.v3': JSON.stringify({ current: 5, levels: { 1: { recent: 'x', done: false } } }) }));
+  assert.equal(createPath(memoryStorage({ 'fretboard-practice.path.v4': '{nope' })).current, 1);
+  const odd = createPath(memoryStorage({ 'fretboard-practice.path.v4': JSON.stringify({ current: 5, levels: { 1: { recent: 'x', done: false } } }) }));
   assert.equal(odd.current, 1);   // level 5 is locked, so back to 1
   assert.equal(odd.progress(1, FULL).answered, 0);
   const broken = { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); } };
@@ -274,22 +269,16 @@ test('store: corrupt or odd saved data falls back safely', () => {
   assert.doesNotThrow(() => p.record(1, { string: 5, fret: 0, firstTry: true, ms: 1000 }, FULL));
 });
 
-test('store: the old v1 and v2 progress is not carried over: the path starts fresh on the new levels', () => {
+test('store: the old v1-v3 progress is not carried over: the path starts fresh on the new levels', () => {
   const old = { current: 4, levels: { 1: { recent: [{ ft: true, ms: 900 }], covered: ['4:0'], done: true, stars: 2, bestStreak: 9 }, 2: { done: true } } };
-  const p = createPath(memoryStorage({ 'fretboard-practice.path.v1': JSON.stringify(old), 'fretboard-practice.path.v2': JSON.stringify(old) }));
+  const p = createPath(memoryStorage({ 'fretboard-practice.path.v1': JSON.stringify(old), 'fretboard-practice.path.v2': JSON.stringify(old), 'fretboard-practice.path.v3': JSON.stringify(old) }));
   assert.deepEqual([p.current, p.isDone(1), p.isUnlocked(2)], [1, false, false]);
   assert.deepEqual(p.bests(1), { streak: 0, score: 0 });
 });
 
-test('store: review answers count for the window but never for coverage, and the tip card is remembered', () => {
+test('store: the tip card is remembered per level', () => {
   const storage = memoryStorage();
   const path = createPath(storage);
-  path.record(2, { string: 5, fret: 7, firstTry: true, ms: 1000, review: true }, FULL);
-  let pr = path.progress(2, FULL);
-  assert.deepEqual([pr.answered, pr.spots], [1, 0]);
-  path.record(2, { string: 5, fret: 7, firstTry: true, ms: 1000 }, FULL);
-  pr = path.progress(2, FULL);
-  assert.deepEqual([pr.answered, pr.spots, pr.spotsTotal], [2, 1, 4]);
   assert.equal(path.tipSeen(2), false);
   path.markTip(2);
   assert.equal(createPath(storage).tipSeen(2), true);
@@ -347,11 +336,11 @@ test('session: pickNote hands the host the choice of the next note target', () =
   assert.equal(s.note.midi, 45);
 });
 
-test('spot bag: every spot once per round, missing spots first, no spot hides (spot level)', () => {
+test('spot bag: every spot once per round, missing spots first, no spot repeats back to back', () => {
   const range = { from: 0, to: 11 };
   const all = requiredSpots(L1, range);
   const bag = createSpotBag(Math.random);
-  const key = (t) => `${t.string}@${t.fret}`;
+  const key = keyOf;
   for (let round = 0; round < 20; round++) {
     const seen = Array.from({ length: all.length }, () => key(bag.next(L1, range)));
     assert.deepEqual([...seen].sort(), [...all].sort(), 'a full round asks each spot exactly once');
@@ -363,7 +352,7 @@ test('spot bag: every spot once per round, missing spots first, no spot hides (s
   for (let i = 0; i < 500; i++) { const k = key(bag.next(L1, range)); assert.notEqual(k, prev); prev = k; }
 });
 
-test('spot bag: note levels ask each note on every string, inside the fret range', () => {
+test('spot bag: levels ask each note on every string, inside the fret range', () => {
   const range = { from: 0, to: 11 };
   const all = requiredSpots(L5, range);
   const bag = createSpotBag(Math.random);
@@ -371,43 +360,6 @@ test('spot bag: note levels ask each note on every string, inside the fret range
     const seen = Array.from({ length: all.length }, () => { const t = bag.next(L5, range); assert.ok(t.fret >= 0 && t.fret <= 11); return keyOf(t); });
     assert.deepEqual([...seen].sort(), [...all].sort());
   }
-});
-
-test('review: pool is every earlier level spot, none on level 1', () => {
-  assert.deepEqual(reviewPool(L1, FULL), []);
-  const pool2 = reviewPool(LEVELS[1], FULL);
-  assert.equal(pool2.length, 12);   // the open-string level
-  const pool5 = reviewPool(L5, FULL);
-  assert.equal(new Set(pool5.map(s => `${s.string}:${s.fret}`)).size, pool5.length);   // no duplicates
-  assert.ok(pool5.some(s => s.string === 5 && s.fret === 7) && pool5.some(s => s.string === 0 && s.fret === 12));
-  const pool6 = reviewPool(LEVELS[5], FULL);   // includes the neighbours level's notes
-  assert.ok(pool6.length > pool5.length);
-});
-
-test('review: about one question in five, never two in a row, never on level 1', () => {
-  const mixer = createReviewMixer(Math.random);
-  for (let i = 0; i < 50; i++) assert.equal(mixer.next(L1, FULL), null);
-  let n = 0, reviews = 0, run = 0;
-  for (let i = 0; i < 20000; i++) {
-    const r = mixer.next(LEVELS[3], FULL);
-    n++;
-    if (r) {
-      reviews++; run++;
-      assert.ok(run < 2, 'two reviews in a row');
-      assert.ok(reviewPool(LEVELS[3], FULL).some(s => s.string === r.string && s.fret === r.fret));
-    } else run = 0;
-  }
-  assert.ok(Math.abs(reviews / n - 0.2) < 0.02, `${reviews / n}`);
-  assert.equal(REVIEW_P / (1 + REVIEW_P), 0.2);
-});
-
-test('review: weak spots are likelier, and a forced roll picks from the pool', () => {
-  const lvl = LEVELS[1];
-  const seq = [0, 0.5];
-  const mixer = createReviewMixer(() => seq.shift() ?? 0);
-  const r = mixer.next(lvl, FULL, (string, fret) => (string === 0 && fret === 12 ? 1000 : 0));
-  assert.deepEqual(r, { string: 0, fret: 12 });
-  assert.equal(mixer.next(lvl, FULL), null);   // the next one is a normal question
 });
 
 test('bossFretLabel names the fret only when the string repeats the note in 0-12', async () => {

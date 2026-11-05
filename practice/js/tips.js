@@ -88,51 +88,88 @@ function ruler(string, kindOf, sharpKind = 'x') {
   return out;
 }
 
+const gabDiagram = () => neckSvg({
+  last: 8, focus: [5, 0], guides: [3, 5, 7],
+  marks: [5, 0].flatMap(s => [3, 5, 7].map(f => m(s, f, 'b'))),
+  label: 'Frets 3, 5 and 7 on the low E and high E strings: G, A, B',
+});
+
+/** Levels 7-11: each string shows the natural (white) and the sharp one fret above it (pink). */
+function sharpTip(natural, sharp, note) {
+  return {
+    headline: `${sharp} is one fret above ${natural}`,
+    line: `A sharp sits one fret above its natural note: ${sharp} is right after ${natural}.`,
+    note,
+    diagram: () => {
+      const marks = [], found = [];
+      for (const s of ALL) {
+        for (let f = 0; f < 12; f++) {
+          if (noteAt(s, f).name !== natural) continue;
+          marks.push(m(s, f, 'w'), m(s, f + 1, 'p'));
+          found.push(f);
+        }
+      }
+      return neckSvg({
+        marks, label: `On every string, ${sharp} is one fret above ${natural}`,
+        arcs: [{ from: { string: 0, fret: found[0] }, to: { string: 0, fret: found[0] + 1 }, text: '+1', kind: 'p' }],
+      });
+    },
+  };
+}
+
 export const TIPS = {
   1: {
-    headline: 'Fret 12 is fret 0',
-    line: 'Fret 12 is the open string again, one octave higher: the same note.',
-    note: 'Six notes to learn, twelve spots to find.',
+    headline: 'Fret 12 is the open string again',
+    line: 'Fret 12 is the open string one octave higher: the same note.',
+    note: 'Fret 5 is the next string\'s open note: A on the low E string at fret 5.',
     diagram: () => neckSvg({
-      marks: ALL.flatMap(s => [m(s, 0, 'a'), m(s, 12, 'a')]),
-      arcs: [{ from: { string: 0, fret: 0 }, to: { string: 0, fret: 12 }, text: 'same note', kind: 'a' }],
-      label: 'Every string: the note at fret 12 is the open string note',
+      strings: [5, 4],
+      marks: [m(5, 0, 'a'), m(5, 5, 'b'), m(5, 12, 'a'), m(4, 0, 'b'), m(4, 12, 'b')],
+      arcs: [{ from: { string: 5, fret: 0 }, to: { string: 5, fret: 12 }, text: 'same note', kind: 'a' }],
+      label: 'Low E and A strings: fret 12 repeats the open note, and fret 5 on the low E is the open A',
     }),
   },
   2: {
-    headline: 'BEAD at fret 7',
-    line: 'Fret 7 on the low E, A, D and G strings spells BEAD: B, E, A, D.',
-    note: 'Say it from the thickest string. Fret 7 is the middle of the neck.',
+    headline: 'Almost BEAD: fret 7',
+    line: 'Fret 7 on the low E, A and D strings spells B, E, A.',
+    note: 'The D comes on the G string, also at fret 7.',
     diagram: () => neckSvg({
       last: 8, focus: [5, 4, 3, 2], bands: [7],
-      marks: [5, 4, 3, 2].map(s => m(s, 7, 'a')),
-      label: 'Fret 7 on the low E, A, D and G strings: B, E, A, D',
+      marks: [m(5, 7, 'a'), m(4, 7, 'a'), m(3, 7, 'a'), m(2, 7, 'c')],
+      label: 'Fret 7 on the low E, A, D and G strings: B, E, A, and D on the G string',
     }),
   },
   3: {
-    headline: 'Gift of the gab: G A B',
-    line: 'On both E strings, frets 3, 5 and 7 are G, A and B. They sit under the dots.',
-    note: 'The high E string is a mirror of the low E: same frets, same notes.',
+    headline: 'BEAD is complete',
+    line: 'Fret 7 on the low E, A, D and G strings spells B, E, A, D.',
+    note: 'Say it from the thickest string. Fret 7 is the middle of the neck.',
     diagram: () => neckSvg({
-      last: 8, focus: [5, 0], guides: [3, 5, 7],
-      marks: [5, 0].flatMap(s => [3, 5, 7].map(f => m(s, f, 'b'))),
-      label: 'Frets 3, 5 and 7 on the low E and high E strings: G, A, B',
+      last: 8, focus: [5, 4, 3, 2], bands: [7],
+      marks: [m(5, 7, 'b'), ...[4, 3, 2].map(s => m(s, 7, 'a'))],
+      label: 'Fret 7 on the low E, A, D and G strings: B, E, A, D',
     }),
   },
   4: {
-    headline: 'Same dots, next string',
-    line: 'Slide the same three dots to the A string and they spell C, D and E.',
-    note: 'Same frets, one string over: G A B becomes C D E.',
-    diagram: () => neckSvg({
-      last: 8, focus: [4], guides: [3, 5, 7],
-      marks: [m(5, 3, 'g'), m(5, 5, 'g'), m(5, 7, 'g'), m(0, 3, 'g'), m(0, 5, 'g'), m(0, 7, 'g'), ...[3, 5, 7].map(f => m(4, f, 'c'))],
-      label: 'Frets 3, 5 and 7 on the A string: C, D, E',
-    }),
+    headline: 'Gift of the gab: G A B',
+    line: 'On both E strings, frets 3, 5 and 7 are G, A and B. They sit under the dots.',
+    note: 'The high E string is a mirror of the low E: same frets, same notes.',
+    diagram: gabDiagram,
   },
   5: {
-    headline: 'Neighbours: E F and B C',
-    line: 'E–F and B–C are one fret apart, with no sharp between. Every other pair of naturals is two frets apart.',
-    note: 'So F is right next to E, and C is right next to B.',
+    headline: 'C D E, and B–C are neighbours',
+    line: 'On the A string, frets 3, 5 and 7 are C, D and E.',
+    note: 'B and C are one fret apart, with no sharp between.',
+    diagram: () => neckSvg({
+      last: 8, strings: [4], guides: [3, 5, 7],
+      marks: [m(4, 2, 'w'), ...[3, 5, 7].map(f => m(4, f, 'c'))],
+      arcs: [{ from: { string: 4, fret: 2 }, to: { string: 4, fret: 3 }, text: '1 fret', kind: 'c' }],
+      label: 'The A string: frets 3, 5 and 7 are C, D, E; B at fret 2 is one fret from C',
+    }),
+  },
+  6: {
+    headline: 'E–F are neighbours too',
+    line: 'E and F are one fret apart, like B and C. Every other pair of naturals is two frets apart.',
+    note: 'That is all seven naturals. There is no E♯ or B♯.',
     diagram: () => neckSvg({
       strings: [5], label: 'Natural notes along the low E string; E to F and B to C are one fret apart',
       marks: ruler(5, f => ([0, 1, 7, 8].includes(f) ? 'c' : 'w')),
@@ -143,44 +180,11 @@ export const TIPS = {
       ],
     }),
   },
-  6: {
-    headline: 'Start from a landmark',
-    line: 'Do not count from fret 0. Start at the nearest landmark (0, 3, 5, 7 or 12) and count a fret or two.',
-    note: 'On the A string: B is one back from C, F is one up from E, G is two back from the 12th.',
-    diagram: () => neckSvg({
-      strings: [4], label: 'Natural notes along the A string, counted from the nearest landmark fret',
-      marks: ruler(4, f => ([0, 3, 5, 7, 12].includes(f) ? 'a' : 'w')),
-      arcs: [
-        { from: { string: 4, fret: 3 }, to: { string: 4, fret: 2 }, text: '−1', kind: 'c' },
-        { from: { string: 4, fret: 7 }, to: { string: 4, fret: 8 }, text: '+1', kind: 'c' },
-        { from: { string: 4, fret: 12 }, to: { string: 4, fret: 10 }, text: '−2', kind: 'c' },
-      ],
-    }),
-  },
-  7: {
-    headline: 'A sharp is one fret up',
-    line: 'A sharp sits one fret above its natural note: F♯ is one fret above F.',
-    note: 'There is no E♯ or B♯. After E and B comes the next natural.',
-    diagram: () => neckSvg({
-      strings: [5], label: 'The low E string: each sharp is one fret above its natural note',
-      marks: ruler(5, () => 'w', 'p'),
-      arcs: [[1, 2], [3, 4], [5, 6], [8, 9], [10, 11]].map(([a, b]) => ({ from: { string: 5, fret: a }, to: { string: 5, fret: b }, text: '+1', kind: 'p' })),
-    }),
-  },
-  8: {
-    headline: 'Use every trick',
-    line: 'Start from a landmark, count a fret or two, and put a sharp one fret above its natural.',
-    note: 'Yellow: open and 12th. Green: BEAD. Blue: G A B. Salmon: C D E.',
-    diagram: () => {
-      const seen = new Set(), out = [];
-      const put = (s, f, kind) => { const k = `${s}:${f}`; if (!seen.has(k)) { seen.add(k); out.push(m(s, f, kind)); } };
-      for (const s of [5, 4, 3, 2]) put(s, 7, 'd');
-      for (const s of ALL) { put(s, 0, 'a'); put(s, 12, 'a'); }
-      for (const s of [5, 0]) for (const f of [3, 5, 7]) put(s, f, 'b');
-      for (const f of [3, 5, 7]) put(4, f, 'c');
-      return neckSvg({ marks: out, label: 'Every landmark on the neck' });
-    },
-  },
+  7: sharpTip('F', 'F♯', 'There is no E♯ or B♯: after E and B comes the next natural.'),
+  8: sharpTip('C', 'C♯', 'C♯ is also called D♭: the same note, one fret between C and D.'),
+  9: sharpTip('G', 'G♯', 'G♯ is also called A♭.'),
+  10: sharpTip('D', 'D♯', 'D♯ is also called E♭.'),
+  11: sharpTip('A', 'A♯', 'A♯ is also called B♭. That is all twelve notes.'),
 };
 
 /** {headline, line, note, svg} for a level id, or null. */
