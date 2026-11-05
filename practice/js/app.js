@@ -8,7 +8,7 @@ import { createSession } from './session.js';
 import { pickChain, createChain, createChainSchedule, CHAIN_BONUS } from './chain.js';
 import { createCombo, createCustomBest, speedLeft, BADGE_FROM } from './combo.js';
 import { createHistory } from './history.js';
-import { LEVELS, WINDOW, FIRST_TRY_MIN, AVG_MS_MAX, STAR2_MS, STAR3_MS, levelById, levelTitle, createPath, createBoss, createSpotBag, createReviewMixer, levelRange, positionWeigher } from './path.js';
+import { LEVELS, WINDOW, FIRST_TRY_MIN, AVG_MS_MAX, STAR2_MS, STAR3_MS, levelById, levelTitle, createPath, createBoss, createSpotBag, createReviewMixer, levelRange, positionWeigher, bossFretLabel } from './path.js';
 import { landmarkHint } from './landmarks.js';
 import { levelTip } from './tips.js';
 import { shapeSvg } from './triad-shapes.js';
@@ -32,7 +32,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '22';
+const BUILD = '23';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -128,6 +128,11 @@ const session = createSession({
     }
     return pickTarget(opts, previous, rng);
   },
+  // Any fret on the asked string that sounds the asked note is right, except in chains and the boss (exact spots).
+  getAcceptRange: () => {
+    if (!isNoteMode() || (boss && boss.state === 'running') || (chain && settings.noteMode === 'path')) return null;
+    return boardRange();
+  },
   onEvent: handleSessionEvent,
 });
 
@@ -217,7 +222,7 @@ function handleSessionEvent(type, p) {
         if (inBoss) {
           const item = boss.current;
           for (const f of boss.found) fretboard.showNote(f.string, f.fret, 'correct', p.note.name, true);
-          setPrompt(`Every ${p.note.name} · ${item.n} of ${item.of} · String ${STRINGS[item.string].number}`, p.note.name, 'listening');
+          setPrompt(`Every ${p.note.name} · ${item.n} of ${item.of} · String ${STRINGS[item.string].number}${bossFretLabel(item.string, item.fret) ? ` · ${bossFretLabel(item.string, item.fret)}` : ''}`, p.note.name, 'listening');
           if (boss.runStart) spokenIntro = `${showBossIntro(boss, p.note.name)} `;
         } else setPrompt(`${prefix}String ${STRINGS[p.target.string].number}`, p.note.name, 'listening');
         if (notice) { setStatus(notice.text, notice.tone); notice = null; }
@@ -290,8 +295,9 @@ function handleSessionEvent(type, p) {
         for (const n of session.steps) fretboard.showNote(n.string, n.fret, 'correct', DEGREE_LABELS[n.degree] || n.name);
         history.recordTriad(p.target.triad, result);
       } else {
-        fretboard.showNote(p.target.string, p.target.fret, 'correct', session.note.name);
-        history.recordPosition(p.target, result);
+        const at = p.played || p.target;
+        fretboard.showNote(at.string, at.fret, 'correct', session.note.name);
+        history.recordPosition(at, result);
         weigher = null;
       }
       ui.noteName.dataset.state = 'correct';
@@ -721,6 +727,13 @@ function renderPath() {
 }
 
 // A correct note in note mode: boss progress, or the path's scoring window. Returns text for the status line.
+// The spot to credit: the one actually played, unless a spot-defined level doesn't contain it.
+function pathSpot(p) {
+  const at = p.played || p.target, lvl = path.currentLevel;
+  if (lvl.spots && !lvl.spots.some(s => s.string === at.string && s.fret === at.fret)) return p.target;
+  return at;
+}
+
 function onNoteCorrect(p) {
   let extra = '';
   if (boss && boss.state === 'running') {
@@ -736,7 +749,7 @@ function onNoteCorrect(p) {
       setTimeout(() => { if (session.state !== 'idle') toggleSession(); }, 0);
     } else extra = `${boss.index} of ${boss.items.length}`;
   } else if (settings.noteMode === 'path') {
-    const r = path.record(path.current, { string: p.target.string, fret: p.target.fret, firstTry: p.firstTry && !p.hinted, ms: p.ms, review: !!p.target.review }, fretRange());
+    const r = path.record(path.current, { string: pathSpot(p).string, fret: pathSpot(p).fret, firstTry: p.firstTry && !p.hinted, ms: p.ms, review: !!p.target.review }, fretRange());
     if (r.bossUnlocked) { extra = 'Boss round unlocked!'; popTile(path.current); }
   }
   renderPath();

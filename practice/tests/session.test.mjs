@@ -312,3 +312,43 @@ test('triads mode drives a 3-note sequence', () => {
   for (let i = 0; i < 3; i++) s.noteDetected(s.steps[i].midi);
   assert.ok(events.some(e => e.type === 'correct'));
 });
+
+test('find-the-note: any fret of the asked note on that string is right when an accept range is given', () => {
+  for (const [played, label] of [[40, 'open'], [52, 'fret 12']]) {
+    const events = [];
+    const s = createSession({
+      getSettings: () => ({ strings: [5], fretFrom: 0, fretTo: 12, hintDelayMs: null, pauseMs: 500 }),
+      pickNote: () => ({ string: 5, fret: label === 'open' ? 12 : 0 }),
+      getAcceptRange: () => ({ from: 0, to: 12 }),
+      onEvent: (type, p) => events.push({ type, ...p }),
+    });
+    s.start();
+    s.noteDetected(played);
+    assert.ok(events.some(e => e.type === 'correct'), label);
+    assert.equal(events.find(e => e.type === 'correct').played.fret, played - 40);
+    assert.ok(!events.some(e => e.type === 'wrong'));
+  }
+});
+
+test('find-the-note: octave feedback only when no fret in range matches; exact without a range', () => {
+  const mk = (range) => {
+    const events = [];
+    const s = createSession({
+      getSettings: () => ({ strings: [5], fretFrom: 0, fretTo: 12, hintDelayMs: null, pauseMs: 500 }),
+      pickNote: () => ({ string: 5, fret: 0 }),
+      getAcceptRange: () => range,
+      onEvent: (type, p) => events.push({ type, ...p }),
+    });
+    s.start();
+    return { s, events };
+  };
+  const a = mk({ from: 0, to: 12 });
+  a.s.noteDetected(64); // E4, fret 24: out of range
+  assert.equal(a.events.find(e => e.type === 'wrong').octaveOff, 1);
+  const b = mk({ from: 0, to: 5 });
+  b.s.noteDetected(52); // fret 12 outside 0-5
+  assert.equal(b.events.find(e => e.type === 'wrong').octaveOff, 1);
+  const c = mk(null);
+  c.s.noteDetected(52);
+  assert.equal(c.events.find(e => e.type === 'wrong').octaveOff, 1);
+});

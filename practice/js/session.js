@@ -13,18 +13,25 @@
 //   target  {target, note, mode}   new target chosen
 //   step    {step, total, note}    a step was played; now listening for the next one
 //   hint    {target, stage, stages} stage 1..stages (note mode has 1 stage; intervals 2)
-//   correct {target, ms, firstTry, hinted}
+//   correct {target, ms, firstTry, hinted, played: {string, fret}}
 //   wrong   {midi, name, fret, octaveOff}
 //   stopped {stats}
 //   error   {message}
 
 import {
   noteAt, pickTarget, pickIntervalTarget, pickArpeggioTarget, pickTriadTarget, fretForMidi, midiToNoteName,
-  midiToOctave, intervalById, chordById, triadById,
+  midiToOctave, STRINGS, intervalById, chordById, triadById,
 } from './notes.js';
 
+/** MIDI pitches that answer "string N, note X" with any fret in `range`: same pitch class, any octave reachable on that string. */
+export function validMidis(string, fret, range) {
+  const pc = (STRINGS[string].midi + fret) % 12, out = [];
+  for (let f = range.from; f <= range.to; f++) if ((STRINGS[string].midi + f) % 12 === pc) out.push(STRINGS[string].midi + f);
+  return out;
+}
+
 // `pickNote` lets the host choose find-the-note targets itself (the path's boss round).
-export function createSession({ getSettings, now = () => performance.now(), rng = Math.random, onEvent, pickNote = pickTarget }) {
+export function createSession({ getSettings, now = () => performance.now(), rng = Math.random, onEvent, pickNote = pickTarget, getAcceptRange = () => null }) {
   const stats = {
     total: 0, firstTry: 0, wrong: 0, skipped: 0, times: [],
     get avgMs() {
@@ -152,7 +159,11 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
 
   session.noteDetected = (midi) => {
     if (session.state !== 'listening') return;
-    if (midi === session.note.midi) {
+    const asked = session.mode === 'note' ? session.target : null;
+    const accept = asked ? getAcceptRange(asked) : null;
+    const valid = accept ? validMidis(asked.string, asked.fret, accept) : [session.note.midi];
+    if (midi === session.note.midi || valid.includes(midi)) {
+      session.played = asked ? { string: asked.string, fret: midi - STRINGS[asked.string].midi } : null;
       if (session.step < session.steps.length - 1) {
         session.step += 1;
         session.note = session.steps[session.step];
@@ -170,14 +181,15 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
       stats.times.push(ms);
       session.state = 'resolved';
       session.resolvedAt = now();
-      emit('correct', { target: session.target, ms, firstTry, hinted: session.hintStage > 0 });
+      emit('correct', { target: session.target, played: session.played, ms, firstTry, hinted: session.hintStage > 0 });
       return;
     }
     if (session.wrongSeen.has(midi)) return;
     session.wrongSeen.add(midi);
     session.hadWrong = true;
     stats.wrong += 1;
-    const diff = midi - session.note.midi;
+    const nearest = valid.reduce((a, b) => (Math.abs(b - midi) < Math.abs(a - midi) ? b : a), session.note.midi);
+    const diff = midi - nearest;
     emit('wrong', {
       midi,
       name: midiToNoteName(midi),

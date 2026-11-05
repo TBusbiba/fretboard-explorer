@@ -409,3 +409,10 @@ test('review: weak spots are likelier, and a forced roll picks from the pool', (
   assert.deepEqual(r, { string: 0, fret: 12 });
   assert.equal(mixer.next(lvl, FULL), null);   // the next one is a normal question
 });
+
+test('bossFretLabel names the fret only when the string repeats the note in 0-12', async () => {
+  const { bossFretLabel } = await import('../js/path.js');
+  assert.equal(bossFretLabel(5, 0), 'open');
+  assert.equal(bossFretLabel(5, 12), 'fret 12');
+  assert.equal(bossFretLabel(5, 5), '');
+});

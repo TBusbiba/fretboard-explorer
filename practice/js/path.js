@@ -67,6 +67,13 @@ export function fretsFor(pc, string, { from, to }) {
   return out;
 }
 
+/** Fret suffix for a boss prompt when the same note sounds twice on that string in 0-12 (open vs 12th); '' otherwise. */
+export function bossFretLabel(string, fret) {
+  const pc = pitchClass(STRINGS[string].midi + fret);
+  if (fretsFor(pc, string, { from: 0, to: MAX_FRET }).length < 2) return '';
+  return fret === 0 ? 'open' : `fret ${fret}`;
+}
+
 /** Coverage key: `string@fret` for a spot level, `pc:string` (any fret) for a note level. */
 export function spotKey(level, string, fret) {
   return level.spots ? `${string}@${fret}` : `${pitchClass(STRINGS[string].midi + fret)}:${string}`;
