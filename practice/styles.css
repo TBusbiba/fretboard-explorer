@@ -691,7 +691,7 @@ input[type="range"]::-moz-range-thumb {
 @keyframes nb-flag { 0% { opacity: 0; transform: translate(-50%, 8px) rotate(2deg) scale(0.8); } 15% { opacity: 1; transform: translate(-50%, 0) rotate(2deg) scale(1.08); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, 0) rotate(2deg); } }
 @keyframes nb-gain { 0% { opacity: 0; transform: translateY(6px); } 20% { opacity: 1; transform: translateY(0); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-8px); } }
 @keyframes nb-shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-7px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(3px); } }
-.prompt.has-combo { padding-top: 64px; padding-bottom: 66px; }
+.prompt.has-combo { padding-top: 98px; padding-bottom: 66px; }
 .combo { position: absolute; top: 12px; left: 12px; right: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; pointer-events: none; }
 .combo[hidden] { display: none; }
 .combo__badge {
@@ -718,7 +718,7 @@ input[type="range"]::-moz-range-thumb {
   color: var(--nb-ink); border: var(--nb-border); border-radius: var(--nb-radius-sm); box-shadow: var(--nb-shadow-md);
   transform: translate(-50%, 0);
 }
-.combo__shout { top: 64px; font: 700 clamp(28px, 7.5vw, 64px)/1 var(--nb-sans); letter-spacing: -0.02em; text-transform: uppercase; padding: 6px 16px 8px; background: var(--nb-card); transform: translate(-50%, 0) rotate(-4deg); }
+.combo__shout { top: 10px; font: 700 clamp(24px, 4.4vw, 56px)/1 var(--nb-sans); letter-spacing: -0.02em; text-transform: uppercase; padding: 6px 16px 8px; background: var(--nb-card); transform: translate(-50%, 0) rotate(-3deg); }
 .combo__flag { bottom: 22px; font: 700 16px/1 var(--nb-sans); letter-spacing: 0.06em; text-transform: uppercase; padding: 7px 12px; background: var(--nb-yellow); transform: translate(-50%, 0) rotate(2deg); }
 .combo__flag[data-kind="lost"] { background: var(--nb-rose); }
 .combo__shout.is-on, .combo__flag.is-on { opacity: 1; }
@@ -737,8 +737,13 @@ input[type="range"]::-moz-range-thumb {
   .combo__badge { transform: none; }
 }
 @media (max-width: 560px) {
-  .combo__gain { right: 2px; top: calc(100% + 10px); }
-  .combo__shout { top: 88px; font-size: 28px; }
+  .prompt.has-combo { padding-top: 60px; }
+  .combo__score { flex-direction: row; align-items: center; gap: 6px; padding: 4px 10px; }
+  .combo__score .combo__label, .combo__score small { display: none; }
+  .combo__score b { font-size: 20px; }
+  .combo__gain { right: 2px; top: calc(100% + 8px); font-size: 18px; }
+  .combo__shout { top: auto; bottom: 16px; font-size: 26px; padding: 5px 12px 6px; }
+  .combo__flag { bottom: auto; top: 16px; font-size: 11px; letter-spacing: 0.04em; padding: 5px 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
