@@ -119,8 +119,8 @@ export function createFretboard(svg) {
       glints.forEach((l, i) => l.classList.toggle('is-target', i === index));
     },
 
-    /** kind: 'hint' | 'correct' | 'wrong' | 'root'. Replaces any marker at that position. */
-    showNote(string, fret, kind, text) {
+    /** kind: 'hint' | 'correct' | 'wrong' | 'root'. Replaces any marker at that position. `still` skips the string pluck (re-lighting spots). */
+    showNote(string, fret, kind, text, still = false) {
       api.hideNote(string, fret);
       // Outer group positions; inner group animates. (A CSS transform on the
       // same element would override the positioning attribute.)
@@ -134,7 +134,7 @@ export function createFretboard(svg) {
       const t = el('text', { y: 1 }, g);
       t.textContent = text;
       live.set(key(string, fret), pos);
-      if (kind === 'correct' || kind === 'wrong') pluck(string);
+      if (!still && (kind === 'correct' || kind === 'wrong')) pluck(string);
       return pos;
     },
 

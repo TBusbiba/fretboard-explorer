@@ -17,7 +17,9 @@ export const WINDOW = 20;          // answers that count towards the unlock
 export const FIRST_TRY_MIN = 0.75;  // share answered right on the first try
 export const AVG_MS_MAX = 6000;    // average answer time
 export const STAR2_MS = 3000;      // boss average per note for 2 stars
-export const STAR3_MS = 2000;      // ... and for 3 stars
+export const STAR3_MS = 2000;      // ... and for 3 stars (with no mistakes)
+export const STAR2_MISTAKES = 2;   // most mistakes that still earn 2 stars
+export const BOSS_ALL_NOTES = 4;   // notes the "All" level's boss runs through
 export const MAX_FRET = 12;        // every level lives in frets 0-12
 export const REVIEW_P = 0.25;      // chance of a review question after a normal one; never twice in a row, so ~20% overall
 
@@ -118,34 +120,53 @@ export function evaluate(entry, level, range) {
   };
 }
 
-export function starsFor(avgMs) {
-  return avgMs <= STAR3_MS ? 3 : avgMs <= STAR2_MS ? 2 : 1;
+/** 3 stars: average <= 2 s and no mistakes; 2 stars: <= 3 s and at most 2 mistakes; else 1. */
+export function starsFor(avgMs, mistakes = 0) {
+  return avgMs <= STAR3_MS && mistakes === 0 ? 3 : avgMs <= STAR2_MS && mistakes <= STAR2_MISTAKES ? 2 : 1;
 }
 
 // ---------- boss round ----------
 
 /**
- * One question per spot: a spot level's own spots, or for each level note
- * every string, string 6 up to string 1. Any wrong note or skip fails it; the average answer time sets the stars.
+ * The notes a boss runs through: a spot level's own notes (level 2 BEAD: B, E, A, D),
+ * a note level's notes. The "All" level has twelve, too many for one run, so it
+ * gets BOSS_ALL_NOTES of them at random (kept in pitch order).
+ */
+export function bossNotes(level, rng = Math.random) {
+  if (level.notes.length <= BOSS_ALL_NOTES * 2) return [...level.notes];
+  const pool = [...level.notes];
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  return pool.slice(0, BOSS_ALL_NOTES).sort((a, b) => a - b);
+}
+
+/** Every spot of a note in frets 0-12, left to right: by fret, and at one fret the thicker (lower) string first. */
+export function noteSpots(pc) {
+  const out = [];
+  for (const s of STRINGS) for (const fret of fretsFor(pc, s.index, { from: 0, to: MAX_FRET })) out.push({ string: s.index, fret });
+  return out.sort((a, b) => a.fret - b.fret || b.string - a.string);
+}
+
+/**
+ * One run per note of the level's group; in each run the player plays every spot of
+ * that note from fret 0 to 12, left to right. The user's fret range does not apply.
+ * Wrong notes are counted, not fatal; skipping ends the round. The average answer
+ * time and the mistakes set the stars.
  */
 export function createBoss(level, range, rng = Math.random) {
-  const items = [];
-  if (level.spots) {
-    for (const s of level.spots) items.push({ ...s, pc: pitchClass(STRINGS[s.string].midi + s.fret) });
-  } else {
-    const r = levelRange(level, range);
-    for (const pc of level.notes) {
-      for (let string = STRINGS.length - 1; string >= 0; string--) {
-        const frets = fretsFor(pc, string, r);
-        if (frets.length) items.push({ string, fret: frets[Math.floor(rng() * frets.length)], pc });
-      }
-    }
-  }
+  const runs = bossNotes(level, rng).map(pc => ({ pc, spots: noteSpots(pc) }));
+  const items = runs.flatMap((r, run) => r.spots.map((s, i) => ({ ...s, pc: r.pc, run, n: i + 1, of: r.spots.length })));
   const boss = {
-    levelId: level.id, items, index: 0, times: [], state: items.length ? 'running' : 'failed', reason: items.length ? null : 'empty',
+    levelId: level.id, runs, items, index: 0, times: [], mistakes: 0,
+    state: items.length ? 'running' : 'failed', reason: items.length ? null : 'empty',
     get current() { return boss.state === 'running' ? boss.items[boss.index] : null; },
     get avgMs() { return boss.times.length ? boss.times.reduce((a, b) => a + b, 0) / boss.times.length : null; },
-    get stars() { return boss.state === 'passed' ? starsFor(boss.avgMs) : 0; },
+    get totalMs() { return boss.times.reduce((a, b) => a + b, 0); },
+    get stars() { return boss.state === 'passed' ? starsFor(boss.avgMs, boss.mistakes) : 0; },
+    /** Spots of the current run already found, in order. */
+    get found() { const c = boss.items[boss.index]; return c ? boss.items.slice(0, boss.index).filter(i => i.run === c.run) : []; },
+    /** True when the current spot is the first of its run (a new note starts). */
+    get runStart() { const c = boss.current; return !!c && c.n === 1; },
+    wrong() { if (boss.state === 'running') boss.mistakes += 1; return boss.mistakes; },
     correct(ms) {
       if (boss.state !== 'running') return boss.state;
       boss.times.push(ms);
@@ -325,9 +346,9 @@ export function createPath(storage = globalThis.localStorage) {
       return { bossUnlocked: opened };
     },
     /** A passed boss: level done, next level open and current, best stars kept. */
-    completeBoss(id, avgMs) {
+    completeBoss(id, avgMs, mistakes = 0) {
       const e = entry(id);
-      const stars = starsFor(avgMs);
+      const stars = starsFor(avgMs, mistakes);
       const first = !e.done;
       e.done = true; e.bossUnlocked = true;
       e.stars = Math.max(e.stars, stars);

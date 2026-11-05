@@ -888,3 +888,52 @@ input[type="range"]::-moz-range-thumb {
 .vib__mic summary { cursor: pointer; color: var(--nb-ink); font: 700 14px var(--nb-sans); padding: 10px 0; min-height: var(--nb-tap); }
 .vib__mic .sliders { display: grid; grid-template-columns: 1fr; gap: 12px 18px; padding-top: 10px; }
 @media (max-width: 900px) { .vib { grid-template-columns: 1fr; } .lane { height: 300px; } }
+
+/* ---------- boss round: run strip + finale ---------- */
+.boss-strip { position: absolute; left: 0; right: 0; top: 0; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 12px 0; pointer-events: none; }
+.boss-strip[hidden] { display: none; }
+.boss-strip__notes { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; }
+.bn { min-width: 30px; height: 28px; padding: 0 6px; display: inline-grid; place-items: center; font: 700 14px var(--nb-sans); background: var(--nb-card); border: var(--nb-border-sm); border-radius: 6px; color: var(--nb-ink-3); }
+.bn.is-done { background: var(--nb-green); color: var(--nb-ink); }
+.bn.is-now { background: var(--nb-yellow); color: var(--nb-ink); box-shadow: var(--nb-shadow-sm); transform: translate(-1px, -1px); }
+.bm { margin-left: 6px; font: 700 13px var(--nb-mono); color: var(--nb-ink-3); }
+.bm.is-bad { color: var(--nb-bad); }
+.boss-strip__pips { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }
+.boss-strip__pips i { width: 16px; height: 16px; background: var(--nb-card); border: var(--nb-border-sm); border-radius: 50%; }
+.boss-strip__pips i.is-done { background: var(--nb-green); }
+.boss-strip__pips i.is-now { background: var(--nb-yellow); transform: scale(1.25); }
+.prompt:has(.boss-strip:not([hidden])) .prompt__main { padding-top: 54px; }
+
+.boss-end {
+  position: absolute; inset: 0; z-index: 7; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  padding: 24px 16px; text-align: center; color: var(--nb-yellow); border-radius: 7px; background: var(--nb-ink); overflow: hidden;
+}
+.boss-end[hidden] { display: none; }
+.boss-end::before, .boss-end::after {
+  content: ''; position: absolute; left: 0; right: 0; height: 14px;
+  background: repeating-linear-gradient(135deg, var(--nb-yellow) 0 14px, var(--nb-ink) 14px 28px);
+}
+.boss-end::before { top: 0; } .boss-end::after { bottom: 0; }
+.boss-end__kicker { font: 700 clamp(30px, 6vw, 64px)/0.95 var(--nb-sans); letter-spacing: -0.02em; text-transform: uppercase; color: var(--nb-yellow); text-shadow: 4px 4px 0 var(--nb-pink); }
+.boss-end__stars { display: flex; gap: 10px; font-size: clamp(44px, 9vw, 88px); line-height: 1; }
+.boss-end__stars span { color: var(--nb-ink-3); -webkit-text-stroke: 2px var(--nb-card); }
+.boss-end__stars span.is-on { color: var(--nb-yellow); -webkit-text-stroke: 3px var(--nb-card); text-shadow: 4px 4px 0 var(--nb-pink); }
+.boss-end__stats { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 22px; color: var(--nb-card); }
+.boss-end__stats div { display: flex; flex-direction: column; align-items: center; }
+.boss-end__stats b { font: 700 clamp(18px, 2.6vw, 28px)/1.1 var(--nb-sans); color: var(--nb-cyan); }
+.boss-end__stats span { font: 700 11px var(--nb-sans); letter-spacing: 0.1em; text-transform: uppercase; }
+.boss-end__next { font: 700 clamp(15px, 2.2vw, 22px)/1.2 var(--nb-sans); color: var(--nb-green); }
+.boss-end .btn { margin-top: 4px; }
+@media (max-width: 560px) {
+  .boss-end { gap: 8px; padding: 22px 12px; }
+  .boss-end__stats { gap: 6px 14px; }
+  .bn { min-width: 26px; height: 26px; font-size: 13px; }
+  .boss-strip__pips i { width: 13px; height: 13px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .boss-end.is-on { animation: nb-slam 0.6s var(--ease) both; }
+  .boss-end.is-on::before, .boss-end.is-on::after { animation: nb-stripes 0.9s linear infinite; background-size: 56px 14px; }
+  .boss-end.is-on .boss-end__stars span.is-on { animation: nb-pop 0.45s var(--ease) both; }
+  .boss-end.is-on .boss-end__stars span:nth-child(2) { animation-delay: 0.25s; }
+  .boss-end.is-on .boss-end__stars span:nth-child(3) { animation-delay: 0.5s; }
+}

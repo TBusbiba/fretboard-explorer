@@ -1,4 +1,4 @@
-import { STRINGS, FRET_COUNT, INTERVALS, CHORDS, TRIADS, STRING_GROUPS, INVERSIONS, DEGREE_LABELS, intervalById, chordById, triadById, selectedTriads, stringGroupById, spokenName, tipFor, noteAt, pickTarget, pitchClass } from './notes.js';
+import { STRINGS, FRET_COUNT, INTERVALS, CHORDS, TRIADS, STRING_GROUPS, INVERSIONS, DEGREE_LABELS, NOTE_NAMES, intervalById, chordById, triadById, selectedTriads, stringGroupById, spokenName, tipFor, noteAt, pickTarget, pitchClass } from './notes.js';
 import { createFretboard } from './fretboard.js';
 import { createPitchDetector } from './pitch.js';
 import { createVoice } from './voice.js';
@@ -32,7 +32,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '20';
+const BUILD = '21';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -75,6 +75,7 @@ const spotBag = createSpotBag();
 const reviewMixer = createReviewMixer();
 const chainSchedule = createChainSchedule();
 let chain = null;     // the note chain in progress (Path only), else null
+let bossFinale = null; // set when a boss round is cleared: the board lights up once the session stops
 let notice = null;    // {text, tone}: shown instead of "Listening…" on the next question
 
 // The mic is ignored while the voice speaks or a note plays, plus a grace period
@@ -146,7 +147,8 @@ const ui = {
   picker: $('interval-picker'), chordPicker: $('chord-picker'), triadPicker: $('triad-picker'), groupPicker: $('group-picker'), inversionPicker: $('inversion-picker'),
   combo: $('combo'), comboBadge: $('combo-badge'), comboN: $('combo-n'), comboMult: $('combo-mult'), comboScore: $('combo-score'), comboGain: $('combo-gain'), comboBest: $('combo-best'),
   tipBtn: $('tip-btn'), tipCard: $('tip-card'), tipTag: $('tip-tag'), tipHead: $('tip-head'), tipLine: $('tip-line'), tipNote: $('tip-note'), tipFig: $('tip-fig'), tipSwipe: $('tip-swipe'), tipGot: $('tip-got'),
-  chainIntro: $('chain-intro'), chainBig: $('chain-big'), chainStart: $('chain-start'),
+  chainIntro: $('chain-intro'), chainKicker: $('chain-kicker'), bossStrip: $('boss-strip'), bossNotes: $('boss-notes'), bossPips: $('boss-pips'),
+  bossEnd: $('boss-end'), bossEndKicker: $('boss-end-kicker'), bossEndStars: $('boss-end-stars'), bossEndStats: $('boss-end-stats'), bossEndNext: $('boss-end-next'), bossEndGo: $('boss-end-go'), chainBig: $('chain-big'), chainStart: $('chain-start'),
   comboBar: $('combo-bar'), comboFill: $('combo-fill'), comboShout: $('combo-shout'), comboFlag: $('combo-flag'),
   heatReset: $('heat-reset'), heatBody: $('heat-body'),
 };
@@ -162,7 +164,7 @@ function handleSessionEvent(type, p) {
     case 'target': {
       wrongTimers.forEach(clearTimeout); wrongTimers = [];
       if (p.mode !== 'note') chain = null;
-      hideChainIntro();
+      hideChainIntro(); hideBossEnd();
       renderCombo();
       fretboard.clearNotes();
       pitch.reset();
@@ -210,11 +212,16 @@ function handleSessionEvent(type, p) {
         const inBoss = boss && boss.state === 'running';
         const inChain = !inBoss && chain && chain.current && chain.current.string === p.target.string && chain.current.fret === p.target.fret;
         const inReview = !inBoss && !inChain && p.target.review;
-        const prefix = inBoss ? `Boss round · ${boss.index + 1} of ${boss.items.length} · ` : inChain ? `Chain ${chain.index + 1} of ${chain.spots.length} · ` : inReview ? 'Review · ' : '';
-        setPrompt(`${prefix}String ${STRINGS[p.target.string].number}`, p.note.name, 'listening');
-        if (notice) { setStatus(notice.text, notice.tone); notice = null; }
-        else setStatus(inBoss ? 'Boss round: a wrong note or a skip ends it' : inReview ? 'Review from an earlier level' : 'Listening…');
+        const prefix = inChain ? `Chain ${chain.index + 1} of ${chain.spots.length} · ` : inReview ? 'Review · ' : '';
         let spokenIntro = '';
+        if (inBoss) {
+          const item = boss.current;
+          for (const f of boss.found) fretboard.showNote(f.string, f.fret, 'correct', p.note.name, true);
+          setPrompt(`Every ${p.note.name} · ${item.n} of ${item.of} · String ${STRINGS[item.string].number}`, p.note.name, 'listening');
+          if (boss.runStart) spokenIntro = `${showBossIntro(boss, p.note.name)}, `;
+        } else setPrompt(`${prefix}String ${STRINGS[p.target.string].number}`, p.note.name, 'listening');
+        if (notice) { setStatus(notice.text, notice.tone); notice = null; }
+        else setStatus(inBoss ? `Next: ${stringLabel(p.target.string)} string${boss.mistakes ? ` · ${boss.mistakes} mistake${boss.mistakes > 1 ? 's' : ''}` : ''}` : inReview ? 'Review from an earlier level' : 'Listening…');
         if (inChain) {
           const prev = chain.previous;
           if (prev) {
@@ -223,7 +230,7 @@ function handleSessionEvent(type, p) {
             setStatus(`${chain.hint} →`, 'chain');
           } else spokenIntro = `${showChainIntro(chain, p.note.name)}, `;
         }
-        announce(`${spokenIntro}string ${STRINGS[p.target.string].number}, ${spokenName(p.note.name)}`, settings.playNote ? p.note.midi : null,
+        announce(`${spokenIntro}string ${STRINGS[p.target.string].number}${inBoss ? '' : `, ${spokenName(p.note.name)}`}`, settings.playNote ? p.note.midi : null,
           { speak: settings.voice || settings.playNote });
       }
       break;
@@ -289,7 +296,7 @@ function handleSessionEvent(type, p) {
       }
       ui.noteName.dataset.state = 'correct';
       const extra = session.mode === 'note' ? onNoteCorrect(p) : '';
-      if (comboActive() && p.firstTry && !p.hinted) comboHit(p.ms);
+      if (comboActive() && !bossFinale && p.firstTry && !p.hinted) comboHit(p.ms);
       if (chain && session.mode === 'note' && !boss) onChainCorrect(p);
       setStatus(`Correct · ${(p.ms / 1000).toFixed(1)} s${extra ? ` · ${extra}` : ''}`, 'ok');
       if (settings.voice && settings.speakFeedback) voice.speak('correct', voiceOpts());
@@ -315,10 +322,10 @@ function handleSessionEvent(type, p) {
       const spoken = p.octaveOff
         ? `octave too ${p.octaveOff > 0 ? 'high' : 'low'}`
         : `that was ${spokenName(p.name)}`;
-      const bossOver = session.mode === 'note' && boss && boss.state === 'running';
-      if (bossOver) failBoss('wrong');
-      setStatus(bossOver ? `${text} · Boss round over, try again anytime` : text, 'bad');
-      if (session.mode === 'note' && !bossOver) showLandmarkHint(session.target);
+      const inBossRun = session.mode === 'note' && boss && boss.state === 'running';
+      if (inBossRun) { boss.wrong(); renderBossStrip(); }
+      setStatus(inBossRun ? `${text} · ${boss.mistakes} mistake${boss.mistakes > 1 ? 's' : ''}` : text, 'bad');
+      if (session.mode === 'note' && !inBossRun) showLandmarkHint(session.target);
       if (settings.voice && settings.speakFeedback) voice.speak(spoken, voiceOpts());
       updateStats();
       break;
@@ -336,6 +343,7 @@ function handleSessionEvent(type, p) {
       fretboard.highlightString(null);
       setPrompt('Stopped', '', 'idle');
       setStatus(`${p.stats.total} notes · press Start to go again`);
+      if (bossFinale) { lightWholeBoard(bossFinale); setStatus(`Level ${bossFinale.level} complete ${'★'.repeat(bossFinale.stars)}`, 'ok'); bossFinale = null; }
       setTip('');
       setRing(0);
       ui.ring.classList.remove('is-done');
@@ -496,6 +504,7 @@ function comboMiss() {
 // ---------- note chains (Path only) ----------
 let introTimer = null;
 const INTRO_MS = 1500;
+const BOSS_INTRO_MS = 1800;
 
 function hideChainIntro() {
   clearTimeout(introTimer);
@@ -507,6 +516,7 @@ function hideChainIntro() {
 function showChainIntro(c, noteName) {
   const s = STRINGS[c.current.string];
   const stringName = c.current.string === 5 ? 'low E' : s.name;
+  ui.chainKicker.textContent = 'Quick note chain round!';
   ui.chainBig.textContent = `${c.spots.length} ${noteName} notes!`;
   ui.chainStart.textContent = `Start with the ${stringName} string —`;
   ui.chainIntro.hidden = false;
@@ -526,6 +536,58 @@ function onChainCorrect(p) {
   if (comboActive()) { combo.bonus(bonus); saveComboBests(); renderCombo(); flash(ui.comboGain, `+${bonus}`, 1400); }
   flash(ui.comboShout, 'Chain complete!', 1700);
 }
+
+// ---------- boss round: interstitial, progress strip, finale ----------
+const stringLabel = (i) => (i === 5 ? 'low E' : i === 0 ? 'high E' : STRINGS[i].name);
+const noteLetter = (pc) => NOTE_NAMES[pc];
+
+/** The punchy card before each note of a boss round; the answer clock starts when it lifts. Returns the spoken text. */
+function showBossIntro(b, noteName) {
+  const item = b.current, first = item.run === 0, prev = first ? '' : noteLetter(b.runs[item.run - 1].pc);
+  ui.chainKicker.textContent = first ? 'Boss round!' : `${prev} done · note ${item.run + 1} of ${b.runs.length}`;
+  ui.chainBig.textContent = first ? `Every ${noteName}!` : `Next: every ${noteName}!`;
+  ui.chainStart.textContent = `${item.of} spots · start on the ${stringLabel(item.string)} string —`;
+  ui.chainIntro.hidden = false;
+  ui.chainIntro.classList.remove('is-on'); void ui.chainIntro.offsetWidth; ui.chainIntro.classList.add('is-on');
+  clearTimeout(introTimer);
+  introTimer = setTimeout(() => { hideChainIntro(); session.restartClock(); }, BOSS_INTRO_MS);
+  return first ? `Boss round. Every ${spokenName(noteName)}` : `Next. Every ${spokenName(noteName)}`;
+}
+
+/** The run strip: one chip per note of the group, then a pip per spot of the current note. */
+function renderBossStrip() {
+  const on = !!(boss && boss.state === 'running');
+  ui.bossStrip.hidden = !on;
+  if (!on) return;
+  const cur = boss.items[boss.index].run, pips = boss.runs[cur].spots.length;
+  ui.bossNotes.innerHTML = boss.runs.map((r, i) => `<span class="bn${i < cur ? ' is-done' : i === cur ? ' is-now' : ''}">${noteLetter(r.pc)}</span>`).join('')
+    + `<span class="bm${boss.mistakes ? ' is-bad' : ''}">${boss.mistakes} ✗</span>`;
+  const have = boss.found.length;
+  ui.bossPips.innerHTML = Array.from({ length: pips }, (_, i) => `<i class="${i < have ? 'is-done' : i === have ? 'is-now' : ''}"></i>`).join('');
+}
+
+function hideBossEnd() { ui.bossEnd.hidden = true; ui.bossEnd.classList.remove('is-on'); }
+
+const clock = (ms) => { const t = Math.round(ms / 100) / 10, m = Math.floor(t / 60); return m ? `${m}:${(t - m * 60).toFixed(1).padStart(4, '0')}` : `${t.toFixed(1)} s`; };
+
+/** The finale card: stars, time, mistakes, what opened next. */
+function showBossEnd(f) {
+  ui.bossEndKicker.textContent = f.stars === 3 ? 'Flawless!' : f.stars === 2 ? 'Boss round cleared!' : 'Boss round beaten!';
+  ui.bossEndStars.innerHTML = [1, 2, 3].map(n => `<span class="${n <= f.stars ? 'is-on' : ''}">★</span>`).join('');
+  ui.bossEndStats.innerHTML = `<div><b>${f.notes.join(' · ')}</b><span>every spot, frets 0-12</span></div>`
+    + `<div><b>${f.spots}</b><span>spots</span></div><div><b>${clock(f.totalMs)}</b><span>total</span></div>`
+    + `<div><b>${(f.avgMs / 1000).toFixed(1)} s</b><span>per spot</span></div><div><b>${f.mistakes}</b><span>mistake${f.mistakes === 1 ? '' : 's'}</span></div>`;
+  ui.bossEndNext.textContent = f.next ? `Level ${f.next.id} unlocked: ${levelTitle(f.next)}` : 'Path complete: every level done';
+  ui.bossEnd.hidden = false;
+  ui.bossEnd.classList.remove('is-on'); void ui.bossEnd.offsetWidth; ui.bossEnd.classList.add('is-on');
+}
+
+/** Every spot of the group's notes, lit on the board. */
+function lightWholeBoard(f) {
+  for (const s of f.lit) fretboard.showNote(s.string, s.fret, 'correct', noteLetter(s.pc), true);
+}
+
+ui.bossEndGo.addEventListener('click', () => { hideBossEnd(); if (session.state === 'idle') toggleSession(); });
 
 // ---------- level path ----------
 const LOCK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
@@ -595,6 +657,7 @@ function popTile(id) {
 
 function renderPath() {
   syncComboContext();
+  renderBossStrip();
   renderCombo();
   const show = isNoteMode() && settings.noteMode === 'path';
   ui.path.hidden = !show;
@@ -617,7 +680,7 @@ function renderPath() {
   ui.pathTitle.textContent = `Level ${lvl.id} · ${levelTitle(lvl)}`;
   ui.pathGoal.textContent = pr.spotsTotal === 0
     ? 'No spot of this level falls inside your fret range. Widen the frets in Settings.'
-    : pr.bossUnlocked ? 'Boss round open: find every spot of this level.'
+    : pr.bossUnlocked ? 'Boss round open: play every spot of each of the level\'s notes, frets 0-12.'
     : `Unlock the boss: last ${WINDOW} answers ${Math.round(FIRST_TRY_MIN * 100)}%+ first try, ${AVG_MS_MAX / 1000} s or less on average, every spot of the level.`;
   const box = (label, value, goal, met) =>
     `<div class="pstat${met ? ' is-met' : ''}"><span class="pstat__label">${label}</span><span class="pstat__value">${value}${met ? ' ✓' : ''}</span><span class="pstat__goal">${goal}</span></div>`;
@@ -629,8 +692,8 @@ function renderPath() {
   ui.bossBtn.disabled = !pr.bossUnlocked || !!running;
   ui.bossBtn.classList.toggle('is-ready', pr.bossUnlocked && !running);
   ui.bossBtn.innerHTML = running ? `Boss ${boss.index}/${boss.items.length}` : `${pr.bossUnlocked ? '' : `${LOCK_SVG} `}${pr.done ? 'Boss again' : 'Boss round'}`;
-  ui.bossNote.textContent = running ? 'A wrong note or a skip ends it.'
-    : pr.bossUnlocked ? `${pr.done ? `Best ${stars(pr.stars)} · ` : ''}★ pass · ★★ avg ${STAR2_MS / 1000} s · ★★★ avg ${STAR3_MS / 1000} s`
+  ui.bossNote.textContent = running ? 'Wrong notes count against your stars. Skipping ends it.'
+    : pr.bossUnlocked ? `${pr.done ? `Best ${stars(pr.stars)} · ` : ''}★ pass · ★★ avg ${STAR2_MS / 1000} s, 2 mistakes max · ★★★ avg ${STAR3_MS / 1000} s, none`
     : '';
 }
 
@@ -639,13 +702,16 @@ function onNoteCorrect(p) {
   let extra = '';
   if (boss && boss.state === 'running') {
     if (boss.correct(p.ms) === 'passed') {
-      const lvl = levelById(boss.levelId), r = path.completeBoss(lvl.id, boss.avgMs), next = r.next && levelById(r.next);
+      const lvl = levelById(boss.levelId), r = path.completeBoss(lvl.id, boss.avgMs, boss.mistakes), next = r.next && levelById(r.next);
+      bossFinale = { level: lvl.id, stars: r.stars, lit: boss.items, notes: boss.runs.map(x => noteLetter(x.pc)), spots: boss.items.length,
+        totalMs: boss.totalMs, avgMs: boss.avgMs, mistakes: boss.mistakes, next };
+      showBossEnd(bossFinale);
       boss = null;
-      notice = { text: next ? `Level ${next.id} unlocked: ${levelTitle(next)}` : 'Path complete: every level done', tone: 'ok' };
       popTile(lvl.id);
       if (next) openTip(next.id);
       extra = `Level ${lvl.id} complete ${'★'.repeat(r.stars)}`;
-    } else extra = `Boss ${boss.index} of ${boss.items.length}`;
+      setTimeout(() => { if (session.state !== 'idle') toggleSession(); }, 0);
+    } else extra = `${boss.index} of ${boss.items.length}`;
   } else if (settings.noteMode === 'path') {
     const r = path.record(path.current, { string: p.target.string, fret: p.target.fret, firstTry: p.firstTry && !p.hinted, ms: p.ms, review: !!p.target.review }, fretRange());
     if (r.bossUnlocked) { extra = 'Boss round unlocked!'; popTile(path.current); }
@@ -666,7 +732,7 @@ async function startBoss() {
   if (!isNoteMode() || !path.progress(lvl.id, fretRange()).bossUnlocked) return;
   const b = createBoss(lvl, fretRange());
   if (b.state !== 'running') { setStatus('No spot of this level falls inside your fret range.', 'bad'); return; }
-  boss = b; notice = null; chain = null;
+  boss = b; notice = null; chain = null; bossFinale = null; hideBossEnd();
   renderPath();
   if (session.state === 'idle') await toggleSession();
   else session.skip();

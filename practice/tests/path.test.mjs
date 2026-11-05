@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { NOTE_NAMES, STRINGS, noteAt, pickTarget, pitchClass } from '../js/notes.js';
 import {
-  LEVELS, WINDOW, createSpotBag, evaluate, requiredSpots, fretsFor, blankEntry, createBoss, starsFor, positionWeigher, createPath,
+  LEVELS, WINDOW, createSpotBag, evaluate, requiredSpots, fretsFor, blankEntry, createBoss, bossNotes, noteSpots, starsFor, positionWeigher, createPath,
   levelRange, levelSpots, spotKey, reviewPool, createReviewMixer, REVIEW_P,
 } from '../js/path.js';
 import { createSession } from '../js/session.js';
@@ -122,62 +122,99 @@ test('unlock rule: spot levels keep all their spots whatever the fret range', ()
   assert.equal(evaluate(entryWith({ range, covered: true, level: LEVELS[1] }), LEVELS[1], range).unlocked, true);
 });
 
-test('boss: a spot level asks its own spots, string 6 to 1', () => {
-  const boss = createBoss(LEVELS[2], FULL);   // G A B on both E strings
-  assert.deepEqual(boss.items.map(i => `${i.string}:${i.fret}`), ['5:3', '5:5', '5:7', '0:3', '0:5', '0:7']);
-  assert.deepEqual(boss.items.map(i => NOTE_NAMES[i.pc]), ['G', 'A', 'B', 'G', 'A', 'B']);
-  const open = createBoss(L1, { from: 0, to: 2 });   // range does not matter for spot levels
-  assert.equal(open.items.length, 12);
-  assert.ok(open.items.some(i => i.fret === 12));
+const names = (items) => [...new Set(items.map(i => NOTE_NAMES[i.pc]))];
+
+test('boss: the group is the level\'s own notes (a spot level: the distinct notes of its spots)', () => {
+  assert.deepEqual(names(createBoss(LEVELS[1], FULL).items), ['B', 'E', 'A', 'D']);   // BEAD
+  assert.deepEqual(names(createBoss(LEVELS[2], FULL).items), ['G', 'A', 'B']);
+  assert.deepEqual(names(createBoss(L1, FULL).items), ['E', 'A', 'D', 'G', 'B']);
+  assert.deepEqual(names(createBoss(L5, FULL).items), ['E', 'F', 'B', 'C']);
+  assert.equal(createBoss(LEVELS[5], FULL).runs.length, 7);
+  assert.equal(createBoss(LEVELS[6], FULL).runs.length, 5);
 });
 
-test('boss: a note level asks one question per note and string, string 6 to 1, in level order', () => {
-  const boss = createBoss(L5, FULL, () => 0);
-  assert.equal(boss.items.length, 24);
-  assert.deepEqual(boss.items.slice(0, 6).map(i => i.string), [5, 4, 3, 2, 1, 0]);
-  assert.deepEqual(boss.items.map(i => NOTE_NAMES[i.pc]).filter((_, i) => i % 6 === 0), ['E', 'F', 'B', 'C']);
-  for (const it of boss.items) assert.equal(noteAt(it.string, it.fret).name, NOTE_NAMES[it.pc]);
+test('boss: the All level runs 4 random notes, in pitch order, and the pick follows rng', () => {
+  const a = bossNotes(LEVELS[7], () => 0), b = bossNotes(LEVELS[7], () => 0.99);
+  assert.equal(a.length, 4); assert.equal(b.length, 4);
+  assert.deepEqual(a, [...a].sort((x, y) => x - y));
+  assert.notDeepEqual(a, b);
+  assert.equal(new Set(bossNotes(LEVELS[7])).size, 4);
+});
+
+test('boss: every spot of the note in frets 0-12, left to right, thicker string first at one fret', () => {
+  const A = NOTE_NAMES.indexOf('A');
+  const spots = noteSpots(A);
+  assert.deepEqual(spots.map(s => `${s.string}@${s.fret}`), ['4@0', '2@2', '5@5', '0@5', '3@7', '1@10', '4@12']);
+  for (const s of spots) { assert.ok(s.fret >= 0 && s.fret <= 12); assert.equal(noteAt(s.string, s.fret).name, 'A'); }
+  const E = noteSpots(NOTE_NAMES.indexOf('E')).map(s => `${s.string}@${s.fret}`);
+  assert.deepEqual(E, ['5@0', '0@0', '3@2', '1@5', '4@7', '2@9', '5@12', '0@12']);
+});
+
+test('boss: items carry the run, the position in it and the run size', () => {
+  const boss = createBoss(L5, FULL);
+  const first = boss.items[0];
+  assert.deepEqual([first.run, first.n, first.of], [0, 1, boss.runs[0].spots.length]);
+  assert.equal(boss.items.length, boss.runs.reduce((t, r) => t + r.spots.length, 0));
   assert.deepEqual(boss.current, boss.items[0]);
+  assert.equal(boss.runStart, true);
 });
 
-test('boss: note-level frets stay inside the range and strings without the note are left out', () => {
-  const boss = createBoss(L5, { from: 0, to: 4 }, Math.random);
-  for (const it of boss.items) assert.ok(it.fret >= 0 && it.fret <= 4);
-  assert.equal(boss.items.length, requiredSpots(L5, { from: 0, to: 4 }).length);
-  assert.equal(createBoss(LEVELS[6], { from: 0, to: 0 }).state, 'failed');
+test('boss: the fret range setting is ignored', () => {
+  assert.equal(createBoss(L5, { from: 0, to: 4 }).items.length, createBoss(L5, FULL).items.length);
 });
 
-test('boss: answering every question passes it', () => {
+test('boss: answering every spot passes it; found spots and runStart follow along', () => {
   const boss = createBoss(L1, FULL);
-  for (let i = 0; i < 11; i++) assert.equal(boss.correct(1500), 'running');   // 12 spots
+  const total = boss.items.length;
+  const firstRun = boss.runs[0].spots.length;
+  boss.correct(1500);
+  assert.equal(boss.found.length, 1);
+  assert.equal(boss.runStart, firstRun === 1);
+  for (let i = 1; i < firstRun; i++) boss.correct(1500);
+  assert.equal(boss.runStart, true);
+  assert.equal(boss.found.length, 0);
+  for (let i = firstRun; i < total - 1; i++) assert.equal(boss.correct(1500), 'running');
   assert.equal(boss.correct(1500), 'passed');
   assert.equal(boss.current, null);
   assert.equal(boss.avgMs, 1500);
+  assert.equal(boss.totalMs, 1500 * total);
 });
 
-test('boss: a wrong note or a skip fails it for good', () => {
+test('boss: wrong notes are counted and do not end it; a skip fails it for good', () => {
   const a = createBoss(L1, FULL);
   a.correct(1000);
-  assert.equal(a.fail('wrong'), 'failed');
-  assert.equal(a.reason, 'wrong');
+  assert.equal(a.wrong(), 1);
+  assert.equal(a.wrong(), 2);
+  assert.equal(a.state, 'running');
+  assert.equal(a.fail('skipped'), 'failed');
+  assert.equal(a.reason, 'skipped');
   assert.equal(a.current, null);
+  assert.equal(a.wrong(), 2);
   assert.equal(a.correct(1000), 'failed');   // later answers cannot revive it
-  const b = createBoss(L1, FULL);
-  b.fail('skipped');
-  assert.equal(b.state, 'failed');
-  assert.equal(b.stars, 0);
+  assert.equal(a.stars, 0);
 });
 
-test('boss stars: pass is 1, 3 s average is 2, 2 s average is 3', () => {
+test('boss stars: 3 = avg <= 2 s and no mistakes, 2 = avg <= 3 s and <= 2 mistakes, else 1', () => {
   assert.equal(starsFor(5000), 1);
   assert.equal(starsFor(3001), 1);
   assert.equal(starsFor(3000), 2);
   assert.equal(starsFor(2001), 2);
   assert.equal(starsFor(2000), 3);
+  assert.equal(starsFor(2000, 1), 2);
+  assert.equal(starsFor(2000, 2), 2);
+  assert.equal(starsFor(2000, 3), 1);
+  assert.equal(starsFor(3000, 3), 1);
+  assert.equal(starsFor(3001, 0), 1);
   const boss = createBoss(L1, FULL);
-  boss.items.forEach(() => boss.correct(2400));
-  assert.equal(boss.state, 'passed');
-  assert.equal(boss.stars, 2);
+  boss.items.forEach(() => boss.correct(1800));
+  assert.equal(boss.stars, 3);
+  const b2 = createBoss(L1, FULL);
+  b2.wrong();
+  b2.items.forEach(() => b2.correct(1800));
+  assert.equal(b2.stars, 2);
+  const b3 = createBoss(L1, FULL);
+  b3.items.forEach(() => b3.correct(2400));
+  assert.equal(b3.stars, 2);
 });
 
 test('store: the boss round opens on the 20th good answer and stays open', () => {

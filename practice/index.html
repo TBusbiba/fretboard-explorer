@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="20">
+<html lang="en" data-build="21">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -93,9 +93,20 @@
       <div class="combo__shout" id="combo-shout" aria-hidden="true"></div>
       <div class="combo__flag" id="combo-flag" role="status"></div>
       <div class="chain-intro" id="chain-intro" hidden aria-hidden="true">
-        <div class="chain-intro__kicker">Quick note chain round!</div>
+        <div class="chain-intro__kicker" id="chain-kicker">Quick note chain round!</div>
         <div class="chain-intro__big" id="chain-big">3 C notes!</div>
         <div class="chain-intro__start" id="chain-start">Start with the A string —</div>
+      </div>
+      <div class="boss-end" id="boss-end" hidden role="dialog" aria-label="Boss round result">
+        <div class="boss-end__kicker" id="boss-end-kicker">Boss round cleared!</div>
+        <div class="boss-end__stars" id="boss-end-stars" aria-hidden="true">★★★</div>
+        <div class="boss-end__stats" id="boss-end-stats"></div>
+        <div class="boss-end__next" id="boss-end-next"></div>
+        <button type="button" class="btn btn--primary" id="boss-end-go">Keep going</button>
+      </div>
+      <div class="boss-strip" id="boss-strip" hidden aria-hidden="true">
+        <div class="boss-strip__notes" id="boss-notes"></div>
+        <div class="boss-strip__pips" id="boss-pips"></div>
       </div>
       <div class="combo__bar" id="combo-bar" hidden aria-hidden="true"><i id="combo-fill"></i></div>
       <div class="prompt__main" aria-live="polite">
