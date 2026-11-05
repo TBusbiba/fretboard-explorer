@@ -5,7 +5,7 @@ import { createVoice } from './voice.js';
 import { createSound } from './sound.js';
 import { createMicGate } from './mic-gate.js';
 import { createSession } from './session.js';
-import { pickChain, createChain, createChainSchedule, CHAIN_LENGTH, CHAIN_BONUS } from './chain.js';
+import { pickChain, createChain, createChainSchedule, CHAIN_BONUS } from './chain.js';
 import { createCombo, createCustomBest, speedLeft, BADGE_FROM } from './combo.js';
 import { createHistory } from './history.js';
 import { LEVELS, WINDOW, FIRST_TRY_MIN, AVG_MS_MAX, STAR2_MS, STAR3_MS, levelById, levelTitle, createPath, createBoss, createSpotBag, createReviewMixer, levelRange, positionWeigher } from './path.js';
@@ -32,7 +32,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '19';
+const BUILD = '20';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -210,7 +210,7 @@ function handleSessionEvent(type, p) {
         const inBoss = boss && boss.state === 'running';
         const inChain = !inBoss && chain && chain.current && chain.current.string === p.target.string && chain.current.fret === p.target.fret;
         const inReview = !inBoss && !inChain && p.target.review;
-        const prefix = inBoss ? `Boss round · ${boss.index + 1} of ${boss.items.length} · ` : inChain ? `Chain ${chain.index + 1} of ${CHAIN_LENGTH} · ` : inReview ? 'Review · ' : '';
+        const prefix = inBoss ? `Boss round · ${boss.index + 1} of ${boss.items.length} · ` : inChain ? `Chain ${chain.index + 1} of ${chain.spots.length} · ` : inReview ? 'Review · ' : '';
         setPrompt(`${prefix}String ${STRINGS[p.target.string].number}`, p.note.name, 'listening');
         if (notice) { setStatus(notice.text, notice.tone); notice = null; }
         else setStatus(inBoss ? 'Boss round: a wrong note or a skip ends it' : inReview ? 'Review from an earlier level' : 'Listening…');
@@ -507,13 +507,13 @@ function hideChainIntro() {
 function showChainIntro(c, noteName) {
   const s = STRINGS[c.current.string];
   const stringName = c.current.string === 5 ? 'low E' : s.name;
-  ui.chainBig.textContent = `${CHAIN_LENGTH} ${noteName} notes!`;
+  ui.chainBig.textContent = `${c.spots.length} ${noteName} notes!`;
   ui.chainStart.textContent = `Start with the ${stringName} string —`;
   ui.chainIntro.hidden = false;
   ui.chainIntro.classList.remove('is-on'); void ui.chainIntro.offsetWidth; ui.chainIntro.classList.add('is-on');
   clearTimeout(introTimer);
   introTimer = setTimeout(() => { hideChainIntro(); session.restartClock(); }, INTRO_MS);
-  return `Quick note chain round. ${CHAIN_LENGTH} ${spokenName(noteName)} notes. Start with the ${stringName} string`;
+  return `Quick note chain round. ${c.spots.length} ${spokenName(noteName)} notes. Start with the ${stringName} string`;
 }
 
 /** A chain note was answered (called after the streak and path were scored). */
