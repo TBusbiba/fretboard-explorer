@@ -5,6 +5,7 @@
 import { clipFiles } from './clips.js';
 
 const CLIP_DIR = new URL('../audio/voice/', import.meta.url);
+const CLIP_REV = 3; // bump after re-recording clips so browsers drop cached copies
 export const CLIP_VOICE = 'adam';           // the voice picker's value for the recorded clips
 export const usesClips = (voiceName) => voiceName === CLIP_VOICE || voiceName === '';
 const CLIP_TIMEOUT_MS = 8000;               // a clip that never ends must not mute the mic for good
@@ -17,7 +18,7 @@ export function createVoice({ onSpeaking = () => {} } = {}) {
   let voices = [];
   let manifest = {};
   const manifestReady = typeof fetch === 'function'
-    ? fetch(new URL('manifest.json', CLIP_DIR)).then(r => (r.ok ? r.json() : {})).then(m => { manifest = m; }).catch(() => {})
+    ? fetch(new URL(`manifest.json?v=${CLIP_REV}`, CLIP_DIR)).then(r => (r.ok ? r.json() : {})).then(m => { manifest = m; }).catch(() => {})
     : Promise.resolve();
   const cache = new Map();   // file -> HTMLAudioElement
   let run = 0;               // bumped by every speak()/cancel(): a stale clip chain stops itself
@@ -44,7 +45,7 @@ export function createVoice({ onSpeaking = () => {} } = {}) {
   function audioFor(file) {
     let a = cache.get(file);
     if (!a) {
-      a = new Audio(new URL(file, CLIP_DIR).href);
+      a = new Audio(new URL(`${file}?v=${CLIP_REV}`, CLIP_DIR).href);
       a.preload = 'auto';
       cache.set(file, a);
     }
