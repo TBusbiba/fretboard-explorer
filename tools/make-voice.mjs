@@ -20,7 +20,7 @@ export const normalize = (t) => t.toLowerCase().replace(/♯/g, ' sharp').replac
 const phrases = [];
 const add = (text, style = 'plain', spoken = text) => phrases.push([text, style, spoken]);
 
-for (let n = 1; n <= 6; n++) for (const note of NOTES) add(`String ${n}, ${note}`, 'prompt', `String ${n}... [excited] ${note}!`);
+for (let n = 1; n <= 6; n++) for (const note of NOTES) add(`String ${n}, ${note}`, 'prompt', `[excited] String ${n}, ${note}!`);
 for (const note of NOTES) { add(note); add(`That was ${note}`); }
 ['Correct', 'Good', 'Octave too high', 'Octave too low'].forEach(t => add(t));
 ['Nice!', 'Great!', 'On fire!', 'Unstoppable!', 'Legendary!', 'Chain complete!', 'New best streak!'].forEach(t => add(t, 'hype'));
