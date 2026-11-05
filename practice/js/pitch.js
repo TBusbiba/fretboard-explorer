@@ -5,7 +5,9 @@
 // a plucked note, and in thin high notes) do not reset the hold; only real
 // silence or a different note does. A note is not reported again until the
 // signal drops below the gate (so re-plucking the same note triggers again)
-// or reset() is called.
+// or reset() is called. After reset() or a mute the same pitch still waits for
+// silence or a fresh pluck (attack.js), so a ringing string cannot answer the next
+// question.
 //
 // isMuted(now) returns true while the app's own sound is playing or has just
 // stopped; readings are discarded then.
@@ -18,6 +20,7 @@
 import { PitchDetector } from '../vendor/pitchy.js';
 import { frequencyToMidi } from './notes.js';
 import { correctOctave, hasLowerOctave } from './octave.js';
+import { createAttackGuard } from './attack.js';
 
 const FFT_SIZE = 4096;          // ~85 ms at 48 kHz: enough for the low E (82 Hz)
 const HOLD_MS = 90;
@@ -42,6 +45,7 @@ export function createPitchDetector({ getSettings, getExpected = () => null, isM
   let recent = []; // [midi, time] of recent accepted readings
   let reported = null;
   let ringing = null; // last low note reported; survives reset() until real silence
+  const attack = createAttackGuard(); // the reported pitch is ignored until silence or a fresh pluck, across reset() and mutes
 
   function setState(s, detail) { state = s; onState(s, detail); }
 
@@ -59,9 +63,11 @@ export function createPitchDetector({ getSettings, getExpected = () => null, isM
     onLevel(rms, gate);
 
     const now = performance.now();
+    const muted = isMuted(now);
+    attack.update(rms, gate, now, muted);
     // Speakers playing or just stopped (see mic-gate.js): hear nothing, and forget
     // every held, reported or "ringing" note so none carries into the next question.
-    if (isMuted(now)) { resetHold(); reported = null; ringing = null; return; }
+    if (muted) { resetHold(); reported = null; ringing = null; return; }
     if (rms < gate) {
       if (now - lastLoudAt > SILENCE_RESET_MS) { resetHold(); reported = null; ringing = null; }
       return;
@@ -95,7 +101,9 @@ export function createPitchDetector({ getSettings, getExpected = () => null, isM
       // A low string fades towards its octave-up partial; that is still the old note
       // ringing, unless the octave is exactly what the app is asking for next.
       if (low && ringing != null && final === ringing + 12 && expected !== final) return;
+      if (attack.blocks(final)) return;
       reported = final;
+      attack.arm(final, rms, now);
       ringing = low ? final : null;
       onNote(final, hz, clarity);
     }
@@ -130,7 +138,7 @@ export function createPitchDetector({ getSettings, getExpected = () => null, isM
       source.connect(gainNode).connect(highpass).connect(analyser);
       buf = new Float32Array(analyser.fftSize);
       detector = PitchDetector.forFloat32Array(analyser.fftSize);
-      resetHold(); reported = null;
+      resetHold(); reported = null; attack.clear();
       setState('running');
       rafId = requestAnimationFrame(frame);
     },
@@ -140,7 +148,7 @@ export function createPitchDetector({ getSettings, getExpected = () => null, isM
       if (stream) stream.getTracks().forEach(t => t.stop());
       if (ctx) ctx.close();
       ctx = stream = gainNode = analyser = detector = null;
-      resetHold(); reported = null;
+      resetHold(); reported = null; attack.clear();
       setState('idle');
     },
 
