@@ -63,6 +63,12 @@ export function createCombo(best = {}) {
       if (c.score > bestScore) bestScore = c.score;
       return { points, streak: c.streak, multiplier: multiplierFor(c.streak), heat: heatFor(c.streak), shout: shoutFor(c.streak), newBest };
     },
+    /** Extra points outside a single answer (chain bonus). */
+    bonus(points) {
+      c.score += points;
+      if (c.score > bestScore) bestScore = c.score;
+      return c.score;
+    },
     /** Ends the streak; `lost` is the streak that ended (0 when there was none). */
     miss() {
       const lost = c.streak;

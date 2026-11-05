@@ -141,6 +141,13 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
     nextTarget();
   };
 
+  // The host held the question back (an announcement): the clock and the hint countdown start now.
+  session.restartClock = () => {
+    if (session.state !== 'listening') return;
+    session.startedAt = now();
+    session.hintAnchor = session.startedAt;
+  };
+
   session.showHint = showHint;
 
   session.noteDetected = (midi) => {

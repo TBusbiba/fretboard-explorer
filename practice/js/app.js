@@ -5,6 +5,7 @@ import { createVoice } from './voice.js';
 import { createSound } from './sound.js';
 import { createMicGate } from './mic-gate.js';
 import { createSession } from './session.js';
+import { pickChain, createChain, createChainSchedule, CHAIN_LENGTH, CHAIN_BONUS } from './chain.js';
 import { createCombo, createCustomBest, speedLeft, BADGE_FROM } from './combo.js';
 import { createHistory } from './history.js';
 import { LEVELS, WINDOW, FIRST_TRY_MIN, AVG_MS_MAX, STAR2_MS, STAR3_MS, levelById, levelTitle, createPath, createBoss, createSpotBag, positionWeigher } from './path.js';
@@ -29,7 +30,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '17';
+const BUILD = '18';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -66,6 +67,8 @@ let weigher = null;   // rebuilt from the history after every answer
 function weighPosition(string, fret) { return (weigher ||= positionWeigher(history.positions()))(string, fret); }
 let boss = null;      // the boss round in progress, else null
 const spotBag = createSpotBag();
+const chainSchedule = createChainSchedule();
+let chain = null;     // the note chain in progress (Path only), else null
 let notice = null;    // {text, tone}: shown instead of "Listening…" on the next question
 
 // The mic is ignored while the voice speaks or a note plays, plus a grace period
@@ -105,6 +108,13 @@ const session = createSession({
     if (item) return { string: item.string, fret: item.fret };
     if (isNoteMode() && settings.noteMode === 'path') {
       const range = fretRange();
+      if (chain && chain.levelId !== path.current) chain = null;
+      if (!chain && chainSchedule.due()) {
+        const have = new Set(path.progress(path.current, range).missing);
+        const pick = pickChain(path.currentLevel, range, Math.random, (pc, spots) => have.has(`${pc}:${spots[0].string}`));
+        if (pick) chain = createChain(pick, path.current);
+      }
+      if (chain) return { ...chain.current };
       return spotBag.next(path.currentLevel, range, path.progress(path.current, range).missing, weighPosition);
     }
     return pickTarget(opts, previous, rng);
@@ -127,6 +137,7 @@ const ui = {
   shapesToggle: $('shapes-toggle'), prompt: $('prompt'), promptTools: $('prompt-tools'), cueToggle: $('cue-toggle'), cuePicker: $('cue-picker'), shapes: $('shapes'), shapesTabs: $('shapes-tabs'), shapesList: $('shapes-list'),
   picker: $('interval-picker'), chordPicker: $('chord-picker'), triadPicker: $('triad-picker'), groupPicker: $('group-picker'), inversionPicker: $('inversion-picker'),
   combo: $('combo'), comboBadge: $('combo-badge'), comboN: $('combo-n'), comboMult: $('combo-mult'), comboScore: $('combo-score'), comboGain: $('combo-gain'), comboBest: $('combo-best'),
+  chainIntro: $('chain-intro'), chainBig: $('chain-big'), chainStart: $('chain-start'),
   comboBar: $('combo-bar'), comboFill: $('combo-fill'), comboShout: $('combo-shout'), comboFlag: $('combo-flag'),
   heatReset: $('heat-reset'), heatBody: $('heat-body'),
 };
@@ -141,6 +152,8 @@ function handleSessionEvent(type, p) {
   switch (type) {
     case 'target': {
       wrongTimers.forEach(clearTimeout); wrongTimers = [];
+      if (p.mode !== 'note') chain = null;
+      hideChainIntro();
       renderCombo();
       fretboard.clearNotes();
       pitch.reset();
@@ -186,10 +199,21 @@ function handleSessionEvent(type, p) {
         fretboard.highlightString(p.target.string);
         scrollBoardTo(p.target.fret);
         const inBoss = boss && boss.state === 'running';
-        setPrompt(`${inBoss ? `Boss round · ${boss.index + 1} of ${boss.items.length} · ` : ''}String ${STRINGS[p.target.string].number}`, p.note.name, 'listening');
+        const inChain = !inBoss && chain && chain.current && chain.current.string === p.target.string && chain.current.fret === p.target.fret;
+        const prefix = inBoss ? `Boss round · ${boss.index + 1} of ${boss.items.length} · ` : inChain ? `Chain ${chain.index + 1} of ${CHAIN_LENGTH} · ` : '';
+        setPrompt(`${prefix}String ${STRINGS[p.target.string].number}`, p.note.name, 'listening');
         if (notice) { setStatus(notice.text, notice.tone); notice = null; }
         else setStatus(inBoss ? 'Boss round: a wrong note or a skip ends it' : 'Listening…');
-        announce(`string ${STRINGS[p.target.string].number}, ${spokenName(p.note.name)}`, settings.playNote ? p.note.midi : null,
+        let spokenIntro = '';
+        if (inChain) {
+          const prev = chain.previous;
+          if (prev) {
+            fretboard.showNote(prev.string, prev.fret, 'root', p.note.name);
+            fretboard.showArrow(prev, p.target);
+            setStatus(`${chain.hint} →`, 'chain');
+          } else spokenIntro = `${showChainIntro(chain, p.note.name)}, `;
+        }
+        announce(`${spokenIntro}string ${STRINGS[p.target.string].number}, ${spokenName(p.note.name)}`, settings.playNote ? p.note.midi : null,
           { speak: settings.voice || settings.playNote });
       }
       break;
@@ -210,6 +234,7 @@ function handleSessionEvent(type, p) {
     }
     case 'hint':
       if (comboActive()) comboMiss();
+      if (chain && session.mode === 'note') chain.miss();
       if (session.mode === 'arpeggios' || session.mode === 'triads') {
         if (p.stage === 1) {
           setTip(session.mode === 'triads' ? `${session.triad.tip} ${INVERSIONS[session.target.inversion].tip}` : session.chord.tip);
@@ -254,6 +279,7 @@ function handleSessionEvent(type, p) {
       ui.noteName.dataset.state = 'correct';
       const extra = session.mode === 'note' ? onNoteCorrect(p) : '';
       if (comboActive() && p.firstTry && !p.hinted) comboHit(p.ms);
+      if (chain && session.mode === 'note' && !boss) onChainCorrect(p);
       setStatus(`Correct · ${(p.ms / 1000).toFixed(1)} s${extra ? ` · ${extra}` : ''}`, 'ok');
       if (settings.voice && settings.speakFeedback) voice.speak('correct', voiceOpts());
       updateStats();
@@ -269,6 +295,7 @@ function handleSessionEvent(type, p) {
         wrongTimers.push(setTimeout(() => fretboard.hideNote(string, fret), WRONG_MARKER_MS));
       }
       if (comboActive()) comboMiss();
+      if (chain) chain.miss();
       ui.noteName.dataset.state = 'wrong';
       wrongTimers.push(setTimeout(() => { if (session.state === 'listening') ui.noteName.dataset.state = 'listening'; }, 600));
       const text = p.octaveOff
@@ -286,7 +313,7 @@ function handleSessionEvent(type, p) {
     }
     case 'stopped':
       boss = null; notice = null;
-      combo.reset(); clearComboFx();
+      combo.reset(); clearComboFx(); chain = null; hideChainIntro();
       renderPath();
       promptToken++;
       lastTriadKey = null;
@@ -392,6 +419,7 @@ function syncComboContext() {
   const key = boss ? 'boss' : settings.noteMode === 'path' ? `path:${path.current}` : 'custom';
   if (key === comboCtx) return;
   comboCtx = key;
+  chain = null;
   combo.setBest(key === 'boss' ? {} : key === 'custom' ? customBest.get() : path.bests(path.current));
   clearComboFx();
   renderCombo();
@@ -451,6 +479,40 @@ function comboMiss() {
     ui.prompt.classList.remove('is-shaking'); void ui.prompt.offsetWidth; ui.prompt.classList.add('is-shaking');
     fxLater(() => ui.prompt.classList.remove('is-shaking'), 400);
   }
+}
+
+// ---------- note chains (Path only) ----------
+let introTimer = null;
+const INTRO_MS = 1500;
+
+function hideChainIntro() {
+  clearTimeout(introTimer);
+  ui.chainIntro.hidden = true;
+  ui.chainIntro.classList.remove('is-on');
+}
+
+/** The big announcement over the card; the answer clock starts when it lifts. Returns the spoken text. */
+function showChainIntro(c, noteName) {
+  const s = STRINGS[c.current.string];
+  const stringName = c.current.string === 5 ? 'low E' : s.name;
+  ui.chainBig.textContent = `${CHAIN_LENGTH} ${noteName} notes!`;
+  ui.chainStart.textContent = `Start with the ${stringName} string —`;
+  ui.chainIntro.hidden = false;
+  ui.chainIntro.classList.remove('is-on'); void ui.chainIntro.offsetWidth; ui.chainIntro.classList.add('is-on');
+  clearTimeout(introTimer);
+  introTimer = setTimeout(() => { hideChainIntro(); session.restartClock(); }, INTRO_MS);
+  return `Quick note chain round. ${CHAIN_LENGTH} ${spokenName(noteName)} notes. Start with the ${stringName} string`;
+}
+
+/** A chain note was answered (called after the streak and path were scored). */
+function onChainCorrect(p) {
+  const r = chain.advance(p.firstTry && !p.hinted);
+  if (!r.done) return;
+  chain = null;
+  if (!r.perfect) return;
+  const bonus = CHAIN_BONUS * combo.multiplier;
+  if (comboActive()) { combo.bonus(bonus); saveComboBests(); renderCombo(); flash(ui.comboGain, `+${bonus}`, 1400); }
+  flash(ui.comboShout, 'Chain complete!', 1700);
 }
 
 // ---------- level path ----------
@@ -550,7 +612,7 @@ async function startBoss() {
   if (!isNoteMode() || !path.progress(lvl.id, fretRange()).bossUnlocked) return;
   const b = createBoss(lvl, fretRange());
   if (b.state !== 'running') { setStatus('No spot of this level falls inside your fret range.', 'bad'); return; }
-  boss = b; notice = null;
+  boss = b; notice = null; chain = null;
   renderPath();
   if (session.state === 'idle') await toggleSession();
   else session.skip();
@@ -573,6 +635,7 @@ $('path-reset').addEventListener('click', () => {
 
 // A skip is a "couldn't find it" for the heatmap.
 function skipNow() {
+  chain = null;
   if (session.state === 'listening') {
     if (comboActive()) comboMiss();
     if (session.mode === 'intervals') history.recordInterval(session.target.interval, { skipped: true });

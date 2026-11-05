@@ -149,6 +149,7 @@ kbd {
   font: 700 16px var(--nb-sans);
   min-height: 24px;
 }
+.prompt__status.is-chain { display: inline-block; padding: 4px 14px 5px; background: var(--nb-ink); color: var(--nb-yellow); border-radius: var(--nb-radius-sm); font-size: 18px; letter-spacing: 0.02em; text-transform: uppercase; }
 .prompt__status.is-bad { text-decoration: underline wavy; text-underline-offset: 4px; }
 
 /* ---------- the neck: a white strip in an ink frame ---------- */
@@ -726,6 +727,34 @@ input[type="range"]::-moz-range-thumb {
 .combo__bar { position: absolute; left: 0; right: 0; bottom: 0; height: 12px; background: var(--nb-card); border-top: var(--nb-border-sm); border-radius: 0 0 7px 7px; overflow: hidden; }
 .combo__bar[hidden] { display: none; }
 .combo__bar i { display: block; height: 100%; width: 100%; background: var(--nb-ink); transform-origin: left center; }
+/* ---------- note chain: announcement and octave arrow ---------- */
+@keyframes nb-slam { 0% { opacity: 0; transform: scale(1.7) rotate(-3deg); } 18% { opacity: 1; transform: scale(0.96) rotate(1deg); } 28% { transform: scale(1.03) rotate(0); } 40% { transform: scale(1); } 100% { transform: scale(1); } }
+@keyframes nb-stripes { from { background-position: 0 0; } to { background-position: 56px 0; } }
+.chain-intro {
+  position: absolute; inset: 0; z-index: 6; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  padding: 16px; text-align: center; color: var(--nb-yellow); border-radius: 7px; pointer-events: none;
+  background: var(--nb-ink);
+}
+.chain-intro[hidden] { display: none; }
+.chain-intro::before, .chain-intro::after {
+  content: ''; position: absolute; left: 0; right: 0; height: 14px;
+  background: repeating-linear-gradient(135deg, var(--nb-yellow) 0 14px, var(--nb-ink) 14px 28px);
+}
+.chain-intro::before { top: 0; } .chain-intro::after { bottom: 0; }
+.chain-intro__kicker { font: 700 clamp(17px, 2.6vw, 26px)/1.1 var(--nb-sans); letter-spacing: 0.14em; text-transform: uppercase; color: var(--nb-card); }
+.chain-intro__big { font: 700 clamp(48px, 11vw, 128px)/0.95 var(--nb-sans); letter-spacing: -0.03em; text-transform: uppercase; color: var(--nb-yellow); text-shadow: 5px 5px 0 var(--nb-pink); }
+.chain-intro__start { font: 700 clamp(17px, 2.8vw, 28px)/1.15 var(--nb-sans); letter-spacing: 0.04em; color: var(--nb-cyan); }
+.fb-arrow__line { stroke: var(--nb-ink); stroke-width: 5; stroke-linecap: butt; stroke-dasharray: 11 7; }
+.fb-arrow__head { fill: var(--nb-ink); stroke: var(--nb-ink); stroke-width: 2; stroke-linejoin: round; }
+.fb-arrows { pointer-events: none; }
+@media (max-width: 560px) {
+  .chain-intro__big { font-size: clamp(44px, 16vw, 72px); }
+  .chain-intro__kicker { letter-spacing: 0.08em; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .chain-intro.is-on { animation: nb-slam 0.55s var(--ease) both; }
+  .chain-intro.is-on::before, .chain-intro.is-on::after { animation: nb-stripes 0.9s linear infinite; background-size: 56px 14px; }
+}
 @media (prefers-reduced-motion: no-preference) {
   .combo__shout.is-on { animation: nb-shout 1.4s var(--ease) both; }
   .combo__flag.is-on { animation: nb-flag 1.7s var(--ease) both; }

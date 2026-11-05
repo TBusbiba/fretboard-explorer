@@ -94,6 +94,7 @@ export function createFretboard(svg) {
   }
 
   const heat = el('g', { class: 'fb-heat' }, svg);
+  const arrows = el('g', { class: 'fb-arrows' }, svg);
   const notes = el('g', { class: 'fb-notes' }, svg);
   const live = new Map(); // key -> g
 
@@ -145,7 +146,21 @@ export function createFretboard(svg) {
       setTimeout(() => g.remove(), 220);
     },
 
+    /** An arrow from one spot to another (a chain hint), stopping at the discs' edges. */
+    showArrow(from, to) {
+      arrows.innerHTML = '';
+      const x1 = noteX(from.fret), y1 = stringY(from.string), x2 = noteX(to.fret), y2 = stringY(to.string);
+      const len = Math.hypot(x2 - x1, y2 - y1) || 1, ux = (x2 - x1) / len, uy = (y2 - y1) / len;
+      const r1 = noteRadius(from.fret) + 6, r2 = noteRadius(to.fret) + 4;
+      const ax = x1 + ux * r1, ay = y1 + uy * r1, bx = x2 - ux * r2, by = y2 - uy * r2;
+      const g = el('g', { class: 'fb-arrow' }, arrows);
+      el('line', { class: 'fb-arrow__line', x1: ax, y1: ay, x2: bx - ux * 12, y2: by - uy * 12 }, g);
+      const px = -uy, py = ux;
+      el('polygon', { class: 'fb-arrow__head', points: `${bx},${by} ${bx - ux * 18 + px * 10},${by - uy * 18 + py * 10} ${bx - ux * 18 - px * 10},${by - uy * 18 - py * 10}` }, g);
+    },
+
     clearNotes() {
+      arrows.innerHTML = '';
       for (const [, g] of live) { g.classList.add('is-leaving'); setTimeout(() => g.remove(), 220); }
       live.clear();
     },
