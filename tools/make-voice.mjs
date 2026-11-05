@@ -16,11 +16,11 @@ const STRING_NAMES = ['low E', 'A', 'D', 'G', 'B', 'E', 'high E'];
 
 export const normalize = (t) => t.toLowerCase().replace(/♯/g, ' sharp').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
 
-// [text, style]: 'plain' = calm and clear, 'hype' = excited announcer.
+// [text, style, spoken]: 'plain' = calm and clear, 'hype' = excited announcer, 'prompt' = calm string, pause, excited note.
 const phrases = [];
-const add = (text, style = 'plain') => phrases.push([text, style]);
+const add = (text, style = 'plain', spoken = text) => phrases.push([text, style, spoken]);
 
-for (let n = 1; n <= 6; n++) for (const note of NOTES) add(`String ${n}, ${note}`);
+for (let n = 1; n <= 6; n++) for (const note of NOTES) add(`String ${n}, ${note}`, 'prompt', `String ${n}... [excited] ${note}!`);
 for (const note of NOTES) { add(note); add(`That was ${note}`); }
 ['Correct', 'Good', 'Octave too high', 'Octave too low'].forEach(t => add(t));
 ['Nice!', 'Great!', 'On fire!', 'Unstoppable!', 'Legendary!', 'Chain complete!', 'New best streak!'].forEach(t => add(t, 'hype'));
@@ -36,19 +36,19 @@ const manifest = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath
 mkdirSync(OUT, { recursive: true });
 
 let made = 0, chars = 0;
-for (const [text, style] of phrases) {
+for (const [text, style, spoken] of phrases) {
   const file = `${slug(text)}.mp3`;
   const key = normalize(text);
   if (!FORCE && existsSync(new URL(file, OUT))) { manifest[key] = file; continue; }
-  const body = style === 'hype'
-    ? { text: `[excited] ${text}`, model_id: 'eleven_v3' }
-    : { text, model_id: 'eleven_multilingual_v2', voice_settings: { stability: 0.6, similarity_boost: 0.8 } };
+  const body = style === 'hype' ? { text: `[excited] ${spoken}`, model_id: 'eleven_v3' }
+    : style === 'prompt' ? { text: spoken, model_id: 'eleven_v3' }
+    : { text: spoken, model_id: 'eleven_multilingual_v2', voice_settings: { stability: 0.6, similarity_boost: 0.8 } };
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE}?output_format=mp3_44100_64`, {
     method: 'POST', headers: { 'xi-api-key': KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
   });
   if (!res.ok) { console.error(`${res.status} on "${text}": ${(await res.text()).slice(0, 200)}`); process.exit(1); }
   writeFileSync(new URL(file, OUT), Buffer.from(await res.arrayBuffer()));
-  manifest[key] = file; made++; chars += text.length;
+  manifest[key] = file; made++; chars += spoken.length;
 }
 writeFileSync(manifestPath, JSON.stringify(manifest, null, 1) + '\n');
 console.log(`${phrases.length} phrases, ${made} recorded now (${chars} characters), manifest has ${Object.keys(manifest).length}`);
