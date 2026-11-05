@@ -32,7 +32,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '28';
+const BUILD = '29';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -166,7 +166,7 @@ const ui = {
   picker: $('interval-picker'), chordPicker: $('chord-picker'), triadPicker: $('triad-picker'), groupPicker: $('group-picker'), inversionPicker: $('inversion-picker'),
   combo: $('combo'), comboBadge: $('combo-badge'), comboN: $('combo-n'), comboMult: $('combo-mult'), comboScore: $('combo-score'), comboGain: $('combo-gain'), comboBest: $('combo-best'),
   tipBtn: $('tip-btn'), tipCard: $('tip-card'), tipTag: $('tip-tag'), tipHead: $('tip-head'), tipLine: $('tip-line'), tipNote: $('tip-note'), tipFig: $('tip-fig'), tipSwipe: $('tip-swipe'), tipGot: $('tip-got'),
-  chainIntro: $('chain-intro'), chainKicker: $('chain-kicker'), bossStrip: $('boss-strip'), bossNotes: $('boss-notes'), bossPips: $('boss-pips'),
+  chainIntro: $('chain-intro'), chainKicker: $('chain-kicker'), bossStrip: $('boss-strip'), bossTime: $('boss-time'), bossPaceFill: $('boss-pace-fill'), bossNotes: $('boss-notes'), bossPips: $('boss-pips'),
   bossEnd: $('boss-end'), bossEndKicker: $('boss-end-kicker'), bossEndStars: $('boss-end-stars'), bossEndStats: $('boss-end-stats'), bossEndNext: $('boss-end-next'), bossEndGo: $('boss-end-go'), chainBig: $('chain-big'), chainStart: $('chain-start'),
   comboBar: $('combo-bar'), comboFill: $('combo-fill'), comboShout: $('combo-shout'), comboFlag: $('combo-flag'),
   heatReset: $('heat-reset'), heatBody: $('heat-body'),
@@ -609,6 +609,17 @@ function renderBossStrip() {
   ui.bossPips.innerHTML = Array.from({ length: pips }, (_, i) => `<i class="${i < have ? 'is-done' : i === have ? 'is-now' : ''}"></i>`).join('');
 }
 
+const BOSS_PACE_MAX_MS = STAR2_MS + 1000;   // the pace bar drains over this; ticks sit at the star averages
+const runClock = (ms) => { const t = Math.floor(ms / 100) / 10, m = Math.floor(t / 60); return `${m}:${(t - m * 60).toFixed(1).padStart(4, '0')}`; };
+
+/** Boss clock (answer time only: paused on the intro cards and while the voice holds the question) and the per-spot pace bar. Guidance only; never fails the run. */
+function updateBossTimer() {
+  if (!boss || boss.state !== 'running') return;
+  const live = session.state === 'listening' && !session.held && ui.chainIntro.hidden ? performance.now() - session.startedAt : 0;
+  ui.bossTime.textContent = runClock(boss.totalMs + live);
+  ui.bossPaceFill.style.transform = `scaleX(${Math.max(0, 1 - live / BOSS_PACE_MAX_MS)})`;
+}
+
 function hideBossEnd() { ui.bossEnd.hidden = true; ui.bossEnd.classList.remove('is-on'); }
 
 const clock = (ms) => { const t = Math.round(ms / 100) / 10, m = Math.floor(t / 60); return m ? `${m}:${(t - m * 60).toFixed(1).padStart(4, '0')}` : `${t.toFixed(1)} s`; };
@@ -831,6 +842,7 @@ function frame() {
   if (session.state === 'idle') return;
   session.tick();
   if (session.state === 'listening' && comboActive()) setSpeedBar(speedLeft(session.held ? 0 : performance.now() - session.startedAt));
+  updateBossTimer();
   const prog = session.hintProgress();
   if (prog) {
     setRing(prog.fraction);

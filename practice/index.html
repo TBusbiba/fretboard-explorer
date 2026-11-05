@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="28">
+<html lang="en" data-build="29">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -107,6 +107,13 @@
       <div class="boss-strip" id="boss-strip" hidden aria-hidden="true">
         <div class="boss-strip__notes" id="boss-notes"></div>
         <div class="boss-strip__pips" id="boss-pips"></div>
+        <div class="boss-strip__time">
+          <b class="bt" id="boss-time" aria-label="Boss round time">0:00.0</b>
+          <div class="bp" id="boss-pace" title="Pace per spot: 3 stars at 2 s average, 2 stars at 3 s">
+            <div class="bp__bar"><i id="boss-pace-fill"></i><u style="left:50%"></u><u style="left:75%"></u></div>
+            <div class="bp__marks"><span style="left:50%">3★ 2s</span><span style="left:75%">2★ 3s</span></div>
+          </div>
+        </div>
       </div>
       <div class="combo__bar" id="combo-bar" hidden aria-hidden="true"><i id="combo-fill"></i></div>
       <div class="prompt__main" aria-live="polite">
