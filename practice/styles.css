@@ -124,6 +124,9 @@ kbd {
 }
 .prompt:has(.prompt__note[data-state="correct"]) { background: var(--nb-green); }
 .prompt:has(.prompt__note[data-state="wrong"]) { background: var(--nb-rose); }
+.prompt[data-heat="1"], .prompt[data-heat="1"]:has(.prompt__note[data-state="correct"]) { background: var(--nb-yellow); }
+.prompt[data-heat="2"], .prompt[data-heat="2"]:has(.prompt__note[data-state="correct"]) { background: var(--nb-salmon); }
+.prompt[data-heat="3"], .prompt[data-heat="3"]:has(.prompt__note[data-state="correct"]) { background: var(--nb-pink); }
 .prompt__string {
   font: 700 15px/1.2 var(--nb-sans);
   letter-spacing: 0.1em;
@@ -140,7 +143,7 @@ kbd {
 }
 .prompt__note.is-long { font-size: clamp(44px, 9vw, 104px); line-height: 1.1; margin: 20px 0 14px; }
 .prompt__note[data-state="idle"]::after { content: "?"; }
-.prompt__note[data-state="correct"] { animation: nb-pop 200ms var(--ease); }
+.prompt__note[data-state="correct"] { animation: nb-pop-heat 220ms var(--ease); }
 .prompt__status {
   color: var(--nb-ink);
   font: 700 16px var(--nb-sans);
@@ -680,6 +683,62 @@ input[type="range"]::-moz-range-thumb {
   .path__strip { grid-template-columns: minmax(0, 1fr); }
   .path__boss { grid-column: 1; grid-row: auto; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; text-align: left; }
   .path__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+}
+
+/* ---------- streak combo: badge, score, shout, speed bar ---------- */
+@keyframes nb-pop-heat { 0% { transform: scale(1); } 45% { transform: scale(var(--pop, 1.12)); } 100% { transform: scale(1); } }
+@keyframes nb-shout { 0% { opacity: 0; transform: translate(-50%, 0) rotate(-9deg) scale(0.4); } 14% { opacity: 1; transform: translate(-50%, 0) rotate(-4deg) scale(1.22); } 26% { transform: translate(-50%, 0) rotate(-4deg) scale(1); } 78% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -10px) rotate(-4deg) scale(1); } }
+@keyframes nb-flag { 0% { opacity: 0; transform: translate(-50%, 8px) rotate(2deg) scale(0.8); } 15% { opacity: 1; transform: translate(-50%, 0) rotate(2deg) scale(1.08); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, 0) rotate(2deg); } }
+@keyframes nb-gain { 0% { opacity: 0; transform: translateY(6px); } 20% { opacity: 1; transform: translateY(0); } 80% { opacity: 1; } 100% { opacity: 0; transform: translateY(-8px); } }
+@keyframes nb-shake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-7px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(3px); } }
+.prompt.has-combo { padding-top: 64px; padding-bottom: 66px; }
+.combo { position: absolute; top: 12px; left: 12px; right: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; pointer-events: none; }
+.combo[hidden] { display: none; }
+.combo__badge {
+  display: flex; flex-direction: column; align-items: center; line-height: 1;
+  padding: 6px 12px 7px; background: var(--nb-card); color: var(--nb-ink);
+  border: var(--nb-border-sm); border-radius: var(--nb-radius-sm); box-shadow: var(--nb-shadow-sm);
+}
+.combo__badge[hidden] { display: none; }
+.combo__badge b { font: 700 clamp(26px, 5vw, 38px)/1 var(--nb-sans); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.combo__badge span { font: 700 11px/1.2 var(--nb-sans); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 3px; }
+.combo__score {
+  position: relative; margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; line-height: 1.1;
+  padding: 5px 10px 6px; background: var(--nb-card); color: var(--nb-ink);
+  border: var(--nb-border-sm); border-radius: var(--nb-radius-sm); box-shadow: var(--nb-shadow-sm);
+}
+.combo__label { font: 700 10px/1.2 var(--nb-sans); letter-spacing: 0.1em; text-transform: uppercase; }
+.combo__score b { font: 700 24px/1.1 var(--nb-sans); font-variant-numeric: tabular-nums; }
+.combo__score small { font: 700 10px/1.3 var(--nb-sans); letter-spacing: 0.04em; color: var(--nb-ink-2); }
+.combo__score small:empty { display: none; }
+.combo__gain { position: absolute; top: -2px; right: calc(100% + 10px); font: 700 22px/1 var(--nb-sans); font-variant-numeric: tabular-nums; opacity: 0; white-space: nowrap; }
+.combo__gain.is-on { opacity: 1; }
+.combo__shout, .combo__flag {
+  position: absolute; left: 50%; z-index: 3; opacity: 0; pointer-events: none; text-align: center; white-space: nowrap; max-width: calc(100% - 24px);
+  color: var(--nb-ink); border: var(--nb-border); border-radius: var(--nb-radius-sm); box-shadow: var(--nb-shadow-md);
+  transform: translate(-50%, 0);
+}
+.combo__shout { top: 64px; font: 700 clamp(28px, 7.5vw, 64px)/1 var(--nb-sans); letter-spacing: -0.02em; text-transform: uppercase; padding: 6px 16px 8px; background: var(--nb-card); transform: translate(-50%, 0) rotate(-4deg); }
+.combo__flag { bottom: 22px; font: 700 16px/1 var(--nb-sans); letter-spacing: 0.06em; text-transform: uppercase; padding: 7px 12px; background: var(--nb-yellow); transform: translate(-50%, 0) rotate(2deg); }
+.combo__flag[data-kind="lost"] { background: var(--nb-rose); }
+.combo__shout.is-on, .combo__flag.is-on { opacity: 1; }
+.prompt[data-heat="3"] .combo__shout { background: var(--nb-yellow); }
+.combo__bar { position: absolute; left: 0; right: 0; bottom: 0; height: 12px; background: var(--nb-card); border-top: var(--nb-border-sm); border-radius: 0 0 7px 7px; overflow: hidden; }
+.combo__bar[hidden] { display: none; }
+.combo__bar i { display: block; height: 100%; width: 100%; background: var(--nb-ink); transform-origin: left center; }
+@media (prefers-reduced-motion: no-preference) {
+  .combo__shout.is-on { animation: nb-shout 1.4s var(--ease) both; }
+  .combo__flag.is-on { animation: nb-flag 1.7s var(--ease) both; }
+  .combo__gain.is-on { animation: nb-gain 1.1s var(--ease) both; }
+  .prompt.is-shaking { animation: nb-shake 380ms linear; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .combo__shout, .combo__flag, .combo__badge { transform: translate(-50%, 0); }
+  .combo__badge { transform: none; }
+}
+@media (max-width: 560px) {
+  .combo__gain { right: 2px; top: calc(100% + 10px); }
+  .combo__shout { top: 88px; font-size: 28px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

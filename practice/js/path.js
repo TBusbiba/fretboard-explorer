@@ -52,7 +52,7 @@ export function requiredSpots(level, range) {
   return out;
 }
 
-export function blankEntry() { return { recent: [], covered: [], bossUnlocked: false, done: false, stars: 0, bestMs: null }; }
+export function blankEntry() { return { recent: [], covered: [], bossUnlocked: false, done: false, stars: 0, bestMs: null, bestStreak: 0, bestScore: 0 }; }
 
 /**
  * Where a level stands against the unlock rule: over the last WINDOW answers
@@ -169,6 +169,8 @@ export function positionWeigher(positions) {
 
 // ---------- store ----------
 
+const posInt = (v) => (Number.isFinite(v) && v > 0 ? Math.floor(v) : 0);
+
 function sanitize(raw) {
   const levels = {};
   for (const l of LEVELS) {
@@ -182,6 +184,8 @@ function sanitize(raw) {
       done: !!e.done,
       stars: [0, 1, 2, 3].includes(e.stars) ? e.stars : 0,
       bestMs: typeof e.bestMs === 'number' ? e.bestMs : null,
+      bestStreak: posInt(e.bestStreak),
+      bestScore: posInt(e.bestScore),
     };
   }
   const current = raw && levelById(raw.current) ? raw.current : 1;
@@ -250,6 +254,17 @@ export function createPath(storage = globalThis.localStorage) {
       if (next && data.current === id) data.current = next.id;
       save();
       return { stars, bestStars: e.stars, first, next: next ? next.id : null };
+    },
+    /** Saved best streak and score of a level. */
+    bests: (id) => ({ streak: entry(id).bestStreak, score: entry(id).bestScore }),
+    /** Keep the higher of each; saves only when something improved. */
+    saveBests(id, { streak = 0, score = 0 }) {
+      const e = entry(id);
+      const s = posInt(streak), c = posInt(score);
+      if (s <= e.bestStreak && c <= e.bestScore) return false;
+      e.bestStreak = Math.max(e.bestStreak, s); e.bestScore = Math.max(e.bestScore, c);
+      save();
+      return true;
     },
     reset() { data = { current: 1, levels: {} }; save(); },
   };

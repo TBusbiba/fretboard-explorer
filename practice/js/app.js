@@ -5,6 +5,7 @@ import { createVoice } from './voice.js';
 import { createSound } from './sound.js';
 import { createMicGate } from './mic-gate.js';
 import { createSession } from './session.js';
+import { createCombo, createCustomBest, speedLeft, BADGE_FROM } from './combo.js';
 import { createHistory } from './history.js';
 import { LEVELS, WINDOW, FIRST_TRY_MIN, AVG_MS_MAX, STAR2_MS, STAR3_MS, levelById, levelTitle, createPath, createBoss, createSpotBag, positionWeigher } from './path.js';
 import { shapeSvg } from './triad-shapes.js';
@@ -28,7 +29,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '16';
+const BUILD = '17';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -57,6 +58,8 @@ function sessionSettings() {
 const fretboard = createFretboard($('fretboard'));
 const history = createHistory();
 const path = createPath();
+const customBest = createCustomBest();
+const combo = createCombo();
 const isNoteMode = () => !['intervals', 'arpeggios', 'triads'].includes(settings.mode);
 const fretRange = () => ({ from: settings.fretFrom, to: settings.fretTo });
 let weigher = null;   // rebuilt from the history after every answer
@@ -123,6 +126,8 @@ const ui = {
   earPicker: $('ear-picker'), earToggle: $('ear-toggle'), earReplay: $('ear-replay'), namesToggle: $('names-toggle'),
   shapesToggle: $('shapes-toggle'), prompt: $('prompt'), promptTools: $('prompt-tools'), cueToggle: $('cue-toggle'), cuePicker: $('cue-picker'), shapes: $('shapes'), shapesTabs: $('shapes-tabs'), shapesList: $('shapes-list'),
   picker: $('interval-picker'), chordPicker: $('chord-picker'), triadPicker: $('triad-picker'), groupPicker: $('group-picker'), inversionPicker: $('inversion-picker'),
+  combo: $('combo'), comboBadge: $('combo-badge'), comboN: $('combo-n'), comboMult: $('combo-mult'), comboScore: $('combo-score'), comboGain: $('combo-gain'), comboBest: $('combo-best'),
+  comboBar: $('combo-bar'), comboFill: $('combo-fill'), comboShout: $('combo-shout'), comboFlag: $('combo-flag'),
   heatReset: $('heat-reset'), heatBody: $('heat-body'),
 };
 
@@ -136,6 +141,7 @@ function handleSessionEvent(type, p) {
   switch (type) {
     case 'target': {
       wrongTimers.forEach(clearTimeout); wrongTimers = [];
+      renderCombo();
       fretboard.clearNotes();
       pitch.reset();
       ui.ring.classList.remove('is-done');
@@ -203,6 +209,7 @@ function handleSessionEvent(type, p) {
       break;
     }
     case 'hint':
+      if (comboActive()) comboMiss();
       if (session.mode === 'arpeggios' || session.mode === 'triads') {
         if (p.stage === 1) {
           setTip(session.mode === 'triads' ? `${session.triad.tip} ${INVERSIONS[session.target.inversion].tip}` : session.chord.tip);
@@ -246,6 +253,7 @@ function handleSessionEvent(type, p) {
       }
       ui.noteName.dataset.state = 'correct';
       const extra = session.mode === 'note' ? onNoteCorrect(p) : '';
+      if (comboActive() && p.firstTry && !p.hinted) comboHit(p.ms);
       setStatus(`Correct · ${(p.ms / 1000).toFixed(1)} s${extra ? ` · ${extra}` : ''}`, 'ok');
       if (settings.voice && settings.speakFeedback) voice.speak('correct', voiceOpts());
       updateStats();
@@ -260,6 +268,7 @@ function handleSessionEvent(type, p) {
         const { string } = session.target, fret = p.fret;
         wrongTimers.push(setTimeout(() => fretboard.hideNote(string, fret), WRONG_MARKER_MS));
       }
+      if (comboActive()) comboMiss();
       ui.noteName.dataset.state = 'wrong';
       wrongTimers.push(setTimeout(() => { if (session.state === 'listening') ui.noteName.dataset.state = 'listening'; }, 600));
       const text = p.octaveOff
@@ -277,6 +286,7 @@ function handleSessionEvent(type, p) {
     }
     case 'stopped':
       boss = null; notice = null;
+      combo.reset(); clearComboFx();
       renderPath();
       promptToken++;
       lastTriadKey = null;
@@ -365,6 +375,84 @@ ui.namesToggle.addEventListener('click', () => commit({ showStringNames: !settin
 ui.shapesToggle.addEventListener('click', () => commit({ showShapes: !settings.showShapes }));
 ui.cueToggle.addEventListener('click', () => commit({ playNotes: !settings.playNotes }));
 
+// ---------- streak, combo and points (Find the note: Path and Custom, not boss rounds) ----------
+const comboActive = () => isNoteMode() && !boss;
+let comboCtx = null;
+let fxTimers = [];
+const fxLater = (fn, ms) => fxTimers.push(setTimeout(fn, ms));
+
+function clearComboFx() {
+  fxTimers.forEach(clearTimeout); fxTimers = [];
+  for (const el of [ui.comboShout, ui.comboFlag, ui.comboGain]) el.classList.remove('is-on');
+  ui.prompt.classList.remove('is-shaking');
+}
+
+/** Switching level, Path/Custom or into a boss starts a fresh run against that context's bests. */
+function syncComboContext() {
+  const key = boss ? 'boss' : settings.noteMode === 'path' ? `path:${path.current}` : 'custom';
+  if (key === comboCtx) return;
+  comboCtx = key;
+  combo.setBest(key === 'boss' ? {} : key === 'custom' ? customBest.get() : path.bests(path.current));
+  clearComboFx();
+  renderCombo();
+}
+
+function saveComboBests() {
+  const b = { streak: combo.bestStreak, score: combo.bestScore };
+  if (settings.noteMode === 'path') path.saveBests(path.current, b); else customBest.save(b);
+}
+
+function renderCombo() {
+  const on = comboActive();
+  ui.combo.hidden = !on;
+  ui.comboBar.hidden = !on || session.state === 'idle';
+  ui.prompt.classList.toggle('has-combo', on);
+  ui.prompt.dataset.heat = on ? combo.heat : 0;
+  if (!on) return;
+  const showBadge = combo.streak >= BADGE_FROM;
+  ui.comboBadge.hidden = !showBadge;
+  ui.comboN.textContent = `×${combo.streak}`;
+  ui.comboMult.textContent = combo.multiplier > 1 ? `points ×${combo.multiplier}` : 'streak';
+  ui.comboScore.textContent = combo.score.toLocaleString('en-US');
+  const best = [];
+  if (combo.bestStreak) best.push(`Best streak ${combo.bestStreak}`);
+  if (combo.bestScore) best.push(`Best ${combo.bestScore.toLocaleString('en-US')}`);
+  ui.comboBest.textContent = best.join(' · ');
+}
+
+function setSpeedBar(fraction) { ui.comboFill.style.transform = `scaleX(${fraction})`; }
+
+function flash(el, text, ms) {
+  el.textContent = text;
+  el.classList.remove('is-on');
+  void el.offsetWidth;
+  el.classList.add('is-on');
+  fxLater(() => el.classList.remove('is-on'), ms);
+}
+
+function comboHit(ms) {
+  const r = combo.hit(ms);
+  saveComboBests();
+  renderCombo();
+  flash(ui.comboGain, `+${r.points}`, 1100);
+  const lift = r.heat * 0.07 + 1.1;
+  ui.prompt.style.setProperty('--pop', lift.toFixed(2));
+  if (r.shout) flash(ui.comboShout, r.shout, 1400);
+  if (r.newBest) { ui.comboFlag.dataset.kind = 'best'; flash(ui.comboFlag, 'New best streak!', 1800); }
+}
+
+function comboMiss() {
+  const { lost } = combo.miss();
+  if (!lost) return;
+  renderCombo();
+  if (lost >= BADGE_FROM) {
+    ui.comboFlag.dataset.kind = 'lost';
+    flash(ui.comboFlag, `Streak lost (${lost})`, 1600);
+    ui.prompt.classList.remove('is-shaking'); void ui.prompt.offsetWidth; ui.prompt.classList.add('is-shaking');
+    fxLater(() => ui.prompt.classList.remove('is-shaking'), 400);
+  }
+}
+
 // ---------- level path ----------
 const LOCK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
 const stars = (n) => '★'.repeat(n) + '☆'.repeat(3 - n);
@@ -392,6 +480,8 @@ function popTile(id) {
 }
 
 function renderPath() {
+  syncComboContext();
+  renderCombo();
   const show = isNoteMode() && settings.noteMode === 'path';
   ui.path.hidden = !show;
   if (!show) return;
@@ -484,6 +574,7 @@ $('path-reset').addEventListener('click', () => {
 // A skip is a "couldn't find it" for the heatmap.
 function skipNow() {
   if (session.state === 'listening') {
+    if (comboActive()) comboMiss();
     if (session.mode === 'intervals') history.recordInterval(session.target.interval, { skipped: true });
     else if (session.mode === 'arpeggios') history.recordChord(session.target.chord, { skipped: true });
     else if (session.mode === 'triads') history.recordTriad(session.target.triad, { skipped: true });
@@ -510,6 +601,7 @@ function frame() {
   requestAnimationFrame(frame);
   if (session.state === 'idle') return;
   session.tick();
+  if (session.state === 'listening' && comboActive()) setSpeedBar(speedLeft(performance.now() - session.startedAt));
   const prog = session.hintProgress();
   if (prog) {
     setRing(prog.fraction);

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="16">
+<html lang="en" data-build="17">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -72,6 +72,13 @@
       <div class="prompt__tools" id="prompt-tools" hidden>
         <button type="button" class="shape-toggle" id="shapes-toggle" aria-pressed="false" title="Show the triad shapes (R · 3 · 5) next to the prompt"><span class="shape-toggle__track" aria-hidden="true"></span>Show shapes</button>
       </div>
+      <div class="combo" id="combo" hidden>
+        <div class="combo__badge" id="combo-badge" hidden><b id="combo-n">×3</b><span id="combo-mult">streak</span></div>
+        <div class="combo__score"><span class="combo__gain" id="combo-gain" aria-hidden="true"></span><span class="combo__label">Score</span><b id="combo-score">0</b><small id="combo-best"></small></div>
+      </div>
+      <div class="combo__shout" id="combo-shout" aria-hidden="true"></div>
+      <div class="combo__flag" id="combo-flag" role="status"></div>
+      <div class="combo__bar" id="combo-bar" hidden aria-hidden="true"><i id="combo-fill"></i></div>
       <div class="prompt__main" aria-live="polite">
         <div class="prompt__string" id="string-name">Press start</div>
         <div class="prompt__note" id="note-name" data-state="idle"></div>
