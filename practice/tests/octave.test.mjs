@@ -68,3 +68,17 @@ test('hasLowerOctave leaves a real note an octave up alone', async () => {
     assert.equal(hasLowerOctave(tone(partials, 220), SR, 220), false, `A3 ${partials}`);
   }
 });
+
+import { correctTowardExpected } from '../js/octave.js';
+
+test('correctTowardExpected drops to the expected note when the lower octave has energy', () => {
+  const buf = tone([0.6, 1], 164.81);
+  assert.equal(correctTowardExpected(buf, SR, 329.63, 164.81), 164.81);
+});
+
+test('correctTowardExpected leaves a pure higher note or an unrelated expectation alone', () => {
+  const pure = tone([1], 329.63);
+  assert.equal(correctTowardExpected(pure, SR, 329.63, 164.81), 329.63);
+  const both = tone([0.6, 1], 164.81);
+  assert.equal(correctTowardExpected(both, SR, 329.63, 196), 329.63);
+});

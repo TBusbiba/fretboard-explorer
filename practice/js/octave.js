@@ -37,6 +37,25 @@ export function correctOctave(buf, sampleRate, hz, { minHz = 70, maxHz = 270, ra
   return atHalf > ratio * atF || at3Half > ratio * atF ? half : hz;
 }
 
+/** Energy at hz/2 relative to energy at hz (0 when silent at hz). */
+export function subOctaveRatio(buf, sampleRate, hz) {
+  const atF = goertzel(buf, sampleRate, hz);
+  return atF === 0 ? 0 : Math.max(goertzel(buf, sampleRate, hz / 2), goertzel(buf, sampleRate, hz * 1.5)) / atF;
+}
+
+/**
+ * When `hz` is exactly an octave above `expectedHz` (the note the app asked for)
+ * and the signal has real energy at the lower octave, return `expectedHz`;
+ * otherwise return `hz`.
+ */
+export function correctTowardExpected(buf, sampleRate, hz, expectedHz, { ratio = 0.2 } = {}) {
+  if (!expectedHz || Math.abs(1200 * Math.log2(hz / (2 * expectedHz))) > 50) return hz;
+  const atF = goertzel(buf, sampleRate, hz);
+  if (atF === 0) return hz;
+  const half = hz / 2;
+  return goertzel(buf, sampleRate, half) > ratio * atF || goertzel(buf, sampleRate, half * 1.5) > ratio * atF ? expectedHz : hz;
+}
+
 /** Normalized autocorrelation of `buf` at a (fractional) lag in samples. */
 export function selfSimilarity(buf, lag) {
   const l0 = Math.floor(lag), fr = lag - l0;

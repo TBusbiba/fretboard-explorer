@@ -18,8 +18,8 @@
 // fundamental, and the sound alone can't always settle the octave.
 
 import { PitchDetector } from '../vendor/pitchy.js';
-import { frequencyToMidi } from './notes.js';
-import { correctOctave, hasLowerOctave } from './octave.js';
+import { frequencyToMidi, midiToFrequency } from './notes.js';
+import { correctOctave, hasLowerOctave, correctTowardExpected, subOctaveRatio } from './octave.js';
 import { createAttackGuard } from './attack.js';
 
 const FFT_SIZE = 4096;          // ~85 ms at 48 kHz: enough for the low E (82 Hz)
@@ -35,7 +35,7 @@ const MIN_HZ = 70;              // just below low E
 const MAX_HZ = 1400;            // above the highest fretted note we care about
 const HIGHPASS_HZ = 70;         // strip room rumble so it doesn't count toward the gate
 
-export function createPitchDetector({ getSettings, getExpected = () => null, isMuted = () => false, onNote, onLevel = () => {}, onState = () => {} }) {
+export function createPitchDetector({ getSettings, getExpected = () => null, getAccepted = null, onDebug = null, isMuted = () => false, onNote, onLevel = () => {}, onState = () => {} }) {
   let ctx = null, stream = null, gainNode = null, analyser = null, detector = null;
   let buf = null;
   let rafId = 0;
@@ -82,6 +82,15 @@ export function createPitchDetector({ getSettings, getExpected = () => null, isM
     let hz = correctOctave(buf, ctx.sampleRate, rawHz, { minHz: MIN_HZ });
     const expected = getExpected();
     if (expected != null && frequencyToMidi(hz) === expected + 12 && hz < LOW_HZ && hasLowerOctave(buf, ctx.sampleRate, hz)) hz /= 2;
+    const accepted = getAccepted ? getAccepted() : null;
+    let corrected = hz !== rawHz;
+    if (accepted && accepted.length && !accepted.includes(frequencyToMidi(hz))) {
+      const lower = accepted.find(m => m + 12 === frequencyToMidi(hz));
+      if (lower != null) {
+        const fixed = correctTowardExpected(buf, ctx.sampleRate, hz, midiToFrequency(lower));
+        if (fixed !== hz) { hz = fixed; corrected = true; }
+      }
+    }
 
     const midi = frequencyToMidi(hz);
     recent.push([midi, now]);
@@ -105,6 +114,7 @@ export function createPitchDetector({ getSettings, getExpected = () => null, isM
       reported = final;
       attack.arm(final, rms, now);
       ringing = low ? final : null;
+      if (onDebug) onDebug({ time: Date.now(), rawHz, hz, midi: final, clarity, ratio: subOctaveRatio(buf, ctx.sampleRate, rawHz), accepted: accepted || (expected != null ? [expected] : []), corrected });
       onNote(final, hz, clarity);
     }
   }

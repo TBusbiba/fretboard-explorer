@@ -162,11 +162,18 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
 
   session.showHint = showHint;
 
-  session.noteDetected = (midi) => {
-    if (session.state !== 'listening') return;
+  function acceptedNow() {
     const asked = session.mode === 'note' ? session.target : null;
     const accept = asked ? getAcceptRange(asked) : null;
-    const valid = accept ? validMidis(asked.string, asked.fret, accept) : [session.note.midi];
+    return { asked, valid: accept ? validMidis(asked.string, asked.fret, accept) : [session.note.midi] };
+  }
+
+  /** MIDI pitches that would be accepted right now (empty when no question is open). */
+  session.acceptedMidis = () => (session.state === 'listening' && session.note ? [session.note.midi, ...acceptedNow().valid] : []);
+
+  session.noteDetected = (midi) => {
+    if (session.state !== 'listening') return;
+    const { asked, valid } = acceptedNow();
     if (midi === session.note.midi || valid.includes(midi)) {
       session.played = asked ? { string: asked.string, fret: midi - STRINGS[asked.string].midi } : null;
       if (session.step < session.steps.length - 1) {

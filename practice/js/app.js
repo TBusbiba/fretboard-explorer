@@ -1,4 +1,4 @@
-import { STRINGS, FRET_COUNT, INTERVALS, CHORDS, TRIADS, STRING_GROUPS, INVERSIONS, DEGREE_LABELS, NOTE_NAMES, intervalById, chordById, triadById, selectedTriads, stringGroupById, spokenName, tipFor, noteAt, pickTarget, pitchClass } from './notes.js';
+import { STRINGS, FRET_COUNT, INTERVALS, CHORDS, TRIADS, STRING_GROUPS, INVERSIONS, DEGREE_LABELS, NOTE_NAMES, intervalById, chordById, triadById, selectedTriads, stringGroupById, spokenName, tipFor, noteAt, midiToNoteName, frequencyToMidi, pickTarget, pitchClass } from './notes.js';
 import { createFretboard } from './fretboard.js';
 import { createPitchDetector } from './pitch.js';
 import { createVoice, CLIP_VOICE, usesClips } from './voice.js';
@@ -32,7 +32,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '29';
+const BUILD = '30';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -115,9 +115,33 @@ async function announce(text, playMidi, { speak = settings.voice, holdClock = fa
   if (playMidi != null) await sound.play(playMidi);
 }
 
+const DEBUG = new URLSearchParams(location.search).has('debug');
+const debugPanel = DEBUG ? createDebugPanel() : null;
+
+function createDebugPanel() {
+  const el = document.createElement('pre');
+  el.style.cssText = 'position:fixed;right:8px;bottom:8px;z-index:9999;margin:0;padding:6px 8px;max-width:92vw;overflow:auto;font:11px/1.3 var(--nb-mono);background:var(--nb-card);color:var(--nb-ink);border:var(--nb-border-sm);box-shadow:var(--nb-shadow-sm);pointer-events:none';
+  document.body.append(el);
+  const rows = [];
+  return {
+    add(d) {
+      const acc = d.accepted;
+      const result = acc.includes(d.midi) ? (d.corrected ? 'corrected-down' : 'accepted')
+        : acc.some(m => m + 12 === d.midi) ? 'octave too high'
+        : acc.some(m => m - 12 === d.midi) ? 'octave too low' : 'wrong';
+      const t = new Date(d.time).toTimeString().slice(0, 8);
+      rows.push(`${t} ${d.rawHz.toFixed(1)}Hz ${midiToNoteName(frequencyToMidi(d.rawHz))} cl${d.clarity.toFixed(2)} r${d.ratio.toFixed(2)} exp ${[...new Set(acc)].map(midiToNoteName).join('/') || '-'} ${result}`);
+      if (rows.length > 8) rows.shift();
+      el.textContent = rows.join('\n');
+    },
+  };
+}
+
 const pitch = createPitchDetector({
   getSettings: () => settings,
   getExpected: () => (session.state === 'listening' && session.note ? session.note.midi : null),
+  getAccepted: () => session.acceptedMidis(),
+  onDebug: DEBUG ? (d) => debugPanel.add(d) : null,
   isMuted: (now) => micGate.isMuted(now),
   onNote: (midi) => { if (!micGate.isMuted()) session.noteDetected(midi); },
   onLevel: updateMeter,
