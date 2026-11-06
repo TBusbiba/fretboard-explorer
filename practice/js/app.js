@@ -750,7 +750,7 @@ function lightWholeBoard(f) {
   for (const s of f.lit) fretboard.showNote(s.string, s.fret, 'correct', noteLetter(s.pc), true);
 }
 
-ui.bossEndGo.addEventListener('click', () => { hideBossEnd(); if (bossEndLost) startBoss(); else if (session.state === 'idle') toggleSession(); });
+ui.bossEndGo.addEventListener('click', () => { hideBossEnd(); if (bossEndLost && !triads.active()) startBoss(); else if (session.state === 'idle') toggleSession(); });
 
 // ---------- level path ----------
 const LOCK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';
@@ -916,7 +916,7 @@ function onNoteCorrect(p) {
     if (r.bossUnlocked) {
       extra = 'Boss round unlocked!'; popTile(path.current); hud.confetti();
       const lvlId = path.current;
-      setTimeout(() => { if (session.state !== 'idle' && !(boss && boss.state === 'running') && path.current === lvlId) startBoss(); }, 900);
+      setTimeout(() => { if (session.state !== 'idle' && !(boss && boss.state === 'running') && path.current === lvlId && isNoteMode() && settings.noteMode === 'path') startBoss(); }, 900);
     }
   }
   renderPath();

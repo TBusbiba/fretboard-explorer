@@ -68,6 +68,17 @@ test('progression: a farther shape is wrong, and only that chord loses its first
   assert.deepEqual(flags, [true, false, true]);
 });
 
+test('progression: the same shape 12 frets up is wrong, not an octave slip', () => {
+  const { session, events, advance } = make();
+  chain[0].notes.forEach(n => session.noteDetected(n.midi));
+  const octaveUp = chain[1].notes.map(n => n.midi + 12);
+  octaveUp.forEach(m => session.noteDetected(m));
+  assert.equal(events.filter(e => e[0] === 'step' || e[0] === 'shape').length, 2 + 1);
+  advance(2000);
+  session.stableDetected(octaveUp[0], HELD);
+  assert.equal(events.filter(e => e[0] === 'wrong').length, 1);
+});
+
 test('a target without a run still gets a triad matcher', () => {
   const vs = voicingsFor(0, 'major', '321');
   const { session } = make(() => ({ rootPc: 0, quality: 'major', group: '321', kind: 'normal', voicings: vs }));

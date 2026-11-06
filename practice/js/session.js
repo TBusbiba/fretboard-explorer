@@ -193,7 +193,7 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
   // Triads with host-picked voicings: the chord in every shape, each shape low to high from the
   // thickest string. The clock, first try and hint count per shape (session.startedAt restarts).
   const nearMidis = (list) => list.flatMap(m => [m, m + 12, m - 12]);
-  const slipOf = (midi) => { const exp = session.matcher.expected(); return [12, -12].map(d => midi + d).find(m => exp.includes(m)); };
+  const slipOf = (midi) => { if (session.target && session.target.run) return undefined; const exp = session.matcher.expected(); return [12, -12].map(d => midi + d).find(m => exp.includes(m)); };
 
   function triadDetected(midi) {
     let r = session.matcher.feed(midi);
