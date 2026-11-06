@@ -42,10 +42,10 @@ test('pools are cumulative', () => {
   SCALE_LEVELS.forEach((l, i) => { if (i) assert.deepEqual(l.pool.slice(0, SCALE_LEVELS[i - 1].pool.length), SCALE_LEVELS[i - 1].pool); });
 });
 
-test('every pool shape fits the 22-fret neck', () => {
+test('every pool shape sits in frets 0-15 (a few roots cannot fit 0-13)', () => {
   for (const e of SCALE_LEVELS[10].pool) {
     const frets = exerciseRun(e).notes.map(n => n.fret);
-    assert.ok(Math.min(...frets) >= 0 && Math.max(...frets) <= 21, `${exerciseLabel(e)} ${frets}`);
+    assert.ok(Math.min(...frets) >= 0 && Math.max(...frets) <= 15, `${exerciseLabel(e)} ${frets}`);
   }
 });
 

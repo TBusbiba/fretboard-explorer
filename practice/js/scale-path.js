@@ -4,7 +4,7 @@
 // Mirrors path.js (Find the note) and triad-path.js.
 
 import { NOTE_NAMES } from './notes.js';
-import { SCALES, boxShape, joinShapes, lowestFret, runSequence } from './scales.js';
+import { SCALES, joinedBoxes, runSequence } from './scales.js';
 
 const KEY = 'fretboard-practice.scale-path.v2';
 
@@ -66,9 +66,7 @@ export function exerciseLabel(e) {
 
 /** The notes of an exercise (low to high; joined boxes merged) and the up-and-down sequence to play. */
 export function exerciseRun(e) {
-  const notes = e.boxes.length > 1
-    ? joinShapes(e.boxes.map(b => boxShape(e.scale, e.rootPc, b)))
-    : boxShape(e.scale, e.rootPc, e.boxes[0]);
+  const notes = joinedBoxes(e.scale, e.rootPc, e.boxes);
   return { ...e, label: exerciseLabel(e), notes, sequence: runSequence(notes) };
 }
 

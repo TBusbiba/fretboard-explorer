@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SCALES, boxShape, runSequence, joinShapes } from '../js/scales.js';
+import { SCALES, boxShape, joinedBoxes, runSequence, joinShapes } from '../js/scales.js';
 import { STRINGS } from '../js/notes.js';
 
 const A = 9, C = 0;
@@ -15,10 +15,14 @@ test('A minor pentatonic box 2 is hand-checked', () => {
   assert.deepEqual(byString(boxShape('minorPentatonic', A, 2)), [[8, 10], [7, 10], [7, 10], [7, 9], [8, 10], [8, 10]]);
 });
 
-test('A minor pentatonic boxes 3-5 continue up the neck', () => {
+test('A minor pentatonic boxes 3-5: box 3 at 9-13, boxes 4 and 5 wrap below box 1 (frets 0-3 and 2-5)', () => {
   assert.deepEqual(byString(boxShape('minorPentatonic', A, 3)), [[10, 12], [10, 12], [10, 12], [9, 12], [10, 13], [10, 12]]);
-  assert.deepEqual(byString(boxShape('minorPentatonic', A, 4)), [[12, 15], [12, 15], [12, 14], [12, 14], [13, 15], [12, 15]]);
-  assert.deepEqual(byString(boxShape('minorPentatonic', A, 5)), [[15, 17], [15, 17], [14, 17], [14, 17], [15, 17], [15, 17]]);
+  assert.deepEqual(byString(boxShape('minorPentatonic', A, 4)), [[0, 3], [0, 3], [0, 2], [0, 2], [1, 3], [0, 3]]);
+  assert.deepEqual(byString(boxShape('minorPentatonic', A, 5)), [[3, 5], [3, 5], [2, 5], [2, 5], [3, 5], [3, 5]]);
+});
+
+test('E minor pentatonic box 1 sits at fret 0 on the open strings', () => {
+  assert.deepEqual(byString(boxShape('minorPentatonic', 4, 1)), [[0, 3], [0, 2], [0, 2], [0, 2], [0, 3], [0, 3]]);
 });
 
 test('notes are ordered low to high, with the right midi and degrees', () => {
@@ -43,10 +47,10 @@ test('every pentatonic box has 2 notes per string (12) and major positions 2-3 p
   }
 });
 
-test('box 5 leads back into box 1 an octave up', () => {
-  for (const root of [0, 4, 7, 9, 11]) {
-    const b5 = boxShape('minorPentatonic', root, 5), b1 = boxShape('minorPentatonic', root, 1);
-    assert.equal(b5.filter(n => n.string === 5).at(-1).fret, b1.filter(n => n.string === 5)[0].fret + 12);
+test('box 5 ends on the low E note where box 1 starts, one octave lower or higher', () => {
+  for (const root of [0, 4, 7, 9]) {
+    const lowE = (box, i) => boxShape('minorPentatonic', root, box).filter(n => n.string === 5).at(i).midi;
+    assert.equal(Math.abs(lowE(1, 0) - lowE(5, -1)) % 12, 0);
   }
 });
 
@@ -55,7 +59,7 @@ test('box 1 puts the root on the low E under the index finger', () => {
     const b = boxShape('minorPentatonic', root, 1);
     const low = b.filter(n => n.string === 5)[0];
     assert.equal(low.midi % 12, root);
-    assert.ok(low.isRoot && low.fret >= 0 && low.fret <= 11);
+    assert.ok(low.isRoot && low.fret >= 0 && low.fret <= 12);
   }
 });
 
@@ -68,8 +72,15 @@ test('major pentatonic reuses the relative minor boxes with the major root marke
   }
 });
 
-test('G major scale position 1 is the standard 2-5 fret shape', () => {
+test('G major scale positions are the Explorer 5-fret windows (2-6, 4-8, 7-11, 9-13, then 12-16 an octave down)', () => {
   assert.deepEqual(byString(boxShape('major', 7, 1)), [[2, 3, 5], [2, 3, 5], [2, 4, 5], [2, 4, 5], [3, 5], [2, 3, 5]]);
+  assert.deepEqual(byString(boxShape('major', 7, 2)), [[5, 7, 8], [5, 7], [4, 5, 7], [4, 5, 7], [5, 7, 8], [5, 7, 8]]);
+  assert.deepEqual(byString(boxShape('major', 7, 5)), [[0, 2, 3], [0, 2, 3], [0, 2, 4], [0, 2], [0, 1, 3], [0, 2, 3]]);
+});
+
+test('C major position 1 is the E-shape at 7-10 (root C on the low E, fret 8) and position 3 the open C shape', () => {
+  assert.deepEqual(byString(boxShape('major', C, 1)), [[7, 8, 10], [7, 8, 10], [7, 9, 10], [7, 9, 10], [8, 10], [7, 8, 10]]);
+  assert.deepEqual(byString(boxShape('major', C, 3)), [[0, 1, 3], [0, 2, 3], [0, 2, 3], [0, 2], [0, 1, 3], [0, 1, 3]]);
 });
 
 test('the five major positions only use scale notes and together cover every scale note', () => {
@@ -84,10 +95,26 @@ test('the five major positions only use scale notes and together cover every sca
   }
 });
 
-test('shapes stay on the neck for every root', () => {
+test('every box of every root sits in frets 0-13 (a handful of roots cannot, and stay at 15 or less)', () => {
+  const over = [];
   for (const scale of Object.keys(SCALES)) for (let root = 0; root < 12; root++) for (let box = 1; box <= 5; box++) {
-    for (const n of boxShape(scale, root, box)) assert.ok(n.fret >= 0 && n.fret <= 21, `${scale} ${root} ${box}`);
+    const frets = boxShape(scale, root, box).map(n => n.fret);
+    assert.ok(Math.min(...frets) >= 0 && Math.max(...frets) <= 15, `${scale} ${root} ${box}`);
+    if (Math.max(...frets) > 13) over.push(`${scale}:${root}:${box}`);
   }
+  assert.equal(over.length, 15, over.join(' '));
+  for (const scale of ['minorPentatonic', 'major']) for (const root of [9, 4, 2, 7, 0]) for (let box = 1; box <= 5; box++) {
+    assert.ok(Math.max(...boxShape(scale, root, box).map(n => n.fret)) <= 13, `${scale} ${root} ${box}`);
+  }
+});
+
+test('joined boxes share one placement and stay contiguous (A minor 4 + 5 at frets 0-5)', () => {
+  const fr = (b) => { const f = joinedBoxes('minorPentatonic', A, b).map(n => n.fret); return [Math.min(...f), Math.max(...f)]; };
+  assert.deepEqual(fr([1, 2]), [5, 10]);
+  assert.deepEqual(fr([2, 3]), [7, 12]);
+  assert.deepEqual(fr([4, 5]), [0, 5]);
+  const joined = joinedBoxes('minorPentatonic', A, [4, 5]);
+  assert.deepEqual(joined.map(n => n.midi), [...new Set(joined.map(n => n.midi))].sort((a, b) => a - b));
 });
 
 test('runSequence goes up then down without repeating the top note', () => {
