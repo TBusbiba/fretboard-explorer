@@ -95,6 +95,7 @@ export function createFretboard(svg) {
 
   const heat = el('g', { class: 'fb-heat' }, svg);
   const arrows = el('g', { class: 'fb-arrows' }, svg);
+  const box = el('g', { class: 'fb-box' }, svg);
   const notes = el('g', { class: 'fb-notes' }, svg);
   const live = new Map(); // key -> g
 
@@ -165,6 +166,29 @@ export function createFretboard(svg) {
       const px = -uy, py = ux;
       el('polygon', { class: 'fb-arrow__head', points: `${bx},${by} ${bx - ux * 18 + px * 10},${by - uy * 18 + py * 10} ${bx - ux * 18 - px * 10},${by - uy * 18 - py * 10}` }, g);
     },
+
+    /**
+     * A scale box: a dashed outline round the notes, each note a light ring (the root salmon-tinted),
+     * and a "start" tag on the first. notes: [{string, fret, isRoot}] low to high.
+     */
+    showBox(items, startLabel = 'start') {
+      box.innerHTML = '';
+      if (!items.length) return;
+      const frets = items.map(n => n.fret), lo = Math.min(...frets), hi = Math.max(...frets);
+      const x1 = noteX(lo) - noteRadius(lo) - 12, x2 = noteX(hi) + noteRadius(hi) + 12;
+      const y1 = stringY(0) - 24, y2 = stringY(STRINGS.length - 1) + 24;
+      el('rect', { class: 'fb-box__frame', x: x1, y: y1, width: x2 - x1, height: y2 - y1, rx: 10 }, box);
+      for (const n of items) {
+        const g = el('g', { class: `fb-box__note${n.isRoot ? ' is-root' : ''}`, transform: `translate(${noteX(n.fret)} ${stringY(n.string)})` }, box);
+        el('circle', { r: noteRadius(n.fret) }, g);
+      }
+      const f = items[0], tx = noteX(f.fret);
+      const tag = el('g', { class: 'fb-box__start', transform: `translate(${tx} ${y2})` }, box);
+      el('rect', { x: -26, y: -11, width: 52, height: 20, rx: 6 }, tag);
+      el('text', { y: 4 }, tag).textContent = startLabel;
+    },
+
+    clearBox() { box.innerHTML = ''; },
 
     clearNotes() {
       arrows.innerHTML = '';

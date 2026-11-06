@@ -292,5 +292,20 @@
  "strings 4 3 2": "strings-4-3-2.mp3",
  "strings 3 2 1": "strings-3-2-1.mp3",
  "climb the neck": "climb-the-neck.mp3",
- "find every shape": "find-every-shape.mp3"
+ "find every shape": "find-every-shape.mp3",
+ "a minor pentatonic": "a-minor-pentatonic.mp3",
+ "box 1": "box-1.mp3",
+ "box 2": "box-2.mp3",
+ "box 3": "box-3.mp3",
+ "box 4": "box-4.mp3",
+ "box 5": "box-5.mp3",
+ "boxes 1 and 2": "boxes-1-and-2.mp3",
+ "e minor pentatonic": "e-minor-pentatonic.mp3",
+ "g major pentatonic": "g-major-pentatonic.mp3",
+ "position 1": "position-1.mp3",
+ "position 2": "position-2.mp3",
+ "positions 1 and 2": "positions-1-and-2.mp3",
+ "position 3": "position-3.mp3",
+ "position 4": "position-4.mp3",
+ "position 5": "position-5.mp3"
 }

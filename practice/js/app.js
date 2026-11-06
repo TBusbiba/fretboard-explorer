@@ -13,6 +13,7 @@ import { LEVELS, WINDOW, FIRST_TRY_MIN, AVG_MS_MAX, STAR2_MS, STAR3_MS, levelByI
 import { landmarkHint } from './landmarks.js';
 import { levelTip } from './tips.js';
 import { createTriadsUI } from './triads-ui.js';
+import { createScalesUI } from './scales-ui.js';
 import { loadSettings, saveSettings, resetSettings, DEFAULTS } from './settings.js';
 
 const $ = (id) => document.getElementById(id);
@@ -33,7 +34,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '34';
+const BUILD = '35';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -64,11 +65,11 @@ const history = createHistory();
 const path = createPath();
 const customBest = createCustomBest();
 const combo = createCombo();
-const isNoteMode = () => !['intervals', 'arpeggios', 'triads'].includes(settings.mode);
+const isNoteMode = () => !['intervals', 'arpeggios', 'triads', 'scales'].includes(settings.mode);
 const sayNames = () => (settings.noteMode === 'path' ? path.current >= NAMES_FROM_LEVEL : settings.sayStringNames);
 const fretRange = () => ({ from: settings.fretFrom, to: settings.fretTo });
 // The frets actually drilled: in the Path, the setting kept inside 0-12.
-const boardRange = () => (settings.mode === 'triads' ? { from: 0, to: 12 } : isNoteMode() && settings.noteMode === 'path' ? levelRange(path.currentLevel, fretRange()) : fretRange());
+const boardRange = () => (settings.mode === 'scales' ? { from: 0, to: FRET_COUNT - 1 } : settings.mode === 'triads' ? { from: 0, to: 12 } : isNoteMode() && settings.noteMode === 'path' ? levelRange(path.currentLevel, fretRange()) : fretRange());
 function syncBoardRange() { const r = boardRange(); fretboard.setRange(r.from, r.to); }
 let weigher = null;   // rebuilt from the history after every answer
 function weighPosition(string, fret) { return (weigher ||= positionWeigher(history.positions()))(string, fret); }
@@ -141,11 +142,12 @@ function createDebugPanel() {
 
 const pitch = createPitchDetector({
   getSettings: () => settings,
-  getExpected: () => (session.state === 'listening' && session.note ? session.note.midi : null),
-  getAccepted: () => session.acceptedMidis(),
+  getExpected: () => (scales.running ? scales.expected() : session.state === 'listening' && session.note ? session.note.midi : null),
+  getAccepted: () => (scales.running ? scales.accepted() : session.acceptedMidis()),
   onDebug: DEBUG ? (d) => debugPanel.add(d) : null,
   isMuted: (now) => micGate.isMuted(now),
   onNote: (midi) => { if (!micGate.isMuted()) session.noteDetected(midi); },
+  onStable: (midi, info) => { if (scales.running && !micGate.isMuted()) scales.feed(midi, info); },   // Scales: every steady reading, not one per note
   onLevel: updateMeter,
   onState: updateMicState,
 });
@@ -405,6 +407,7 @@ function warmClips() {
   voice.preload(['Correct', 'Good', 'Octave too high', 'Octave too low', 'Nice!', 'Great!', 'On fire!', 'Unstoppable!', 'Legendary!', 'Chain complete!',
     'New best streak!', 'Quick note chain round!', 'Boss round!']);
   triads.warm();
+  scales.warm();
 }
 
 function setPrompt(stringText, noteText, state) {
@@ -446,11 +449,11 @@ function updateStats() {
 }
 
 function syncButtons() {
-  const running = session.state !== 'idle';
+  const running = scales.active() ? scales.running : session.state !== 'idle';
   ui.startBtn.innerHTML = running ? 'Stop <kbd>Space</kbd>' : 'Start <kbd>Space</kbd>';
   ui.startBtn.classList.toggle('is-running', running);
   ui.skipBtn.disabled = !running;
-  ui.hintBtn.disabled = !(session.state === 'listening' && session.hintStage < session.hintStages);
+  ui.hintBtn.disabled = scales.active() ? !scales.canHint() : !(session.state === 'listening' && session.hintStage < session.hintStages);
   ui.earReplay.disabled = !canHearAgain();
 }
 
@@ -615,6 +618,7 @@ let lastBossLives = BOSS_LIVES;
 /** The boss line: phase, boss HP, hearts, and (rapid fire only) the per-spot countdown. */
 function renderBossStrip() {
   if (triads.active()) { triads.renderBossStrip(); return; }
+  if (scales.active()) { scales.renderBossStrip(); return; }
   const on = !!(boss && boss.state === 'running');
   ui.bossStrip.hidden = !on;
   ui.stage.classList.toggle('is-focus', on);
@@ -901,6 +905,7 @@ $('path-reset').addEventListener('click', () => {
 
 // A skip is a "couldn't find it" for the heatmap.
 function skipNow() {
+  if (scales.active()) { scales.skip(); syncButtons(); return; }
   chain = null;
   if (session.state === 'listening') {
     if (comboActive()) comboMiss();
@@ -931,6 +936,7 @@ function setTime(text) { if (ui.timeVal.textContent !== text) ui.timeVal.textCon
 
 function frame() {
   requestAnimationFrame(frame);
+  if (scales.active()) { scales.tick(); return; }
   if (session.state === 'idle') { setTime('0:00'); return; }
   session.tick();
   if (session.state === 'listening') setTime(mmss(session.held ? 0 : performance.now() - session.startedAt));
@@ -1060,6 +1066,22 @@ const triads = createTriadsUI({
   clearWrongTimers: () => { wrongTimers.forEach(clearTimeout); wrongTimers = []; },
   later: (fn, ms) => wrongTimers.push(setTimeout(fn, ms)),
 });
+// ---------- scales (practice/js/scales-ui.js) ----------
+const scales = createScalesUI({
+  $, ui, fretboard, pitch, voice,
+  getSettings: () => settings,
+  commit: (patch) => commit(patch),
+  announce: (...a) => announce(...a),
+  voiceOpts: () => voiceOpts(),
+  setPrompt: (...a) => setPrompt(...a), setStatus: (...a) => setStatus(...a),
+  scrollBoardTo: (f) => scrollBoardTo(f),
+  toggleStart: () => toggleSession(), syncButtons: () => syncButtons(), warmClips: () => warmClips(),
+  hideChainIntro: () => hideChainIntro(), hideBossEnd: () => hideBossEnd(),
+});
+$('scales-path-reset').addEventListener('click', () => {
+  if (!confirm('Reset your Scales path? Every level goes back to locked except level 1.')) return;
+  scales.resetPath(); applySettingsToUI();
+});
 $('triad-path-reset').addEventListener('click', () => {
   if (!confirm('Reset your Triads path? Every level goes back to locked except level 1.')) return;
   triads.resetPath(); applySettingsToUI();
@@ -1067,6 +1089,7 @@ $('triad-path-reset').addEventListener('click', () => {
 
 // ---------- controls ----------
 async function toggleSession() {
+  if (scales.active()) { await scales.toggle(); syncButtons(); return; }
   if (session.state === 'idle') {
     warmClips();
     await pitch.start();
@@ -1079,13 +1102,17 @@ async function toggleSession() {
 
 ui.startBtn.addEventListener('click', toggleSession);
 ui.skipBtn.addEventListener('click', skipNow);
-ui.hintBtn.addEventListener('click', () => { session.showHint(); syncButtons(); });
+function hintNow() { if (scales.active()) scales.hint(); else session.showHint(); syncButtons(); }
+ui.hintBtn.addEventListener('click', hintNow);
 
 // mode switcher
 document.querySelectorAll('input[name="mode"]').forEach((r) => r.addEventListener('change', () => {
-  boss = null; notice = null; triads.cancelBoss();
+  boss = null; notice = null; triads.cancelBoss(); scales.cancelBoss();
+  if (scales.running) scales.stop();                                 // leaving Scales: the mic closes
+  else if (r.value === 'scales' && session.state !== 'idle') { session.stop(); pitch.stop(); }   // entering Scales: its own runs, not a session
   commit({ mode: r.value });
   if (session.state !== 'idle') session.skip(); // re-pick in the new mode right away
+  syncButtons();
 }));
 
 // interval picker (Random + one chip per interval)
@@ -1161,7 +1188,7 @@ document.addEventListener('keydown', (e) => {
   if (['input', 'select', 'textarea'].includes(tag) || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.code === 'Space') { e.preventDefault(); toggleSession(); }
   else if (e.key === 'n' || e.key === 'N') skipNow();
-  else if (e.key === 'h' || e.key === 'H') { session.showHint(); syncButtons(); }
+  else if (e.key === 'h' || e.key === 'H') hintNow();
   else if (e.key === 'r' || e.key === 'R') hearAgain();
   else if (e.key === 'Escape') closeSettings();
 });
@@ -1310,6 +1337,7 @@ const TICKER = {
   note: ['Press Start or Space and allow the mic', 'Play the note shown, on the string shown', 'Path: clear each level’s boss round to unlock the next', 'Custom: pick your own notes and strings', 'Stuck? H shows where it is, N skips', 'Turn on Say + play the note to find it by ear, R plays it again', 'Your fretboard, over time shows which notes need work'],
   intervals: ['Play the root, then the interval above it', 'Practise one interval, or let it pick at random', 'H shows a tip first, then where both notes are', 'N skips to the next one'],
   arpeggios: ['Play the chord one note per string, from the low string up', 'Pick a chord type, or let it pick at random', 'Each note counts as soon as you hit it', 'H shows a tip, then where the next note is', 'N skips to the next chord'],
+  scales: ['Play the scale in the outlined box, up and back down, starting on the note marked start', 'Each note counts as soon as it is heard, even while the last one still rings', 'Wrong notes are soft: a red mark, no voice', 'Path: steady, clean runs unlock the boss round', 'Drill loops one scale, root and box so you can just play', 'H shows the next note, N starts a fresh run'],
   triads: ['Play the chord in all three shapes, in any order', 'Each shape: start on the thickest string shown, then go up', 'Path: answer fast and clean to unlock the boss round', 'Shapes shows all three and how far apart they sit', 'H shows a tip, then where the next note is', 'N skips to the next triad'],
 };
 
@@ -1319,8 +1347,9 @@ function setTicker(mode) {
 }
 
 function applySettingsToUI() {
-  const mode = ['intervals', 'arpeggios', 'triads'].includes(settings.mode) ? settings.mode : 'note';
+  const mode = ['intervals', 'arpeggios', 'triads', 'scales'].includes(settings.mode) ? settings.mode : 'note';
   setTicker(mode);
+  document.body.dataset.mode = mode;
   $('play-notes').checked = settings.playNotes;
   document.querySelector(`input[name="mode"][value="${mode}"]`).checked = true;
   ui.picker.hidden = mode !== 'intervals';
@@ -1335,6 +1364,7 @@ function applySettingsToUI() {
   ui.customPicker.hidden = mode !== 'note' || settings.noteMode !== 'custom';
   renderPath();
   triads.render();
+  scales.render();
   ui.customNotes.querySelectorAll('.chip[data-pc]').forEach((c) => c.setAttribute('aria-pressed', settings.notes.includes(+c.dataset.pc)));
   $('custom-accidentals').setAttribute('aria-pressed', hasAccidentals(settings.notes));
   ui.customStrings.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', settings.strings.includes(+c.dataset.index)));
@@ -1383,4 +1413,4 @@ updateStats();
 renderHeatPanel();
 
 // Expose for poking around in devtools.
-window.practice = { triads, session, pitch, voice, sound, fretboard, history, path, startBoss, renderHeatPanel, get boss() { return boss; }, get settings() { return settings; }, DEFAULTS };
+window.practice = { triads, scales, session, pitch, voice, sound, fretboard, history, path, startBoss, renderHeatPanel, get boss() { return boss; }, get settings() { return settings; }, DEFAULTS };

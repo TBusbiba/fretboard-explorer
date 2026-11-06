@@ -4,6 +4,7 @@
 // Existing clips are kept unless --force, so re-runs only record new phrases.
 
 import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
+import { scaleClipPhrases } from '../practice/js/scale-run.js';
 
 const VOICE = 'pNInz6obpgDQGcFmaJgB'; // Adam
 const OUT = new URL('../practice/audio/voice/', import.meta.url);
@@ -40,6 +41,8 @@ for (const g of ['6 5 4', '5 4 3', '4 3 2', '3 2 1']) add(`Strings ${g}!`, 'prom
 add('Climb the neck!', 'hype');
 add('Find every shape!', 'hype');
 for (const note of NOTES) { add(`Find every ${note}!`, 'hype'); add(`Next: every ${note}!`, 'hype'); }
+
+for (const text of scaleClipPhrases()) add(text, 'prompt', `[excited] ${text}`);
 
 const slug = (t) => normalize(t).replace(/ /g, '-');
 const manifestPath = new URL('manifest.json', OUT);

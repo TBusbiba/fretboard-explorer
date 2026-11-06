@@ -9,6 +9,10 @@
 // silence or a fresh pluck (attack.js), so a ringing string cannot answer the next
 // question.
 //
+// onStable(midi, {fresh, heldMs}) is called on every frame a note is steady (not once): `fresh` =
+// the candidate started with a new attack (a pluck, not a ring), `heldMs` = how long it has held.
+// The Scales screen listens this way; onNote keeps its report-once behaviour.
+//
 // isMuted(now) returns true while the app's own sound is playing or has just
 // stopped; readings are discarded then.
 //
@@ -33,9 +37,11 @@ const SILENCE_RESET_MS = 150;   // this long under the gate forgets the candidat
 const STALE_HIT_MS = 250;       // no agreeing reading for this long forgets it too
 const MIN_HZ = 70;              // just below low E
 const MAX_HZ = 1400;            // above the highest fretted note we care about
+const ATTACK_RATIO = 1.6;        // a pluck is this much louder than the quietest level since the last one
+const FRESH_MS = 300;            // a note counts as freshly plucked when its attack is this close to its start
 const HIGHPASS_HZ = 70;         // strip room rumble so it doesn't count toward the gate
 
-export function createPitchDetector({ getSettings, getExpected = () => null, getAccepted = null, onDebug = null, isMuted = () => false, onNote, onLevel = () => {}, onState = () => {} }) {
+export function createPitchDetector({ getSettings, getExpected = () => null, getAccepted = null, onDebug = null, isMuted = () => false, onNote, onStable = null, onLevel = () => {}, onState = () => {} }) {
   let ctx = null, stream = null, gainNode = null, analyser = null, detector = null;
   let buf = null;
   let rafId = 0;
@@ -44,12 +50,13 @@ export function createPitchDetector({ getSettings, getExpected = () => null, get
   let candidate = null, candidateSince = 0, hits = 0, lastHitAt = 0, lastLoudAt = 0;
   let recent = []; // [midi, time] of recent accepted readings
   let reported = null;
+  let candidateFresh = false, attackAt = 0, attackFloor = 0, quiet = true; // quiet: the last loud frame was an onset
   let ringing = null; // last low note reported; survives reset() until real silence
   const attack = createAttackGuard(); // the reported pitch is ignored until silence or a fresh pluck, across reset() and mutes
 
   function setState(s, detail) { state = s; onState(s, detail); }
 
-  function resetHold() { candidate = null; candidateSince = 0; hits = 0; lastHitAt = 0; recent = []; }
+  function resetHold() { candidate = null; candidateSince = 0; hits = 0; lastHitAt = 0; recent = []; candidateFresh = false; }
 
   function frame() {
     rafId = requestAnimationFrame(frame);
@@ -69,10 +76,17 @@ export function createPitchDetector({ getSettings, getExpected = () => null, get
     // every held, reported or "ringing" note so none carries into the next question.
     if (muted) { resetHold(); reported = null; ringing = null; return; }
     if (rms < gate) {
+      quiet = true;
       if (now - lastLoudAt > SILENCE_RESET_MS) { resetHold(); reported = null; ringing = null; }
       return;
     }
     lastLoudAt = now;
+    // An attack: the first loud frame after silence, or a jump well above the quietest level since the last one.
+    if (quiet || rms > Math.max(attackFloor, gate) * ATTACK_RATIO) {
+      attackAt = now; attackFloor = rms;
+      if (candidate != null && now - candidateSince < FRESH_MS) candidateFresh = true;
+    } else attackFloor = Math.min(attackFloor, rms);
+    quiet = false;
 
     const [rawHz, clarity] = detector.findPitch(buf, ctx.sampleRate);
     if (clarity < clarityThreshold || rawHz < MIN_HZ || rawHz > MAX_HZ) {
@@ -96,21 +110,22 @@ export function createPitchDetector({ getSettings, getExpected = () => null, get
     const midi = frequencyToMidi(hz);
     recent.push([midi, now]);
     while (recent.length && now - recent[0][1] > RECENT_MS) recent.shift();
-    if (midi !== candidate) { candidate = midi; candidateSince = now; hits = 0; }
+    if (midi !== candidate) { candidate = midi; candidateSince = now; hits = 0; candidateFresh = now - attackAt <= FRESH_MS; }
     hits += 1;
     lastHitAt = now;
     const low = hz < LOW_HZ;
     const hold = low ? LOW_HOLD_MS : HOLD_MS;
     const need = low ? LOW_HITS : MIN_HITS;
-    if (hits >= need && now - candidateSince >= hold && reported !== midi) {
+    if (hits >= need && now - candidateSince >= hold) {
       // Octave-up errors on low strings are transient: if the lower octave was
       // read at all while this note settled, that is the real note.
       let final = midi;
       if (low && !(accepted && accepted.includes(midi)) && recent.filter(([m]) => m === midi - 12).length >= 2) final = midi - 12;
-      if (reported === final) return;
       // A low string fades towards its octave-up partial; that is still the old note
       // ringing, unless the octave is exactly what the app is asking for next.
       if (low && ringing != null && final === ringing + 12 && expected !== final) return;
+      if (onStable) onStable(final, { fresh: candidateFresh, heldMs: now - candidateSince, rms });
+      if (reported === midi || reported === final) return;
       if (attack.blocks(final)) return;
       reported = final;
       attack.arm(final, rms, now);

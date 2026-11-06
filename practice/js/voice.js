@@ -5,7 +5,7 @@
 import { clipFiles } from './clips.js';
 
 const CLIP_DIR = new URL('../audio/voice/', import.meta.url);
-const CLIP_REV = 6; // bump after re-recording clips so browsers drop cached copies
+const CLIP_REV = 7; // bump after re-recording clips so browsers drop cached copies
 export const CLIP_VOICE = 'adam';           // the voice picker's value for the recorded clips
 export const usesClips = (voiceName) => voiceName === CLIP_VOICE || voiceName === '';
 const CLIP_TIMEOUT_MS = 8000;               // a clip that never ends must not mute the mic for good

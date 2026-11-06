@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="34">
+<html lang="en" data-build="35">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -40,6 +40,7 @@
       <label class="is-soon"><input type="radio" name="mode" value="intervals" disabled><span>Intervals<small class="soon">Soon</small></span></label>
       <label class="is-soon"><input type="radio" name="mode" value="arpeggios" disabled><span>Arpeggios<small class="soon">Soon</small></span></label>
       <label><input type="radio" name="mode" value="triads"><span>Triads</span></label>
+      <label><input type="radio" name="mode" value="scales"><span>Scales</span></label>
       <span class="mode__link is-soon" aria-disabled="true"><span>Vibrato<small class="soon">Soon</small></span></span>
       <a class="mode__link" href="chords.html"><span>Chords</span></a>
     </div>
@@ -48,12 +49,18 @@
       <button type="button" class="chip" data-id="custom" aria-pressed="false" title="Choose the notes and strings yourself">Custom</button>
     </div>
     <div class="picker picker--mode" id="triad-mode-picker" role="group" aria-label="Triads: path or custom" hidden></div>
+    <div class="picker picker--mode" id="scales-mode-picker" role="group" aria-label="Scales: path or drill" hidden></div>
     </div>
     <div class="picker" id="interval-picker" role="group" aria-label="Which interval" hidden></div>
     <div class="picker" id="chord-picker" role="group" aria-label="Which chord" hidden></div>
     <div class="triad-custom">
     <div class="picker" id="triad-picker" role="group" aria-label="Triads: major and minor" hidden></div>
     <div class="picker picker--groups" id="group-picker" role="group" aria-label="String groups" hidden></div>
+    </div>
+    <div class="picker picker--custom" id="scales-drill" role="group" aria-label="Scale drill: scale, root and box" hidden>
+      <div class="picker__group" id="scales-kind" role="group" aria-label="Scale"><span class="picker__label">Scale</span></div>
+      <div class="picker__group" id="scales-root" role="group" aria-label="Root"><span class="picker__label">Root</span></div>
+      <div class="picker__group" id="scales-box" role="group" aria-label="Box or position"><span class="picker__label" id="scales-box-label">Box</span></div>
     </div>
     <div class="picker picker--custom" id="custom-picker" role="group" aria-label="Notes and strings to ask" hidden>
       <div class="picker__group" id="custom-notes" role="group" aria-label="Notes"><span class="picker__label">Notes</span></div>
@@ -114,6 +121,31 @@
       </aside>
     </section>
 
+    <section class="path" id="scales-path" aria-label="Scales level path" hidden>
+      <div class="path__row">
+        <ol class="path__map" id="scales-map"></ol>
+        <button type="button" class="chip chip--boss" id="scales-boss-btn" disabled>Boss</button>
+        <button type="button" class="chip path__tipbtn" id="scales-tip-btn" aria-controls="scales-tip-card" aria-expanded="false" title="Show the tip for this level">Tip</button>
+      </div>
+      <div class="path__pop" id="scales-pop" hidden>
+        <div class="path__head">
+          <strong id="scales-pop-title"></strong>
+          <span id="scales-pop-goal"></span>
+        </div>
+        <div class="path__stats" id="scales-pop-stats"></div>
+        <span class="path__bossnote" id="scales-pop-boss"></span>
+      </div>
+      <aside class="tipcard" id="scales-tip-card" role="region" aria-labelledby="scales-tip-head" hidden>
+        <div class="tipcard__text">
+          <span class="tipcard__tag" id="scales-tip-tag">Tip</span>
+          <h3 class="tipcard__head" id="scales-tip-head"></h3>
+          <p class="tipcard__line" id="scales-tip-line"></p>
+          <p class="tipcard__note" id="scales-tip-note"></p>
+          <button type="button" class="btn btn--small tipcard__got" id="scales-tip-got">Got it</button>
+        </div>
+      </aside>
+    </section>
+
     <section class="prompt" id="prompt">
       <div class="prompt__main" aria-live="polite">
         <div class="prompt__left">
@@ -124,10 +156,15 @@
           <div class="prompt__status" id="status">Pick a string, play the note it names, and the mic will confirm it.</div>
           <div class="prompt__tip" id="tip" hidden></div>
           <div class="boss-pips" id="boss-pips"></div>
+          <div class="sc-result" id="sc-result" hidden></div>
         </div>
       </div>
       <div class="prompt__right">
         <div class="pblock" id="time-block"><small>Time</small><b id="time-val">0:00</b></div>
+        <div class="sc-stats" id="sc-stats" hidden>
+          <div class="pblock"><small>Score</small><b id="sc-score">0</b></div>
+          <div class="pblock" id="sc-miss-block"><small>Mistakes</small><b id="sc-miss">0</b></div>
+        </div>
         <div class="pblock pblock--found" id="found-block" hidden><small>Found</small><b id="found-val">0/0</b></div>
         <div class="combo" id="combo" hidden>
           <div class="pblock pblock--combo" id="combo-badge"><small>Combo</small><b id="combo-mult">×1</b></div>
@@ -323,6 +360,11 @@
       </fieldset>
 
       <fieldset class="group">
+        <legend>Scales</legend>
+        <p class="note">Play the scale in the box you are shown, up and back down. Each note counts as soon as it is heard, even while the last one still rings. Wrong notes are soft: a red mark, no voice. Very fast runs, hammer-ons and slides may be missed.</p>
+      </fieldset>
+
+      <fieldset class="group">
         <legend>Microphone</legend>
         <label class="slider">
           <span class="slider__head"><span>Gate <small>ignore sound below</small></span><output id="gate-out"></output></span>
@@ -344,6 +386,8 @@
         <button type="button" class="btn btn--ghost btn--small" id="path-reset">Reset path</button>
         <p class="note">Triads, Path: progress is kept in this browser too.</p>
         <button type="button" class="btn btn--ghost btn--small" id="triad-path-reset">Reset Triads path</button>
+        <p class="note">Scales, Path: progress is kept in this browser too.</p>
+        <button type="button" class="btn btn--ghost btn--small" id="scales-path-reset">Reset Scales path</button>
       </fieldset>
 
       <button type="button" class="btn btn--ghost btn--small" id="settings-reset">Reset to defaults</button>

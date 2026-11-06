@@ -3,7 +3,7 @@
 const KEY = 'fretboard-practice.settings.v2';
 
 export const DEFAULTS = Object.freeze({
-  mode: 'note',           // 'note' | 'intervals' | 'arpeggios' | 'triads'
+  mode: 'note',           // 'note' | 'intervals' | 'arpeggios' | 'triads' | 'scales'
   strings: [0, 1, 2, 3, 4, 5],
   fretFrom: 0,
   fretTo: 11,             // 0-11 covers every note once per string
@@ -23,6 +23,10 @@ export const DEFAULTS = Object.freeze({
   triadMode: 'path',      // triads: 'path' (the 11 levels) | 'custom' (pick qualities and string groups)
   triadQualities: ['major', 'minor'], // triads, Custom: which qualities are asked
   triadGroups: ['654', '543', '432', '321'], // triads, Custom: which string groups are asked
+  scalesMode: 'path',     // scales: 'path' (the 11 levels) | 'drill' (pick scale, root and box)
+  scaleKind: 'minorPentatonic', // scales, Drill: minorPentatonic | majorPentatonic | major
+  scaleRoot: 9,           // scales, Drill: root pitch class (9 = A)
+  scaleBox: 1,            // scales, Drill: box / position 1-5
   showShapes: false,      // triads: the big Show-shapes panel in place of the prompt strip
   playNotes: true,        // intervals, arpeggios, triads: play the question's notes after naming it; off = only speak it
 
@@ -77,6 +81,10 @@ export function migrate(saved) {
   };
   keep('triadQualities', ['major', 'minor']);
   keep('triadGroups', ['654', '543', '432', '321']);
+  if (saved.scalesMode !== 'path' && saved.scalesMode !== 'drill') delete saved.scalesMode;
+  if (!['minorPentatonic', 'majorPentatonic', 'major'].includes(saved.scaleKind)) delete saved.scaleKind;
+  if (!Number.isInteger(saved.scaleRoot) || saved.scaleRoot < 0 || saved.scaleRoot > 11) delete saved.scaleRoot;
+  if (!Number.isInteger(saved.scaleBox) || saved.scaleBox < 1 || saved.scaleBox > 5) delete saved.scaleBox;
   if (saved.noteMode !== 'path' && saved.noteMode !== 'custom') delete saved.noteMode;
   return saved;
 }

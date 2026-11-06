@@ -1075,3 +1075,42 @@ input[type="range"]::-moz-range-thumb {
 .triad-custom { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 22px; }
 .triad-custom:not(:has(.picker:not([hidden]))) { display: none; }
 .stage.is-focus > .triad-custom { display: none; }
+
+
+/* ================= Scales ================= */
+/* the box on the board: a dashed frame, light rings for its notes, a "start" tag on the first */
+.fb-box__frame { fill: none; stroke: var(--nb-ink-3); stroke-width: 2.5; stroke-dasharray: 9 6; }
+.fb-box__note circle { fill: rgba(255, 255, 255, 0.78); stroke: var(--nb-ink-3); stroke-width: 2.5; }
+.fb-box__note.is-root circle { fill: color-mix(in srgb, var(--nb-salmon) 45%, white); stroke: var(--nb-ink); }
+.fb-box__start rect { fill: var(--nb-yellow); stroke: var(--nb-ink); stroke-width: 2.5; }
+.fb-box__start text { font: 700 12px var(--nb-sans); fill: var(--nb-ink); text-anchor: middle; letter-spacing: 0.04em; text-transform: uppercase; }
+.fb-note--soft .fb-note__dot { fill: color-mix(in srgb, var(--nb-rose) 70%, white); }
+.fb-note--soft text { font-weight: 700; }
+
+/* the strip: score and mistakes, the run result, a thin progress bar */
+.sc-stats { display: flex; gap: 8px; }
+.sc-stats[hidden] { display: none; }
+.sc-stats .pblock.is-flash { animation: sc-flash 700ms var(--ease); }
+@keyframes sc-flash { 0% { background: var(--nb-rose); } 100% { background: var(--nb-card); } }
+.prompt__status.is-soft { animation: sc-soft 700ms var(--ease); }
+@keyframes sc-soft { 0% { background: color-mix(in srgb, var(--nb-rose) 55%, white); } 100% { background: transparent; } }
+.sc-bar { display: block; width: min(420px, 100%); height: 10px; background: var(--nb-card); border: var(--nb-border-sm); border-radius: 6px; overflow: hidden; }
+.sc-bar i { display: block; height: 100%; background: var(--nb-ink); transition: width 120ms var(--ease); }
+body:not([data-mode="scales"]) .sc-bar { display: none; }
+.sc-result { display: flex; flex-wrap: wrap; gap: 8px; }
+.sc-result[hidden] { display: none; }
+.sc-res { display: flex; flex-direction: column; gap: 3px; padding: 4px 8px 5px; min-width: 0; background: var(--nb-card); border: var(--nb-border-sm); border-radius: var(--nb-radius-sm); box-shadow: 2px 2px 0 var(--nb-ink); }
+.sc-res b { font: 700 20px/1 var(--nb-sans); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sc-res span { font: 700 10px/1.1 var(--nb-sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--nb-ink-2); }
+.sc-res--stars b { letter-spacing: -0.06em; }
+body[data-mode="scales"] .stats, body[data-mode="scales"] .ring { display: none; }
+body[data-mode="scales"] .prompt__status[hidden] { display: none; }
+@media (max-width: 760px) {
+  .sc-res { min-width: 0; padding: 3px 7px 4px; gap: 2px; }
+  .sc-res b { font-size: 16px; }
+  .sc-res span { font-size: 9px; }
+  .sc-result { gap: 5px; }
+  .sc-stats { gap: 4px; }
+  .sc-bar { height: 8px; }
+}
+#scales-drill { align-items: center; }
