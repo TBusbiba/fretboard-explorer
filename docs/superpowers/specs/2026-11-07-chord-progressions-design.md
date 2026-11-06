@@ -27,7 +27,7 @@ Teach the diatonic chords of major keys two ways: by naming them (flashcards, no
 - New radio `Keys` beside major/minor/both (`practice/chords.html:41-45`); `DECKS.keys` in `deck.js` (`cardsFor` gets a `keys` branch; the unknown-deck fallback at `deck.js:59` must not swallow it).
 - Card ids: `K:C:V` (degree card) and `K:F:Dm` (reverse card). Two card types:
   - `degree`: prompt line 1 `C major`, line 2 `what is the V?`. Answer = root on the existing 12-note wheel plus a two-button major/minor chooser. Correct when pitch class and quality both match. (My call: the chooser is always shown on degree cards; it defaults to nothing selected.)
-  - `roman`: prompt `In F major, Dm is…?`. Answer = six chips I ii iii IV V vi. The wheel is hidden.
+  - `roman`: prompt `In F major, Dm is…?` (answer vi). Answer = six chips I ii iii IV V vi. The wheel is hidden.
 - Reveal shows the whole diatonic row of that key (`C  Dm  Em  F  G  Am` with numerals under). Key-signature and fretboard steps are skipped for keys cards (`quiz.js:225-305` branches on card type).
 - Gradual introduction (new code; Leitner boxes stay as-is, keyed by card id):
   - Key tiers: 1 = C G F · 2 = D A B♭ E♭ · 3 = E B A♭ D♭ F♯.
@@ -96,7 +96,7 @@ The Keys deck must explain, not just grade. On a wrong answer, on "Show answer",
 - Line 2, the rule, always the same words: `1, 4, 5 are major · 2, 3, 6 are minor · 7 is diminished (skipped)`.
 - Line 3, the worked answer for this card:
   - degree card: `V of C major: count up C D E F G → G. 5 is always major → G.`
-  - reverse card: `Dm is the 2nd note of F major (F G A B♭ C D) → ii. 2 is always minor, so Dm fits.`
+  - reverse card: `Dm is the 6th note of F major (F G A B♭ C D) → vi. 6 is always minor, so Dm fits.`
 - Line 4, the whole row as chips: `C  Dm  Em  F  G  Am` with `I ii iii IV V vi` under it.
 - Pure helper `explain(keyName, degreeOrChord)` in `keys.js` returns `{scale:[…], ruleText, workedText, row:[…]}` so the text is unit-tested; the UI only renders it.
 - First visit to the Keys deck (no keys card in `boxes` yet) opens the panel once with a generic example in C before the first card; dismiss with Go.
