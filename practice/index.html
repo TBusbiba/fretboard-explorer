@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="30">
+<html lang="en" data-build="31">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="../shared/console.css">
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="p-one">
   <header class="top">
     <a class="top__back ns-brand" href="../index.html" aria-label="Fretboard Explorer home">
       <span class="ns-brand__led" aria-hidden="true"></span><span class="ns-brand__word">fretboard</span><span class="ns-brand__model">FB-1</span>
@@ -23,9 +23,21 @@
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="6" r="2" fill="var(--nb-card)"/><circle cx="15" cy="12" r="2" fill="var(--nb-card)"/><circle cx="7" cy="18" r="2" fill="var(--nb-card)"/></svg>
     </button>
   </header>
-  <div class="nb-ticker"><div class="nb-ticker__track" id="ticker"><span>Press Start or Space and allow the mic ★ Play the note shown, on the string shown ★ Stuck? H shows where it is, N skips ★ Turn on Say + play the note to find it by ear, R plays it again ★ Your fretboard, over time shows which notes need work ★ </span><span aria-hidden="true">Press Start or Space and allow the mic ★ Play the note shown, on the string shown ★ Stuck? H shows where it is, N skips ★ Turn on Say + play the note to find it by ear, R plays it again ★ Your fretboard, over time shows which notes need work ★ </span></div></div>
 
-  <main class="stage">
+  <main class="stage" id="stage">
+    <div class="bossline" id="boss-strip" hidden aria-hidden="true">
+      <span class="bossline__title" id="boss-title">★ Boss</span>
+      <div class="bossline__notes" id="boss-notes"></div>
+      <div class="bossline__time">
+        <span class="pacel">★★★ 2s</span>
+        <div class="bp" id="boss-pace" title="Pace per spot: 3 stars at 2 s average, 2 stars at 3 s">
+          <div class="bp__bar"><i id="boss-pace-fill"></i><u style="left:50%"></u><u style="left:75%"></u></div>
+        </div>
+        <span class="pacel">★★ 3s</span>
+        <b class="bt" id="boss-time" aria-label="Boss round time">0:00.0</b>
+      </div>
+    </div>
+    <div class="modebar">
     <div class="mode segmented" role="radiogroup" aria-label="Practice mode">
       <label><input type="radio" name="mode" value="note"><span>Find the note</span></label>
       <label><input type="radio" name="mode" value="intervals"><span>Intervals</span></label>
@@ -34,41 +46,35 @@
       <a class="mode__link" href="vibrato.html"><span>Vibrato</span></a>
       <a class="mode__link" href="chords.html"><span>Chords</span></a>
     </div>
+    <div class="picker picker--mode" id="note-mode-picker" role="group" aria-label="Find the note: path or custom" hidden>
+      <button type="button" class="chip" data-id="path" aria-pressed="true" title="Work through the levels, a few notes at a time">Path</button>
+      <button type="button" class="chip" data-id="custom" aria-pressed="false" title="Choose the notes and strings yourself">Custom</button>
+    </div>
+    </div>
     <div class="picker" id="interval-picker" role="group" aria-label="Which interval" hidden></div>
     <div class="picker" id="chord-picker" role="group" aria-label="Which chord" hidden></div>
     <div class="picker" id="triad-picker" role="group" aria-label="Which triad" hidden></div>
     <div class="picker" id="inversion-picker" role="group" aria-label="Which inversion" hidden></div>
     <div class="picker picker--groups" id="group-picker" role="group" aria-label="String groups" hidden></div>
-    <div class="picker" id="cue-picker" role="group" aria-label="Play the notes" hidden>
-      <button type="button" class="chip" id="cue-toggle" aria-pressed="true" title="Play the prompt's notes after naming it. Off: the prompt is only spoken">Play the notes</button>
-    </div>
-    <div class="picker" id="note-mode-picker" role="group" aria-label="Find the note: path or custom" hidden>
-      <button type="button" class="chip" data-id="path" aria-pressed="true" title="Work through the levels, a few notes at a time">Path</button>
-      <button type="button" class="chip" data-id="custom" aria-pressed="false" title="Choose the notes and strings yourself">Custom</button>
-    </div>
     <div class="picker picker--custom" id="custom-picker" role="group" aria-label="Notes and strings to ask" hidden>
       <div class="picker__group" id="custom-notes" role="group" aria-label="Notes"><span class="picker__label">Notes</span></div>
       <div class="picker__group" id="custom-strings" role="group" aria-label="Strings"><span class="picker__label">Strings</span></div>
       <div class="picker__group" role="group" aria-label="Prompt wording"><button type="button" class="chip" id="say-names-toggle" aria-pressed="false" title="Say &quot;A string, C!&quot; instead of &quot;String 5, C&quot;">Say string names</button></div>
     </div>
-    <div class="picker" id="ear-picker" role="group" aria-label="Find it by ear" hidden>
-      <button type="button" class="chip" id="ear-toggle" aria-pressed="false" title="Say the note's name and play it, then find it by ear">Say + play the note</button>
-      <button type="button" class="chip" id="names-toggle" aria-pressed="true" title="Show the string names (E B G D A E) beside the fretboard">String names</button>
-      <button type="button" class="chip chip--plain" id="ear-replay" disabled title="Say and play the note again">Hear it again <kbd>R</kbd></button>
-    </div>
 
     <section class="path" id="path" aria-label="Level path" hidden>
-      <ol class="path__map" id="path-map"></ol>
-      <div class="path__strip" id="path-strip">
+      <div class="path__row">
+        <ol class="path__map" id="path-map"></ol>
+        <button type="button" class="chip chip--boss" id="boss-btn" disabled>Boss</button>
+        <button type="button" class="chip path__tipbtn" id="tip-btn" aria-controls="tip-card" aria-expanded="false" title="Show the tip for this level">Tip</button>
+      </div>
+      <div class="path__pop" id="path-strip" hidden>
         <div class="path__head">
-          <div class="path__titlerow"><strong id="path-title"></strong><button type="button" class="chip chip--plain path__tipbtn" id="tip-btn" aria-controls="tip-card" aria-expanded="false" title="Show the tip for this level">Tip</button></div>
+          <strong id="path-title"></strong>
           <span id="path-goal"></span>
         </div>
         <div class="path__stats" id="path-stats"></div>
-        <div class="path__boss">
-          <button type="button" class="btn btn--small" id="boss-btn" disabled>Boss round</button>
-          <span id="boss-note"></span>
-        </div>
+        <span class="path__bossnote" id="boss-note"></span>
       </div>
       <aside class="tipcard" id="tip-card" role="region" aria-labelledby="tip-head" hidden>
         <div class="tipcard__text">
@@ -87,9 +93,25 @@
       <div class="prompt__tools" id="prompt-tools" hidden>
         <button type="button" class="shape-toggle" id="shapes-toggle" aria-pressed="false" title="Show the triad shapes (R · 3 · 5) next to the prompt"><span class="shape-toggle__track" aria-hidden="true"></span>Show shapes</button>
       </div>
-      <div class="combo" id="combo" hidden>
-        <div class="combo__badge" id="combo-badge" hidden><b id="combo-n">×3</b><span id="combo-mult">streak</span></div>
-        <div class="combo__score"><span class="combo__gain" id="combo-gain" aria-hidden="true"></span><span class="combo__label">Score</span><b id="combo-score">0</b><small id="combo-best"></small></div>
+      <div class="prompt__main" aria-live="polite">
+        <div class="prompt__left">
+          <div class="prompt__string" id="string-name">Press start</div>
+          <div class="prompt__note" id="note-name" data-state="idle"></div>
+        </div>
+        <div class="prompt__mid">
+          <div class="prompt__status" id="status">Pick a string, play the note it names, and the mic will confirm it.</div>
+          <div class="prompt__tip" id="tip" hidden></div>
+          <div class="boss-pips" id="boss-pips"></div>
+        </div>
+      </div>
+      <div class="prompt__right">
+        <div class="pblock" id="time-block"><small>Time</small><b id="time-val">0:00</b></div>
+        <div class="pblock pblock--found" id="found-block" hidden><small>Found</small><b id="found-val">0/0</b></div>
+        <div class="combo" id="combo" hidden>
+          <div class="pblock pblock--combo" id="combo-badge"><small>Combo</small><b id="combo-mult">×1</b></div>
+          <div class="pblock combo__score"><span class="combo__gain" id="combo-gain" aria-hidden="true"></span><small>Score</small><b id="combo-score">0</b><em id="combo-best"></em></div>
+          <div class="pblock"><small>Streak</small><b id="combo-n">0</b></div>
+        </div>
       </div>
       <div class="combo__shout" id="combo-shout" aria-hidden="true"></div>
       <div class="combo__flag" id="combo-flag" role="status"></div>
@@ -99,30 +121,17 @@
         <div class="chain-intro__start" id="chain-start">Start with the A string —</div>
       </div>
       <div class="boss-end" id="boss-end" hidden role="dialog" aria-label="Boss round result">
-        <div class="boss-end__kicker" id="boss-end-kicker">Boss round cleared!</div>
-        <div class="boss-end__stars" id="boss-end-stars" aria-hidden="true">★★★</div>
-        <div class="boss-end__stats" id="boss-end-stats"></div>
-        <div class="boss-end__next" id="boss-end-next"></div>
+        <div class="boss-end__head">
+          <div class="boss-end__kicker" id="boss-end-kicker">Boss round cleared!</div>
+          <div class="boss-end__stars" id="boss-end-stars" aria-hidden="true">★★★</div>
+        </div>
+        <div class="boss-end__body">
+          <div class="boss-end__stats" id="boss-end-stats"></div>
+          <div class="boss-end__next" id="boss-end-next"></div>
+        </div>
         <button type="button" class="btn btn--primary" id="boss-end-go">Keep going</button>
       </div>
-      <div class="boss-strip" id="boss-strip" hidden aria-hidden="true">
-        <div class="boss-strip__notes" id="boss-notes"></div>
-        <div class="boss-strip__pips" id="boss-pips"></div>
-        <div class="boss-strip__time">
-          <b class="bt" id="boss-time" aria-label="Boss round time">0:00.0</b>
-          <div class="bp" id="boss-pace" title="Pace per spot: 3 stars at 2 s average, 2 stars at 3 s">
-            <div class="bp__bar"><i id="boss-pace-fill"></i><u style="left:50%"></u><u style="left:75%"></u></div>
-            <div class="bp__marks"><span style="left:50%">3★ 2s</span><span style="left:75%">2★ 3s</span></div>
-          </div>
-        </div>
-      </div>
       <div class="combo__bar" id="combo-bar" hidden aria-hidden="true"><i id="combo-fill"></i></div>
-      <div class="prompt__main" aria-live="polite">
-        <div class="prompt__string" id="string-name">Press start</div>
-        <div class="prompt__note" id="note-name" data-state="idle"></div>
-        <div class="prompt__status" id="status">Pick a string, play the note it names, and the mic will confirm it.</div>
-        <div class="prompt__tip" id="tip" hidden></div>
-      </div>
       <aside class="shapes" id="shapes" aria-label="Triad shapes" hidden>
         <div class="shapes__head">
           <h2>Triad shapes</h2>
@@ -155,6 +164,14 @@
       </div>
 
       <div class="controls__right">
+        <div class="picker picker--inline" id="ear-picker" role="group" aria-label="Find it by ear" hidden>
+      <button type="button" class="chip" id="ear-toggle" aria-pressed="false" title="Say the note's name and play it, then find it by ear">Say + play the note</button>
+      <button type="button" class="chip" id="names-toggle" aria-pressed="true" title="Show the string names (E B G D A E) beside the fretboard">String names</button>
+      <button type="button" class="chip chip--plain" id="ear-replay" disabled title="Say and play the note again">Hear it again <kbd>R</kbd></button>
+        </div>
+        <div class="picker picker--inline" id="cue-picker" role="group" aria-label="Play the notes" hidden>
+      <button type="button" class="chip" id="cue-toggle" aria-pressed="true" title="Play the prompt's notes after naming it. Off: the prompt is only spoken">Play the notes</button>
+        </div>
         <div class="ring" id="ring" title="Time until the hint appears">
           <svg viewBox="0 0 44 44" width="44" height="44">
             <circle class="ring__track" cx="22" cy="22" r="18"/>
@@ -164,6 +181,8 @@
         </div>
       </div>
     </section>
+
+    <div class="nb-ticker"><div class="nb-ticker__track" id="ticker"><span>Press Start or Space and allow the mic ★ Play the note shown, on the string shown ★ Stuck? H shows where it is, N skips ★ Turn on Say + play the note to find it by ear, R plays it again ★ Your fretboard, over time shows which notes need work ★ </span><span aria-hidden="true">Press Start or Space and allow the mic ★ Play the note shown, on the string shown ★ Stuck? H shows where it is, N skips ★ Turn on Say + play the note to find it by ear, R plays it again ★ Your fretboard, over time shows which notes need work ★ </span></div></div>
 
     <section class="stats" id="stats">
       <div class="stat"><span class="stat__value" id="stat-count">0</span><span class="stat__label">notes</span></div>

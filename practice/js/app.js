@@ -32,7 +32,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '30';
+const BUILD = '31';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -177,6 +177,7 @@ const session = createSession({
 
 // ---------- elements ----------
 const ui = {
+  stage: $('stage'), timeVal: $('time-val'), foundBlock: $('found-block'), foundVal: $('found-val'), bossTitle: $('boss-title'), pathPop: $('path-strip'), timeBlock: $('time-block'),
   stringName: $('string-name'), noteName: $('note-name'), status: $('status'), tip: $('tip'),
   boardScroll: $('board-scroll'),
   startBtn: $('start-btn'), skipBtn: $('skip-btn'), hintBtn: $('hint-btn'),
@@ -262,11 +263,12 @@ function handleSessionEvent(type, p) {
           const item = boss.current;
           const bossLabel = bossFretLabel(item.string, item.fret, boss.range);
           for (const f of boss.found) fretboard.showNote(f.string, f.fret, 'correct', p.note.name, true);
-          setPrompt(`Every ${p.note.name} · ${item.n} of ${item.of} · ${stringPrompt(item.string, '', { names: sayNames() }).label}${bossLabel ? ` · ${bossLabel}` : ''}`, p.note.name, 'listening');
+          ui.foundVal.textContent = `${item.n - 1}/${item.of}`;
+          setPrompt(`${stringPrompt(item.string, '', { names: sayNames() }).label}${bossLabel ? ` · ${bossLabel}` : ''}`, p.note.name, 'listening');
           if (boss.runStart) spokenIntro = `${showBossIntro(boss, p.note.name)} `;
         } else setPrompt(`${prefix}${sp.label}`, p.note.name, 'listening');
         if (notice) { setStatus(notice.text, notice.tone); notice = null; }
-        else setStatus(inBoss ? `Next: ${stringLabel(p.target.string)} string${boss.mistakes ? ` · ${boss.mistakes} mistake${boss.mistakes > 1 ? 's' : ''}` : ''}` : 'Listening…');
+        else setStatus(inBoss ? `Find every ${p.note.name} · ${boss.current.n - 1} of ${boss.current.of} found${boss.mistakes ? ` · ${boss.mistakes} mistake${boss.mistakes > 1 ? 's' : ''}` : ''}` : 'Listening…');
         if (inChain) {
           const prev = chain.previous;
           if (prev) {
@@ -524,10 +526,9 @@ function renderCombo() {
   ui.prompt.classList.toggle('has-combo', on);
   ui.prompt.dataset.heat = on ? combo.heat : 0;
   if (!on) return;
-  const showBadge = combo.streak >= BADGE_FROM;
-  ui.comboBadge.hidden = !showBadge;
-  ui.comboN.textContent = `×${combo.streak}`;
-  ui.comboMult.textContent = combo.multiplier > 1 ? `points ×${combo.multiplier}` : 'streak';
+  ui.comboN.textContent = combo.streak;
+  ui.comboMult.textContent = `×${combo.multiplier}`;
+  ui.comboBadge.classList.toggle('is-hot', combo.multiplier > 1);
   ui.comboScore.textContent = combo.score.toLocaleString('en-US');
   const best = [];
   if (combo.bestStreak) best.push(`Best streak ${combo.bestStreak}`);
@@ -627,11 +628,16 @@ function showBossIntro(b, noteName) {
 function renderBossStrip() {
   const on = !!(boss && boss.state === 'running');
   ui.bossStrip.hidden = !on;
-  if (!on) return;
+  ui.stage.classList.toggle('is-focus', on);
+  ui.foundBlock.hidden = !on;
+  ui.timeBlock.hidden = on;
+  if (!on) { ui.bossPips.innerHTML = ''; return; }
   const cur = boss.items[boss.index].run, pips = boss.runs[cur].spots.length;
+  ui.bossTitle.textContent = `★ Boss · Level ${boss.levelId} · Every ${noteLetter(boss.runs[cur].pc)}`;
   ui.bossNotes.innerHTML = boss.runs.map((r, i) => `<span class="bn${i < cur ? ' is-done' : i === cur ? ' is-now' : ''}">${noteLetter(r.pc)}</span>`).join('')
     + `<span class="bm${boss.mistakes ? ' is-bad' : ''}">${boss.mistakes} ✗</span>`;
   const have = boss.found.length;
+  ui.foundVal.textContent = `${have}/${pips}`;
   ui.bossPips.innerHTML = Array.from({ length: pips }, (_, i) => `<i class="${i < have ? 'is-done' : i === have ? 'is-now' : ''}"></i>`).join('');
 }
 
@@ -646,7 +652,11 @@ function updateBossTimer() {
   ui.bossPaceFill.style.transform = `scaleX(${Math.max(0, 1 - live / BOSS_PACE_MAX_MS)})`;
 }
 
-function hideBossEnd() { ui.bossEnd.hidden = true; ui.bossEnd.classList.remove('is-on'); }
+let pendingTip = null;   // the next level's tip waits until the boss result card is gone
+function hideBossEnd() {
+  ui.bossEnd.hidden = true; ui.bossEnd.classList.remove('is-on');
+  if (pendingTip != null) { const id = pendingTip; pendingTip = null; if (id === path.current) openTip(id); }
+}
 
 const clock = (ms) => { const t = Math.round(ms / 100) / 10, m = Math.floor(t / 60); return m ? `${m}:${(t - m * 60).toFixed(1).padStart(4, '0')}` : `${t.toFixed(1)} s`; };
 
@@ -716,10 +726,12 @@ const tiles = LEVELS.map((l) => {
   const li = document.createElement('li');
   const b = document.createElement('button');
   b.type = 'button'; b.className = 'path__tile'; b.dataset.id = l.id;
-  b.innerHTML = `<span class="path__num">${l.id}</span><span class="path__names">${l.short}</span><span class="path__mark"></span>`;
+  b.innerHTML = `<b class="path__num">L${l.id}</b><span class="path__names">${l.short}</span><span class="path__mark"></span>`;
   b.title = `Level ${l.id} · ${levelTitle(l)}`;
   b.addEventListener('click', () => {
-    if (l.id === path.current || !path.select(l.id)) return;
+    if (l.id === path.current) { togglePathPop(); return; }
+    if (!path.select(l.id)) return;
+    closePathPop();
     boss = null; notice = null;
     openTip(l.id);
     renderPath();
@@ -729,6 +741,11 @@ const tiles = LEVELS.map((l) => {
   ui.pathMap.appendChild(li);
   return b;
 });
+
+function togglePathPop() { ui.pathPop.hidden = !ui.pathPop.hidden; }
+function closePathPop() { ui.pathPop.hidden = true; }
+document.addEventListener('pointerdown', (e) => { if (!ui.pathPop.hidden && !ui.path.contains(e.target)) closePathPop(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePathPop(); });
 
 function popTile(id) {
   const t = tiles[id - 1];
@@ -753,6 +770,7 @@ function renderPath() {
     b.classList.toggle('is-current', now);
     if (now) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
     b.querySelector('.path__mark').innerHTML = !open ? LOCK_SVG : done ? stars(path.stars(id)) : '';
+    b.title = `Level ${id} · ${levelTitle(levelById(id))}${now ? ' (click for progress)' : ''}`;
     b.setAttribute('aria-label', `Level ${id}, ${levelTitle(levelById(id))}${!open ? ', locked' : done ? `, done, ${path.stars(id)} of 3 stars` : now ? ', current' : ''}`);
   });
   const lvl = path.currentLevel, pr = path.progress(lvl.id, range);
@@ -771,7 +789,10 @@ function renderPath() {
     + box('Spots', `${pr.spots}/${pr.spotsTotal}`, 'every spot', pr.met.spots);
   ui.bossBtn.disabled = !pr.bossUnlocked || !!running;
   ui.bossBtn.classList.toggle('is-ready', pr.bossUnlocked && !running);
-  ui.bossBtn.innerHTML = running ? `Boss ${boss.index}/${boss.items.length}` : `${pr.bossUnlocked ? '' : `${LOCK_SVG} `}${pr.done ? 'Boss again' : 'Boss round'}`;
+  ui.bossBtn.innerHTML = running ? `Boss ${boss.index}/${boss.items.length}` : `${pr.bossUnlocked ? '★' : LOCK_SVG} ${pr.done ? 'Boss again' : 'Boss'}`;
+  ui.bossBtn.title = pr.bossUnlocked ? 'Start the boss round for this level' : 'Unlock the boss: see the level progress';
+  const cur = tiles[lvl.id - 1];
+  cur.title = `Level ${lvl.id} · ${levelTitle(lvl)}: ${pr.answered}/${WINDOW} answered, ${pr.firstTryPct == null ? '—' : `${pr.firstTryPct}%`} first try, ${pr.avgMs == null ? '—' : `${(pr.avgMs / 1000).toFixed(1)} s`} avg, spots ${pr.spots}/${pr.spotsTotal}`;
   ui.bossNote.textContent = running ? 'Wrong notes count against your stars. Skipping ends it.'
     : pr.bossUnlocked ? `${pr.done ? `Best ${stars(pr.stars)} · ` : ''}★ pass · ★★ avg ${STAR2_MS / 1000} s, 2 mistakes max · ★★★ avg ${STAR3_MS / 1000} s, none`
     : '';
@@ -789,7 +810,7 @@ function onNoteCorrect(p) {
       showBossEnd(bossFinale);
       boss = null;
       popTile(lvl.id);
-      if (next) openTip(next.id);
+      if (next) pendingTip = next.id;
       extra = `Level ${lvl.id} complete ${'★'.repeat(r.stars)}`;
       setTimeout(() => { if (session.state !== 'idle') toggleSession(); }, 0);
     } else extra = `${boss.index} of ${boss.items.length}`;
@@ -863,10 +884,14 @@ function updateRingLabel() {
   ui.ringLabel.textContent = settings.hintDelayMs == null ? '∞' : `${Math.round(settings.hintDelayMs / 1000)}s`;
 }
 
+const mmss = (ms) => { const t = Math.floor(ms / 1000); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
+function setTime(text) { if (ui.timeVal.textContent !== text) ui.timeVal.textContent = text; }
+
 function frame() {
   requestAnimationFrame(frame);
-  if (session.state === 'idle') return;
+  if (session.state === 'idle') { setTime('0:00'); return; }
   session.tick();
+  if (session.state === 'listening') setTime(mmss(session.held ? 0 : performance.now() - session.startedAt));
   if (session.state === 'listening' && comboActive()) setSpeedBar(speedLeft(session.held ? 0 : performance.now() - session.startedAt));
   updateBossTimer();
   const prog = session.hintProgress();
