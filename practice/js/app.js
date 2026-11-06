@@ -394,8 +394,7 @@ function warmClips() {
   if (clipsWarm || !usesClips(settings.voiceName)) return;
   clipsWarm = true;
   voice.preload(['Correct', 'Good', 'Octave too high', 'Octave too low', 'Nice!', 'Great!', 'On fire!', 'Unstoppable!', 'Legendary!', 'Chain complete!',
-    'New best streak!', 'Quick note chain round!', 'Boss round!',
-    ...['low E', 'A', 'D', 'G', 'B', 'E', 'high E'].map(n => `Start with the ${n} string!`)]);
+    'New best streak!', 'Quick note chain round!', 'Boss round!']);
 }
 
 function setPrompt(stringText, noteText, state) {
@@ -565,7 +564,7 @@ function showChainIntro(c, noteName) {
   ui.chainIntro.classList.remove('is-on'); void ui.chainIntro.offsetWidth; ui.chainIntro.classList.add('is-on');
   clearTimeout(introTimer);
   introTimer = setTimeout(() => { hideChainIntro(); if (!session.held) session.restartClock(); }, INTRO_MS);
-  return `Quick note chain round! Start with the ${stringLabel(c.current.string)} string!`;
+  return 'Quick note chain round!';
 }
 
 /** A chain note was answered (called after the streak and path were scored). */
