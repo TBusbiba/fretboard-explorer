@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Practice one-screen mockup</title>
+<link rel="stylesheet" href="file:///Users/tomybusbiba/fretboard-neo/shared/console.css">
+<style>
+:root{--nb-paper:#fff8e7;--nb-card:#fff;--nb-ink:#111;--nb-ink-3:#5c5c5c;--nb-yellow:#ffd400;--nb-cyan:#3de0ff;--nb-salmon:#ff7a59;--nb-green:#9cff6b;--nb-pink:#ff6ad5;--nb-sans:'Space Grotesk',ui-sans-serif,system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;padding:30px 30px 60px;background:#d9d4c4!important;font-family:var(--nb-sans);color:var(--nb-ink);width:1330px}
+h2.cap{font:700 20px var(--nb-sans);margin:44px 0 4px}h2.cap:first-of-type{margin-top:0}
+p.cap{margin:0 0 10px;font:500 14px/1.4 var(--nb-sans);max-width:1270px}
+.meta{font:700 12px ui-monospace,Menlo,monospace;margin:6px 0 0}
+.screen{position:relative;width:1270px;height:625px;overflow:hidden;background:var(--nb-paper);outline:4px dashed #c42a1b;outline-offset:0}
+.screen.mobile{width:390px;height:700px}
+.fold{position:absolute;left:0;right:0;bottom:0;height:0;border-bottom:3px solid #c42a1b;z-index:9}
+.fold::after{content:"625px fold";position:absolute;right:6px;bottom:3px;background:#c42a1b;color:#fff;font:700 11px var(--nb-sans);padding:1px 6px}
+.screen.mobile .fold::after{content:"700px"}
+/* header */
+.hd{height:64px;display:flex;align-items:center;gap:14px;padding:0 20px;border-bottom:3px solid #111}
+.logo{font:700 20px var(--nb-sans);text-transform:uppercase;border:3px solid #111;background:var(--nb-yellow);padding:5px 12px;box-shadow:4px 4px 0 #111}
+.nav{display:flex;gap:10px;margin-left:8px}.nav a,.gear{border:3px solid #111;background:#fff;box-shadow:4px 4px 0 #111;padding:6px 14px;font:700 15px var(--nb-sans);border-radius:8px}
+.nav a.cur{background:var(--nb-cyan)}.gear{margin-left:auto;padding:6px 10px}
+main{padding:7px 20px 0;display:flex;flex-direction:column;gap:5px}
+.screen.mobile main{padding:6px 10px 0}
+/* tabs + chips */
+.tabs{display:flex;gap:8px;height:30px}.tabs span,.chip{border:2.5px solid #111;background:#fff;border-radius:8px;font:700 14px/1 var(--nb-sans);padding:0 12px;display:flex;align-items:center;white-space:nowrap}
+.tabs span.on{background:var(--nb-cyan);box-shadow:3px 3px 0 #111}
+.tabs .sp{flex:1;border:0;background:none}
+.chips{display:flex;gap:6px;height:32px}.chip{padding:0 9px;gap:5px;font-size:13px}
+.chip small{font-size:11px;letter-spacing:-1px}.chip.cur{background:var(--nb-yellow);box-shadow:3px 3px 0 #111;font-size:14px}
+.chip.lock{opacity:.4;border-style:dashed}.chip.boss{background:var(--nb-salmon)}.chip.tip{background:#fff;margin-left:auto}
+.bossline{display:flex;align-items:center;gap:14px;height:40px;border:3px solid #111;background:var(--nb-salmon);padding:0 14px;border-radius:8px;box-shadow:4px 4px 0 #111;font:700 16px var(--nb-sans)}
+.pace{flex:1;height:16px;border:2.5px solid #111;background:#fff;position:relative}.pace i{position:absolute;inset:0 38% 0 0;background:var(--nb-green)}.pace u{position:absolute;top:-2px;bottom:-2px;border-left:2.5px solid #111}
+.pacel{font:700 12px var(--nb-sans)}
+/* prompt strip */
+.prompt{height:128px;border:3px solid #111;background:var(--nb-cyan);border-radius:10px;box-shadow:6px 6px 0 #111;display:flex;align-items:center;gap:22px;padding:0 20px}
+.pl{display:flex;align-items:center;gap:16px;min-width:230px}.lab{font:700 15px var(--nb-sans);letter-spacing:.06em;text-transform:uppercase;border:2.5px solid #111;background:#fff;padding:3px 8px;writing-mode:horizontal-tb}
+.big{font:700 88px/1 var(--nb-sans);letter-spacing:-.03em}.big.txt{font-size:56px}
+.pm{flex:1;font:700 26px/1.2 var(--nb-sans)}.pm small{display:block;font:500 15px var(--nb-sans);margin-top:4px}
+.pr{display:flex;gap:10px;align-items:stretch}.stat{border:2.5px solid #111;background:#fff;padding:5px 12px;text-align:center;font:700 26px/1 var(--nb-sans);min-width:78px}
+.stat small{display:block;font:700 11px var(--nb-sans);text-transform:uppercase;margin-bottom:3px}.stat.cmb{background:var(--nb-yellow)}
+.dots{display:flex;gap:8px;margin-top:8px}.dots i{width:20px;height:20px;border-radius:50%;border:2.5px solid #111;background:#fff}.dots i.f{background:var(--nb-salmon)}
+.screen.mobile .prompt{height:auto;flex-wrap:wrap;gap:6px 12px;padding:8px 12px}
+.screen.mobile .big{font-size:64px}.screen.mobile .pl{min-width:0}.screen.mobile .pm{font-size:18px;flex-basis:100%;order:3}
+.screen.mobile .pr{order:2;margin-left:auto}.screen.mobile .stat{min-width:0;padding:3px 7px;font-size:18px}
+/* board */
+.board{border:3px solid #111;box-shadow:6px 6px 0 #111;background:#fff;overflow:hidden}
+.board.scroll{overflow-x:auto;border-radius:0}.board.scroll svg{min-width:880px}
+.board svg{display:block;width:100%;height:auto}
+.fb-board{fill:#fff;stroke:#111;stroke-width:3}.fb-fret{stroke:#5c5c5c;stroke-width:2}.fb-fret.f12{stroke:#111;stroke-width:3.5}
+.fb-in{fill:var(--nb-yellow);stroke:#111;stroke-width:2.5}.fb-dim{fill:var(--nb-paper);opacity:.8}
+.fb-lab{font:700 14px var(--nb-sans);text-anchor:middle;fill:#111}.dot{stroke:#111;stroke-width:2.5}
+.nt{font:700 13px var(--nb-sans);text-anchor:middle;dominant-baseline:central;fill:#111}
+.ctl{display:flex;align-items:center;gap:14px;height:42px}
+.meter{display:flex;align-items:center;gap:8px;font:700 12px var(--nb-sans)}.meter i{display:block;width:240px;height:14px;border:2.5px solid #111;background:#fff;position:relative}.meter i b{position:absolute;inset:0 62% 0 0;background:var(--nb-green)}
+.ctl .c{margin:0 auto;display:flex;gap:10px}.btn{border:3px solid #111;background:#fff;box-shadow:4px 4px 0 #111;border-radius:8px;padding:0 20px;height:38px;display:flex;align-items:center;font:700 16px var(--nb-sans)}
+.btn.stop{background:var(--nb-salmon)}.btn.on{background:var(--nb-cyan)}.btn.y{background:var(--nb-yellow)}
+.screen.mobile .meter i{width:90px}.screen.mobile .ctl{gap:6px;height:auto;flex-wrap:wrap;padding:4px 0}.screen.mobile .btn{padding:0 10px;height:36px;font-size:14px}.screen.mobile .ctl .c{gap:6px;margin:0}
+/* shapes */
+.shapes{height:140px;border:3px solid #111;background:#fff;border-radius:10px;box-shadow:6px 6px 0 #111;display:flex;flex-direction:column}
+.sh-h{display:flex;align-items:center;gap:14px;height:32px;padding:0 14px;background:var(--nb-cyan);border-bottom:3px solid #111;font:700 18px var(--nb-sans);border-radius:7px 7px 0 0}
+.sh-h small{font:500 14px var(--nb-sans)}.sh-h .btn{margin-left:auto;height:28px;padding:0 12px;font-size:13px;box-shadow:2px 2px 0 #111}
+.sh-b{display:flex;justify-content:space-around;align-items:center;flex:1}.sh-b figure{margin:0;display:flex;align-items:center;gap:10px}.sh-b figcaption{writing-mode:vertical-rl;transform:rotate(180deg);font:700 16px var(--nb-sans)}
+.sh-b svg{display:block}
+.prompt.slim{height:56px;box-shadow:4px 4px 0 #111;gap:16px}.prompt.slim .big{font-size:38px}
+.mini{width:260px;height:auto}
+.cmp{display:flex;gap:30px;align-items:flex-start;margin-top:12px;font:500 13px var(--nb-sans)}
+.fade{opacity:.28}
+</style></head><body>
+
+<h2 class="cap">A. Find the note, Path mode, playing</h2>
+<p class="cap">Level map shrinks to one 34px chip row, the prompt card to a 128px strip (note 88px, status in the middle, timer/combo/score on the right); fretboard keeps full width and everything sits above the fold.</p>
+<div class="screen" id="A">
+<div class="hd"><span class="logo">fretboard</span><span class="nav"><a>Explorer</a><a class="cur">Practice</a><a>Chord Map</a></span><span class="gear">⚙</span></div>
+<main>
+<div class="tabs"><span class="on">Find the note</span><span>Intervals</span><span>Arpeggios</span><span>Triads</span><span>Vibrato</span><span>Chords</span><span class="sp"></span><span style="background:var(--nb-cyan)">Path</span><span>Custom</span></div>
+<div class="chips"><span class="chip">L1 E A <small>★★★</small></span><span class="chip">L2 +D <small>★★</small></span><span class="chip">L3 +G <small>★★★</small></span><span class="chip cur">L4 +B e <small>★</small></span><span class="chip lock">L5</span><span class="chip lock">L6</span><span class="chip lock">L7</span><span class="chip lock">L8</span><span class="chip lock">L9</span><span class="chip lock">L10</span><span class="chip lock">L11</span><span class="chip boss">★ Boss</span><span class="chip tip">💡 Tip</span></div>
+<div class="prompt"><div class="pl"><span class="lab">String 4</span><span class="big">E</span></div>
+<div class="pm">That's E, but an octave too high<small>Try the same note lower on the D string</small></div>
+<div class="pr"><div class="stat"><small>Time</small>0:07</div><div class="stat cmb"><small>Combo</small>×3</div><div class="stat"><small>Score</small>1,240</div><div class="stat"><small>Streak</small>5</div></div></div>
+<div class="board" data-board="note"></div>
+<div class="ctl"><div class="meter">🎤<i><b></b></i></div><div class="c"><span class="btn y">Hint</span><span class="btn stop">STOP</span><span class="btn">Skip</span></div><span style="width:260px"></span></div>
+</main><div class="fold"></div></div>
+<div class="meta" data-meas="A"></div>
+
+<h2 class="cap">B. Focus mode, Boss round</h2>
+<p class="cap">Level chips and mode tabs collapse into one 40px boss line (name, progress, pace bar, timer); the rest is identical, leaving ~40px spare.</p>
+<div class="screen" id="B">
+<div class="hd"><span class="logo">fretboard</span><span class="nav"><a>Explorer</a><a class="cur">Practice</a><a>Chord Map</a></span><span class="gear">⚙</span></div>
+<main>
+<div class="bossline"><span>★ Boss · Every E · 3 of 6</span><span class="pacel">★★★ 2s</span><div class="pace"><i></i><u style="left:50%"></u><u style="left:75%"></u></div><span class="pacel">★★ 3s</span><span style="font-size:22px">0:08.4</span></div>
+<div class="prompt"><div class="pl"><span class="lab">String 2</span><span class="big">E</span></div>
+<div class="pm">Find every E, any order<small>3 of 6 found</small></div>
+<div class="pr"><div class="stat"><small>Found</small>3/6</div><div class="stat cmb"><small>Combo</small>×3</div><div class="stat"><small>Score</small>1,240</div></div></div>
+<div class="board" data-board="note"></div>
+<div class="ctl"><div class="meter">🎤<i><b></b></i></div><div class="c"><span class="btn y">Hint</span><span class="btn stop">STOP</span><span class="btn">Skip</span></div><span style="width:260px"></span></div>
+</main><div class="fold"></div></div>
+<div class="meta" data-meas="B"></div>
+
+<h2 class="cap">C. Triads, Path mode, playing</h2>
+<p class="cap">Same strip layout; chips show the triad path, strings 3·2·1 are emphasized on the board and the rest faded, step dots replace the timer block, a Shapes toggle sits in the controls.</p>
+<div class="screen" id="C">
+<div class="hd"><span class="logo">fretboard</span><span class="nav"><a>Explorer</a><a class="cur">Practice</a><a>Chord Map</a></span><span class="gear">⚙</span></div>
+<main>
+<div class="tabs"><span>Find the note</span><span>Intervals</span><span>Arpeggios</span><span class="on">Triads</span><span>Vibrato</span><span>Chords</span><span class="sp"></span><span style="background:var(--nb-cyan)">Path</span><span>Custom</span></div>
+<div class="chips"><span class="chip">L1 C F G <small>★★★</small></span><span class="chip">L2 +Am Dm Em <small>★★</small></span><span class="chip">L3 +D A E <small>★★</small></span><span class="chip cur">L4 All naturals</span><span class="chip lock">L5 4·3·2 …</span><span class="chip lock">L6</span><span class="chip lock">L7</span><span class="chip boss">★ Boss</span><span class="chip tip">💡 Tip</span></div>
+<div class="prompt"><div class="pl"><span class="big txt">C major</span></div>
+<div class="pm">Play the 3 notes low to high — any shape<small>Strings 3 · 2 · 1</small></div>
+<div class="pr"><div><div class="dots"><i class="f"></i><i></i><i></i></div></div><div class="stat cmb"><small>Combo</small>×3</div><div class="stat"><small>Score</small>1,240</div><div class="stat"><small>Time</small>0:07</div></div></div>
+<div class="board" data-board="triad"></div>
+<div class="ctl"><div class="meter">🎤<i><b></b></i></div><div class="c"><span class="btn on">Shapes ▾</span><span class="btn y">Hint</span><span class="btn stop">STOP</span><span class="btn">Skip</span></div><span style="width:260px"></span></div>
+</main><div class="fold"></div></div>
+<div class="meta" data-meas="C"></div>
+
+<h2 class="cap">D. Triads with Show shapes open</h2>
+<p class="cap">The big prompt shrinks to a 56px line and the shapes panel takes its place (140px) above the board, so the board stays visible and shapes never push it off screen. Each diagram is 300px wide with 22px discs; today the three shapes share one ~260px 6-string, 13-fret mini neck.</p>
+<div class="screen" id="D">
+<div class="hd"><span class="logo">fretboard</span><span class="nav"><a>Explorer</a><a class="cur">Practice</a><a>Chord Map</a></span><span class="gear">⚙</span></div>
+<main>
+<div class="tabs"><span>Find the note</span><span>Intervals</span><span>Arpeggios</span><span class="on">Triads</span><span>Vibrato</span><span>Chords</span><span class="sp"></span><span style="background:var(--nb-cyan)">Path</span><span>Custom</span></div>
+<div class="chips"><span class="chip">L1 C F G <small>★★★</small></span><span class="chip">L2 +Am Dm Em <small>★★</small></span><span class="chip">L3 +D A E <small>★★</small></span><span class="chip cur">L4 All naturals</span><span class="chip lock">L5</span><span class="chip lock">L6</span><span class="chip boss">★ Boss</span><span class="chip tip">💡 Tip</span></div>
+<div class="shapes"><div class="sh-h">C major · strings 3 · 2 · 1 <small>Movable: slide any shape to any root</small><span class="btn">Close ✕</span></div><div class="sh-b" id="shapes"></div></div>
+<div class="board" data-board="triad"></div>
+<div class="ctl"><div class="meter">🎤<i><b></b></i></div><div class="c"><span class="btn on">Shapes ▴</span><span class="btn y">Hint</span><span class="btn stop">STOP</span><span class="btn">Skip</span></div><span style="width:260px"></span></div>
+</main><div class="fold"></div></div>
+<div class="meta" data-meas="D"></div>
+<div class="cmp"><div><b>Today (for scale):</b> 260px wide, 6 strings × 13 frets, three shapes overlaid</div><div id="today"></div></div>
+
+<h2 class="cap">E. Mobile 390px, Find the note</h2>
+<p class="cap">Same stack at phone width: chip row scrolls sideways, prompt wraps to two lines, fretboard scrolls horizontally as today (880px min width, swipe).</p>
+<div class="screen mobile" id="E">
+<div class="hd" style="padding:0 10px;gap:6px;height:54px"><span class="logo" style="font-size:15px;padding:3px 8px">fretboard</span><span class="nav" style="margin:0;gap:5px"><a style="padding:4px 7px;font-size:12px">Explorer</a><a class="cur" style="padding:4px 7px;font-size:12px">Practice</a><a style="padding:4px 7px;font-size:12px">Chords</a></span><span class="gear" style="padding:3px 7px">⚙</span></div>
+<main>
+<div class="tabs" style="overflow:hidden"><span class="on">Find the note</span><span>Intervals</span><span>Arpeggios</span><span>Triads</span></div>
+<div class="chips" style="overflow:hidden"><span class="chip">L1 <small>★★★</small></span><span class="chip">L2 <small>★★</small></span><span class="chip">L3 <small>★★★</small></span><span class="chip cur">L4 <small>★</small></span><span class="chip lock">L5</span><span class="chip lock">L6</span><span class="chip boss">★</span><span class="chip tip">💡</span></div>
+<div class="prompt"><div class="pl"><span class="lab" style="font-size:12px">String 4</span><span class="big">E</span></div>
+<div class="pr"><div class="stat"><small>Time</small>0:07</div><div class="stat cmb"><small>Combo</small>×3</div><div class="stat"><small>Score</small>1240</div></div>
+<div class="pm">That's E, but an octave too high</div></div>
+<div class="board scroll" data-board="note"></div>
+<div class="ctl"><div class="meter">🎤<i><b></b></i></div><div class="c"><span class="btn y">Hint</span><span class="btn stop">STOP</span><span class="btn">Skip</span></div></div>
+</main><div class="fold"></div></div>
+<div class="meta" data-meas="E"></div>
+
+<script>
+const NS='http://www.w3.org/2000/svg',W=1200,H=272,NUT=96,PR=20,TOP=40,BOT=44,LAST=21;
+const sy=i=>TOP+i*(H-TOP-BOT)/5, fx=n=>NUT+(W-NUT-PR)*(1-2**(-n/12))/(1-2**(-LAST/12)), nx=f=>f==0?NUT-28:(fx(f-1)+fx(f))/2;
+const names=['e','B','G','D','A','E'],sw=[1.3,1.6,2,2.5,3,3.5];
+function board(kind){
+ let s=`<svg viewBox="0 0 ${W} ${H}">`,bt=TOP-20,bb=H-BOT+20;
+ s+=`<rect class="fb-board" x="${NUT}" y="${bt}" width="${W-NUT-PR}" height="${bb-bt}" rx="4"/>`;
+ for(const f of [3,5,7,9,15,17,19,21])s+=`<circle class="fb-in" cx="${nx(f)}" cy="${(sy(2)+sy(3))/2}" r="5"/>`;
+ s+=`<circle class="fb-in" cx="${nx(12)}" cy="${(sy(1)+sy(2))/2}" r="5"/><circle class="fb-in" cx="${nx(12)}" cy="${(sy(3)+sy(4))/2}" r="5"/>`;
+ for(let n=1;n<=LAST;n++)s+=`<line class="fb-fret ${n==12?'f12':''}" x1="${fx(n)}" x2="${fx(n)}" y1="${bt}" y2="${bb}"/>`;
+ s+=`<rect fill="#111" x="${NUT-5}" y="${bt-4}" width="10" height="${bb-bt+8}" rx="2"/>`;
+ const em=kind=='triad'?[0,1,2]:[];
+ names.forEach((n,i)=>{const f=kind=='triad'&&!em.includes(i);s+=`<g opacity="${f?.25:1}"><line x1="${NUT-56}" x2="${W-PR}" y1="${sy(i)}" y2="${sy(i)}" stroke="#111" stroke-width="${kind=='triad'&&!f?sw[i]+2:sw[i]}"/><text class="fb-lab" x="22" y="${sy(i)+5}">${n}</text></g>`});
+ // fret numbers row omitted; shade 12-21
+ s+=`<rect class="fb-dim" x="${fx(11)}" y="${bt}" width="${W-PR-fx(11)}" height="${bb-bt}"/>`;
+ const dot=(st,f,fill,t)=>{const r=f==0?15:Math.min(15,(fx(f)-fx(f-1))*.42);s+=`<g transform="translate(${nx(f)} ${sy(st)})"><circle class="dot" r="${r}" fill="${fill}"/><text class="nt">${t}</text></g>`};
+ if(kind=='note'){[[5,0],[5,12],[1,5],[1,17],[0,0],[0,12],[2,9]].forEach(([a,b])=>dot(a,b,'#9cff6b','E'));dot(3,14,'#ff6ad5','E');dot(3,2,'#3de0ff','?')}
+ else{dot(2,5,'#ff7a59','C');dot(1,1,'#3de0ff','E');dot(0,3,'#3de0ff','G');dot(2,10,'#ff7a59','C');dot(1,13,'#ff7a59','C')}
+ return s+'</svg>'}
+document.querySelectorAll('[data-board]').forEach(e=>e.innerHTML=board(e.dataset.board));
+// shape diagrams: 3 strings, 5 fret columns, 300x130
+function shape(frets,roles){const w=300,h=96,x0=24,fw=(w-x0-12)/5,y=i=>20+i*28;
+ let s=`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><rect x="${x0}" y="10" width="${w-x0-12}" height="${h-20}" fill="#fff" stroke="#111" stroke-width="3"/>`;
+ for(let i=1;i<5;i++)s+=`<line x1="${x0+i*fw}" x2="${x0+i*fw}" y1="10" y2="${h-10}" stroke="#5c5c5c" stroke-width="2"/>`;
+ for(let i=0;i<3;i++)s+=`<line x1="${x0}" x2="${w-12}" y1="${y(i)}" y2="${y(i)}" stroke="#111" stroke-width="${[1.6,2,2.5][i]+1}"/>`;
+ const m=Math.min(...frets);
+ frets.forEach((f,k)=>{const i=2-k,c=roles[k];s+=`<circle cx="${x0+(f-m+.5)*fw}" cy="${y(i)}" r="12" fill="${c=='R'?'#ff7a59':'#3de0ff'}" stroke="#111" stroke-width="2.5"/><text x="${x0+(f-m+.5)*fw}" y="${y(i)}" class="nt" style="font-size:13px">${c}</text>`});
+ return s+'</svg>'}
+// frets listed low string(3)->high(1)
+document.getElementById('shapes').innerHTML=
+ [[ [5,5,3],['R','3','5'] ],[ [9,8,8],['3','5','R'] ],[ [12,13,12],['5','R','3'] ]].map(([f,r],i)=>`<figure><figcaption>Shape ${i+1}</figcaption>${shape(f,r)}</figure>`).join('');
+// today: 6-string 13-fret mini neck, 260px
+(function(){let w=260,h=110,s=`<svg class="mini" viewBox="0 0 ${w} ${h}" width="260"><rect x="14" y="8" width="${w-18}" height="${h-16}" fill="#fff" stroke="#111" stroke-width="2"/>`;
+ for(let i=1;i<13;i++)s+=`<line x1="${14+i*(w-18)/13}" x2="${14+i*(w-18)/13}" y1="8" y2="${h-8}" stroke="#999"/>`;
+ for(let i=0;i<6;i++)s+=`<line x1="14" x2="${w-4}" y1="${14+i*16}" y2="${14+i*16}" stroke="#111"/>`;
+ [[2,5,'#ff7a59'],[1,5,'#3de0ff'],[0,3,'#3de0ff'],[2,9,'#3de0ff'],[1,8,'#3de0ff'],[0,8,'#ff7a59'],[2,12,'#3de0ff']].forEach(([a,b,c])=>s+=`<circle cx="${14+(b+.5)*(w-18)/13}" cy="${14+a*16}" r="5" fill="${c}" stroke="#111"/>`);
+ document.getElementById('today').innerHTML=s+'</svg>'})();
+// measure content height
+document.fonts.ready.then(()=>{for(const id of 'ABCDE'){const sc=document.getElementById(id),m=sc.querySelector('main');
+ const used=Math.round(m.getBoundingClientRect().bottom-sc.getBoundingClientRect().top);
+ const last=m.lastElementChild.getBoundingClientRect().bottom-sc.getBoundingClientRect().top;
+ const lim=sc.offsetHeight;document.querySelector(`[data-meas=${id}]`).textContent=`content ends at ${Math.round(last)}px of ${lim}px → ${last<=lim?'FITS':'OVERFLOWS'}`;document.body.dataset['m'+id]=Math.round(last)}document.title='done'});
+</script></body></html>
