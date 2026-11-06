@@ -15,6 +15,7 @@ const LOCK_SVG = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" st
 const stars = (n) => '★'.repeat(n) + '☆'.repeat(3 - n);
 const digits = (group) => [...group].join('·');
 const BOSS_INTRO_MS = 1800;
+const NEXT_RUN_MS = 3000;
 const clock = (ms) => { const t = Math.round(ms / 100) / 10, m = Math.floor(t / 60); return m ? `${m}:${(t - m * 60).toFixed(1).padStart(4, '0')}` : `${t.toFixed(1)} s`; };
 const IDLE_STATUS = 'Press Start, then play each chord low to high, staying close';
 
@@ -66,7 +67,7 @@ export function createProgressionsUI(ctx, helpers) {
     return {
       kind: inBoss ? 'progression-boss' : 'progression', keyName: entry.keyName, progId: entry.progId, group: entry.group,
       chords, display: settings().progDisplay, rootPc: chords[0].pc, quality: chords[0].quality,
-      voicings: run.candidates, run, levelId, entry,
+      voicings: run.candidates, run, levelId, entry, pauseMs: inBoss ? undefined : NEXT_RUN_MS,
     };
   }
 
@@ -204,7 +205,7 @@ export function createProgressionsUI(ctx, helpers) {
     ctx.setStatus(`All ${p.total} chords ✓${extra ? ` · ${extra}` : ''}`, 'ok');
     ctx.updateStats();
     ctx.renderHeatPanel();
-    finishRun(t, p);
+    finishRun(t, p, extra);
     renderAll();
   }
 
@@ -252,39 +253,34 @@ export function createProgressionsUI(ctx, helpers) {
     renderIdle();
   }
 
-  // ---------- run end: the result card ----------
+  // ---------- run end: a status line after a normal run, the result card after a boss ----------
 
-  function finishRun(t, p) {
-    const isBoss = t.kind === 'progression-boss' && boss && boss.state === 'passed';
-    const avg = times.reduce((a, b) => a + b, 0) / times.length, total = times.reduce((a, b) => a + b, 0);
-    let next, kicker, s;
-    if (isBoss) {
-      const lvl = PROG_LEVELS.find(l => l.id === boss.levelId), r = store.completeBoss(lvl.id, boss.avgMs, boss.mistakes);
-      const after = r.next && PROG_LEVELS.find(l => l.id === r.next);
-      s = r.stars;
-      kicker = s === 3 ? 'Flawless!' : 'Boss round cleared!';
-      next = after ? `Level ${after.id} unlocked: ${after.title}` : 'Path complete: every level done';
-      boss = null;
-      popTile(lvl.id);
-    } else {
-      s = starsFor(avg, mistakes);
-      kicker = s === 3 ? 'Flawless!' : 'Progression cleared!';
-      const pr = store.progress(t.levelId);
-      next = `${t.progId} in ${t.keyName} · ${mistakes === 0 && allClean ? 'first try' : 'not first try'} · ${pr.bossUnlocked ? 'Boss open' : `${Math.min(pr.answered, WINDOW)}/${WINDOW} chords toward the boss`}`;
+  function finishRun(t, p, extra) {
+    const total = times.reduce((a, b) => a + b, 0);
+    if (!(t.kind === 'progression-boss' && boss && boss.state === 'passed')) {
+      const s = starsFor(total / times.length, mistakes), pr = store.progress(t.levelId);
+      const head = s === 3 ? `Flawless! ${clock(total)}` : `Cleared · ${mistakes} mistake${mistakes === 1 ? '' : 's'} · ${clock(total)}`;
+      ctx.flash(ui.cleanBanner, head, 2400);
+      ctx.setStatus(`${stars(s)} ${head} · ${pr.bossUnlocked ? 'Boss open' : `${Math.min(pr.answered, WINDOW)}/${WINDOW} chords toward the boss`}${extra ? ` · ${extra}` : ''}`, 'ok');
+      return;
     }
+    const lvl = PROG_LEVELS.find(l => l.id === boss.levelId), r = store.completeBoss(lvl.id, boss.avgMs, boss.mistakes);
+    const after = r.next && PROG_LEVELS.find(l => l.id === r.next), s = r.stars;
+    boss = null;
+    popTile(lvl.id);
     const chain = t.chords.map((c, i) => `${i ? '<i>›</i>' : ''}<span${missed.has(i) ? ' class="miss"' : ''}>${labelOf(c)}${missed.has(i) ? ' ✗' : ''}</span>`).join('');
     ui.bossEnd.classList.remove('is-lost');
-    ui.bossEndKicker.textContent = kicker;
+    ui.bossEndKicker.textContent = s === 3 ? 'Flawless!' : 'Boss round cleared!';
     ui.bossEndStars.innerHTML = [1, 2, 3].map(n => `<span class="${n <= s ? 'is-on' : ''}">★</span>`).join('');
     ui.bossEndStats.innerHTML = `<div><b>${clock(total)}</b><span>time</span></div>`
       + `<div><b>${mistakes}</b><span>mistake${mistakes === 1 ? '' : 's'}</span></div>`
       + `<div><b>${p.total} / ${p.total}</b><span>chords</span></div>`;
     ui.bossEndNext.innerHTML = `<div class="mk-path">${chain}</div><div class="mk-path__note"></div>`;
-    ui.bossEndNext.querySelector('.mk-path__note').textContent = next;
-    ui.bossEndGo.textContent = isBoss ? 'Keep going' : 'Next key';
+    ui.bossEndNext.querySelector('.mk-path__note').textContent = after ? `Level ${after.id} unlocked: ${after.title}` : 'Path complete: every level done';
+    ui.bossEndGo.textContent = 'Keep going';
     ui.bossEnd.hidden = false;
     ui.bossEnd.classList.remove('is-on'); void ui.bossEnd.offsetWidth; ui.bossEnd.classList.add('is-on');
-    if (isBoss) hud.confetti();
+    hud.confetti();
     setTimeout(() => { if (session.state !== 'idle') ctx.toggleSession(); }, 0);
   }
 

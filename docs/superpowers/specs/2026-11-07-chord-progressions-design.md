@@ -18,7 +18,7 @@ Teach the diatonic chords of major keys two ways: by naming them (flashcards, no
 - `DEGREES = ['I','ii','iii','IV','V','vi']`, qualities major/minor/minor/major/major/minor.
 - `diatonicChords(keyName)` → six `{degree, root, pc, quality, name}` with letter-correct spelling (reuse `spell` from `practice/js/chords/deck.js:20` or the same algorithm; the builder decides, but one spelling source).
 - `degreeOf(keyName, chordName)` → degree or null.
-- `PROGRESSIONS`: `I–V–vi–IV`, `I–IV–V`, `ii–V–I`, `vi–IV–I–V`, `I–vi–IV–V` as `{id, degrees:[…]}`.
+- `PROGRESSIONS`: `I–V–vi–IV`, `I–IV–V–I`, `ii–V–I`, `vi–IV–I–V`, `I–vi–IV–V` as `{id, degrees:[…]}`.
 - `resolveProgression(keyName, progId)` → chords in order.
 - Tests: `practice/tests/keys.test.mjs` (every key spells correctly, e.g. F major has B♭ not A♯; E♭ major vi is Cm; no vii° anywhere).
 
@@ -59,7 +59,7 @@ Teach the diatonic chords of major keys two ways: by naming them (flashcards, no
 
 ### Path: `practice/js/progression-path.js`
 - Mirrors `triad-path.js` (level shape, `evaluate`, bag, boss, store); storage key `fretboard-practice.progression-path.v1`; same window/threshold constants from `path.js`; same unlock style (next level opens when the current is met; boss sticky).
-- Levels (cumulative pool): 1 `I–IV–V` in C G D on 3·2·1 · 2 adds `I–V–vi–IV` · 3 adds `vi–IV–I–V`, `ii–V–I`, `I–vi–IV–V` · 4 adds A E F on 3·2·1 · 5 adds strings 4·3·2 · 6 adds 5·4·3 · 7 adds 6·5·4 · 8 adds B♭ E♭ and the rest.
+- Levels (cumulative pool): 1 `I–IV–V–I` in C G D on 3·2·1 · 2 adds `I–V–vi–IV` · 3 adds `vi–IV–I–V`, `ii–V–I`, `I–vi–IV–V` · 4 adds A E F on 3·2·1 · 5 adds strings 4·3·2 · 6 adds 5·4·3 · 7 adds 6·5·4 · 8 adds B♭ E♭ and the rest.
 - Boss per level: one 8-chord run = the level's longest progression played twice through, no stopping; the boss meter and mistake rules of the Triads boss apply.
 
 ## Verification

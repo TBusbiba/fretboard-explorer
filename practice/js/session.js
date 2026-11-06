@@ -302,7 +302,7 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
       if (!session.held && hintDelayMs != null && session.hintStage < session.hintStages && t - session.hintAnchor >= hintDelayMs) showHint();
     } else if (session.state === 'resolved') {
       const { pauseMs = 900 } = getSettings();
-      if (t - session.resolvedAt >= pauseMs) nextTarget();
+      if (t - session.resolvedAt >= (session.target && session.target.pauseMs != null ? session.target.pauseMs : pauseMs)) nextTarget();
     }
   };
 

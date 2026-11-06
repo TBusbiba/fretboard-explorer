@@ -10,7 +10,7 @@ const ORDINALS = ['1st', '2nd', '3rd', '4th', '5th', '6th'];
 
 export const PROGRESSIONS = [
   { id: 'I–V–vi–IV', degrees: ['I', 'V', 'vi', 'IV'] },
-  { id: 'I–IV–V', degrees: ['I', 'IV', 'V'] },
+  { id: 'I–IV–V–I', degrees: ['I', 'IV', 'V', 'I'] },
   { id: 'ii–V–I', degrees: ['ii', 'V', 'I'] },
   { id: 'vi–IV–I–V', degrees: ['vi', 'IV', 'I', 'V'] },
   { id: 'I–vi–IV–V', degrees: ['I', 'vi', 'IV', 'V'] },

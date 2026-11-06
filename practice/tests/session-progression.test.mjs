@@ -84,3 +84,17 @@ test('a target without a run still gets a triad matcher', () => {
   const { session } = make(() => ({ rootPc: 0, quality: 'major', group: '321', kind: 'normal', voicings: vs }));
   assert.equal(session.matcher.total, 3);
 });
+
+test('progression: a target pauseMs holds the finished run before the next question', () => {
+  const { session, events, advance } = make(() => {
+    const run = createProgressionRun(chords, '321');
+    return { kind: 'progression', rootPc: 7, quality: 'major', group: '321', voicings: run.candidates, run, chords, pauseMs: 3000 };
+  });
+  for (const v of chain) v.notes.forEach(n => session.noteDetected(n.midi));
+  assert.equal(session.state, 'resolved');
+  advance(2000); session.tick();
+  assert.equal(session.state, 'resolved');
+  advance(1100); session.tick();
+  assert.equal(session.state, 'listening');
+  assert.equal(types(events).filter(t => t === 'target').length, 2);
+});

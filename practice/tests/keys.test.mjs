@@ -33,7 +33,7 @@ test('degreeOf and progressions', () => {
   assert.equal(degreeOf('F', 'Gm'), 'ii');
   assert.equal(degreeOf('C', 'F♯m'), null);
   assert.equal(degreeOf('Z', 'C'), null);
-  assert.deepEqual(PROGRESSIONS.map(p => p.id), ['I–V–vi–IV', 'I–IV–V', 'ii–V–I', 'vi–IV–I–V', 'I–vi–IV–V']);
+  assert.deepEqual(PROGRESSIONS.map(p => p.id), ['I–V–vi–IV', 'I–IV–V–I', 'ii–V–I', 'vi–IV–I–V', 'I–vi–IV–V']);
   assert.deepEqual(progressionById('ii–V–I').degrees, ['ii', 'V', 'I']);
   assert.equal(progressionById('nope'), null);
   assert.deepEqual(resolveProgression('G', 'I–V–vi–IV').map(c => c.name), ['G', 'D', 'Em', 'C']);

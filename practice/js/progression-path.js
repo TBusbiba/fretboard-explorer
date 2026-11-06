@@ -6,7 +6,7 @@ export { evaluate, blankEntry, starsFor };
 
 const KEY = 'fretboard-practice.progression-path.v1';
 
-const INTRO = ['I–IV–V', 'I–V–vi–IV', 'vi–IV–I–V', 'ii–V–I', 'I–vi–IV–V'];
+const INTRO = ['I–IV–V–I', 'I–V–vi–IV', 'vi–IV–I–V', 'ii–V–I', 'I–vi–IV–V'];
 const GROUPS = ['321', '432', '543', '654'];
 const EARLY_KEYS = ['C', 'G', 'D'];
 const MID_KEYS = ['A', 'E', 'F'];
@@ -19,7 +19,7 @@ const entries = (keys, progs, groups) =>
   groups.flatMap(group => keys.flatMap(keyName => progs.map(progId => ({ keyName, progId, group }))));
 
 const spec = [
-  { title: 'I–IV–V', short: 'I IV V', group: '321', added: entries(EARLY_KEYS, ['I–IV–V'], ['321']), boss: ['D', 'I–IV–V'] },
+  { title: 'I–IV–V–I', short: 'I IV V I', group: '321', added: entries(EARLY_KEYS, ['I–IV–V–I'], ['321']), boss: ['D', 'I–IV–V–I'] },
   { title: 'I–V–vi–IV', short: '+ I V vi IV', group: '321', added: entries(EARLY_KEYS, ['I–V–vi–IV'], ['321']), boss: ['D', 'I–V–vi–IV'] },
   { title: 'Three more', short: '+ 3 more', group: '321', added: entries(EARLY_KEYS, INTRO.slice(2), ['321']), boss: ['D', 'I–vi–IV–V'] },
   { title: 'Keys A E F', short: '+ A E F', group: '321', added: entries(MID_KEYS, INTRO, ['321']), boss: ['F', 'I–vi–IV–V'] },

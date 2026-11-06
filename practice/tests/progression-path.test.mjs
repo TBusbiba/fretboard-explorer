@@ -18,20 +18,20 @@ test('level table: pool sizes, titles, shorts', () => {
   const last = PROG_LEVELS[7].pool.map(progKey);
   assert.equal(new Set(last).size, last.length);
   assert.deepEqual(PROG_LEVELS.map(l => l.title),
-    ['I–IV–V', 'I–V–vi–IV', 'Three more', 'Keys A E F', 'Strings 4·3·2', 'Strings 5·4·3', 'Strings 6·5·4', 'Every key']);
+    ['I–IV–V–I', 'I–V–vi–IV', 'Three more', 'Keys A E F', 'Strings 4·3·2', 'Strings 5·4·3', 'Strings 6·5·4', 'Every key']);
   assert.deepEqual(PROG_LEVELS.map(l => l.short),
-    ['I IV V', '+ I V vi IV', '+ 3 more', '+ A E F', '+ 432', '+ 543', '+ 654', '+ B♭ E♭']);
+    ['I IV V I', '+ I V vi IV', '+ 3 more', '+ A E F', '+ 432', '+ 543', '+ 654', '+ B♭ E♭']);
   assert.deepEqual(PROG_LEVELS.map(l => l.group), ['321', '321', '321', '321', '432', '543', '654', '654']);
 });
 
 test('boss entries and boss chords', () => {
   assert.deepEqual(PROG_LEVELS.map(l => progKey(l.boss)), [
-    'D:I–IV–V:321', 'D:I–V–vi–IV:321', 'D:I–vi–IV–V:321', 'F:I–vi–IV–V:321',
+    'D:I–IV–V–I:321', 'D:I–V–vi–IV:321', 'D:I–vi–IV–V:321', 'F:I–vi–IV–V:321',
     'F:I–vi–IV–V:432', 'F:I–vi–IV–V:543', 'F:I–vi–IV–V:654', 'F♯:I–vi–IV–V:654',
   ]);
-  assert.equal(bossChords(L(1)).length, 6);
+  assert.equal(bossChords(L(1)).length, 8);
   assert.deepEqual(bossChords(L(2)).map(c => c.name), ['D', 'A', 'Bm', 'G', 'D', 'A', 'Bm', 'G']);
-  for (let id = 2; id <= 8; id++) assert.equal(bossChords(L(id)).length, 8);
+  for (let id = 1; id <= 8; id++) assert.equal(bossChords(L(id)).length, 8);
 });
 
 test('every level 8 entry has playable voicings on its group', () => {
@@ -59,14 +59,14 @@ test('bag: newest first, no immediate repeat, empty pool is null', () => {
 
 test('boss: passes, counts wrong without failing, fails on skip', () => {
   const a = createProgressionBoss(L(1));
-  for (let i = 0; i < 5; i++) assert.equal(a.chordDone(2000), 'running');
+  for (let i = 0; i < 7; i++) assert.equal(a.chordDone(2000), 'running');
   assert.equal(a.chordDone(2000), 'passed');
   assert.equal(a.avgMs, 2000);
   assert.equal(a.stars, 3);
 
   const b = createProgressionBoss(L(1));
   b.wrong(); b.wrong(); assert.equal(b.wrong(), 3);
-  for (let i = 0; i < 6; i++) b.chordDone(3000);
+  for (let i = 0; i < 8; i++) b.chordDone(3000);
   assert.equal(b.state, 'passed');
   assert.equal(b.stars, 1);
 
