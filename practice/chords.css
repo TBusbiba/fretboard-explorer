@@ -238,9 +238,39 @@
   .mk-roman button { font-size: 20px; min-height: 52px; }
   .mk-chooser button { min-width: 90px; }
   .mk-row { gap: 4px; }
-  .mk-row div { min-width: 0; flex: 1; padding: 4px 2px; }
+  .mk-row div { min-width: 40px; max-width: 58px; flex: 1 1 0; padding: 4px 2px; }
+  .mk-row b { font-size: 17px; }
   .cq .card__name.mk-key { font-size: 36px; }
   .cq .card__name.mk-key--ask { font-size: 28px; max-width: 100%; }
+}
+
+/* ---- Why panel: scale with numbers, the rule, the worked answer, the row ---- */
+.why {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0;
+  padding: 10px 12px; background: var(--nb-card); color: var(--nb-ink);
+  border: var(--nb-border-sm); border-radius: var(--nb-radius-sm); box-shadow: var(--nb-shadow-sm);
+}
+.why[hidden] { display: none; }
+.why.enter { animation: rise 200ms var(--ease) both; }
+.why__head { font: 700 11px var(--nb-sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--nb-ink-2); }
+.why__scale { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; width: min(420px, 100%); }
+.why__n { display: flex; flex-direction: column; align-items: center; padding: 4px 0; border: 2px solid var(--nb-ink); border-radius: 6px; background: var(--nb-card); }
+.why__n b { font: 700 18px/1.1 var(--nb-sans); white-space: nowrap; }
+.why__n span { font: 700 12px var(--nb-sans); color: var(--nb-ink-2); }
+.why__n.is-ask { background: var(--nb-yellow); }
+.why__n.is-skip { opacity: 0.45; border-style: dashed; }
+.why__rule { margin: 0; text-align: center; font: 700 13px/1.35 var(--nb-sans); color: var(--nb-ink-2); }
+.why__worked { margin: 0; text-align: center; font: 700 15px/1.4 var(--nb-sans); }
+.why__row { width: 100%; margin-top: 0; justify-content: center; }
+/* the intro has no answer controls; a miss keeps them beside the Why on wide screens */
+.cq-work:not(:has(.keypad:not([hidden]), .mk-roman:not([hidden]))) #panel-notes { display: none; }
+@media (min-width: 900px) {
+  .cq-work:has(.why:not([hidden])):has(.keypad:not([hidden]), .mk-roman:not([hidden])) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+}
+@media (max-width: 560px) {
+  .why { padding: 8px; }
+  .why__n b { font-size: 15px; }
+  .why__worked { font-size: 14px; }
 }
 
 /* ---- effects layer ---- */

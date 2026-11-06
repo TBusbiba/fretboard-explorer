@@ -373,9 +373,41 @@ function revealKeys() {
   say(`${card.kind === 'degree' ? `The ${card.degree} of ${card.keyName} is ${chord.name}` : `${card.chordName} is the ${card.degree}`}. Press Enter for the next card.`);
 }
 
-// Task 7 fills these in.
-function showWhy() {}
-function hideWhy() {}
+// ---- Why panel: the scale, the rule and the worked answer ---------------------------
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+function renderWhy(info, { heading = 'Why' } = {}) {
+  $('why-head').textContent = heading;
+  $('why-scale').replaceChildren(...info.scale.map((note, i) => {
+    const col = el('div', `why__n${i === info.highlight ? ' is-ask' : ''}${i === 6 ? ' is-skip' : ''}`);
+    col.append(el('b', '', note), el('span', '', info.numbers[i]));
+    return col;
+  }));
+  $('why-rule').textContent = info.ruleText;
+  $('why-worked').textContent = info.workedText;
+  $('why-row').replaceChildren(...info.row.map((c) => {
+    const chip = el('div');
+    chip.append(el('b', '', c.name), el('span', '', c.degree));
+    return chip;
+  }));
+}
+
+/** Explain a card (or, with no card, the generic example in C). */
+function showWhy(c, opts) {
+  const info = c ? explain(c.keyName, c.kind === 'degree' ? c.degree : c.chordName) : explain('C', 'V');
+  renderWhy(info, opts);
+  $('why').hidden = false;
+  restart($('why'), 'enter');
+  if (c) requestAnimationFrame(() => $('why').scrollIntoView({ behavior: REDUCED ? 'auto' : 'smooth', block: 'nearest' }));
+}
+
+function hideWhy() { $('why').hidden = true; }
 
 // ---- step 2: key signature -----------------------------------------------------
 
