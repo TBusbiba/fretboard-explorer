@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { voicingsFor, createTriadMatcher, shapeLayout } from '../js/triad-match.js';
+import { voicingsFor, questionVoicings, createTriadMatcher, shapeLayout } from '../js/triad-match.js';
 
 const C = 0, A = 9;
 const GROUPS = ['321', '432', '543', '654'];
@@ -38,38 +38,74 @@ test('voicingsFor: honours the fret range and bad input', () => {
   assert.deepEqual(voicingsFor(C, 'major', 'nope'), []);
 });
 
-test('matcher accepts every shape of the chord', () => {
+const play = (m, v) => v.notes.map(n => m.feed(n.midi));
+
+test('matcher: each shape low to high from the thickest string, any order, done after all three', () => {
   const vs = voicingsFor(C, 'major', '321');
-  for (const v of vs) {
-    const m = createTriadMatcher(vs);
-    assert.deepEqual(m.feed(v.notes[0].midi), { status: 'step', step: 1 });
-    assert.deepEqual(m.feed(v.notes[1].midi), { status: 'step', step: 2 });
-    const end = m.feed(v.notes[2].midi);
-    assert.equal(end.status, 'done');
-    assert.equal(end.voicing, v);
-  }
+  const m = createTriadMatcher(vs);
+  assert.equal(m.total, 3);
+  const order = [vs[2], vs[0], vs[1]];
+  order.forEach((v, i) => {
+    const r = play(m, v);
+    assert.deepEqual(r.slice(0, 2).map(x => x.status), ['step', 'step']);
+    assert.equal(r[0].voicing, v);
+    assert.equal(r[2].status, i === 2 ? 'done' : 'shape');
+    assert.equal(r[2].shape, v.shape);
+    assert.equal(r[2].found, i + 1);
+  });
+  assert.equal(m.found.length, 3);
 });
 
-test('matcher rejects wrong notes without losing progress', () => {
+test('matcher: a first note must be the lowest note of an open shape on the thickest string', () => {
+  const vs = voicingsFor(C, 'major', '321');
+  const m = createTriadMatcher(vs);
+  const v = vs[0];
+  assert.equal(m.feed(30).status, 'wrong');
+  assert.equal(m.feed(v.notes[0].midi + 1).status, 'wrong');
+  assert.deepEqual(m.expected(), vs.map(x => x.notes[0].midi));
+  assert.equal(m.feed(v.notes[0].midi).status, 'step');
+  assert.deepEqual(m.expected(), [v.notes[1].midi]);
+});
+
+test('matcher: a repeated shape is a dup and changes nothing', () => {
+  const vs = voicingsFor(C, 'major', '321');
+  const m = createTriadMatcher(vs);
+  play(m, vs[0]);
+  assert.deepEqual(m.feed(vs[0].notes[0].midi), { status: 'dup', step: 0, shape: vs[0].shape });
+  assert.equal(m.step, 0);
+  assert.equal(m.found.length, 1);
+  assert.ok(!m.expected().includes(vs[0].notes[0].midi));
+  assert.equal(play(m, vs[1])[2].status, 'shape');
+});
+
+test('matcher rejects wrong notes mid-shape without losing progress', () => {
   const vs = voicingsFor(C, 'major', '321');
   const [v] = vs.filter(x => x.shape === 1);
   const m = createTriadMatcher(vs);
-  assert.equal(m.feed(v.notes[0].midi + 1).status, 'wrong');
-  assert.equal(m.feed(v.notes[0].midi).status, 'step');
+  m.feed(v.notes[0].midi);
   assert.deepEqual(m.feed(v.notes[1].midi + 12), { status: 'wrong', step: 1 });
   const other = vs.find(x => x.shape === 2);
   assert.equal(m.feed(other.notes[1].midi).status, 'wrong');
   assert.equal(m.feed(v.notes[1].midi).status, 'step');
-  assert.equal(m.feed(v.notes[2].midi).status, 'done');
+  assert.equal(m.feed(v.notes[2].midi).status, 'shape');
 });
 
 test('matcher reset starts over', () => {
   const vs = voicingsFor(A, 'minor', '654');
   const m = createTriadMatcher(vs);
-  m.feed(vs[0].notes[0].midi);
+  play(m, vs[0]);
   m.reset();
   assert.equal(m.step, 0);
-  assert.equal(m.feed(vs[1].notes[0].midi).status, 'step');
+  assert.equal(m.found.length, 0);
+  assert.equal(m.feed(vs[0].notes[0].midi).status, 'step');
+});
+
+test('every voicing is identified by its first note; each chord of every group has all three shapes', () => {
+  for (const g of GROUPS) for (let root = 0; root < 12; root++) for (const q of ['major', 'minor']) {
+    const vs = questionVoicings(root, q, g);
+    assert.equal(new Set(vs.map(v => v.notes[0].midi)).size, vs.length);
+    assert.deepEqual([...new Set(vs.map(v => v.shape))].sort(), [1, 2, 3], `${root} ${q} ${g}`);
+  }
 });
 
 test('shapeLayout upFrets: values and an octave in total', () => {

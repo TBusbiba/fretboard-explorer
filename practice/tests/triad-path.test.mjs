@@ -2,10 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { NOTE_NAMES } from '../js/notes.js';
 import { WINDOW } from '../js/path.js';
-import { voicingsFor } from '../js/triad-match.js';
+import { questionVoicings } from '../js/triad-match.js';
 import {
-  TRIAD_LEVELS, evaluate, blankEntry, requiredShapes, chordKey, createTriadBag, createTriadBoss,
-  createClimb, createClimbSchedule, climbHint, pickClimbChord, createTriadPathStore,
+  TRIAD_LEVELS, evaluate, blankEntry, chordKey, createTriadBag, createTriadBoss, createTriadPathStore, starsFor, STAR2_MS, STAR3_MS, AVG_MS_MAX,
 } from '../js/triad-path.js';
 
 const pc = (n) => NOTE_NAMES.indexOf(n);
@@ -45,66 +44,50 @@ test('L11 asks every root and quality on every group', () => {
   assert.ok(l.added.every(c => [1, 3, 6, 8, 10].includes(c.root)));
 });
 
-test('required shapes: major only on L1, both qualities from L2', () => {
-  assert.deepEqual(requiredShapes(TRIAD_LEVELS[0]), ['major:1', 'major:2', 'major:3']);
-  assert.equal(requiredShapes(TRIAD_LEVELS[1]).length, 6);
-  assert.equal(requiredShapes(TRIAD_LEVELS[4]).length, 6);
+test('evaluate: last 20 shape answers, first-try share and average time per shape', () => {
+  const full = { ...blankEntry(), recent: good(WINDOW) };
+  assert.equal(AVG_MS_MAX, 6000);
+  assert.equal(evaluate(full).unlocked, true);
+  assert.equal(evaluate({ ...full, recent: good(WINDOW - 1) }).unlocked, false);
+  assert.equal(evaluate({ ...full, recent: good(WINDOW, true, 6000) }).unlocked, true);
+  assert.equal(evaluate({ ...full, recent: good(WINDOW, true, 6500) }).unlocked, false);
+  assert.equal(evaluate({ ...full, recent: [...good(15, true), ...good(5, false)] }).unlocked, true);
+  assert.equal(evaluate({ ...full, recent: [...good(14, true), ...good(6, false)] }).unlocked, false);
+  assert.equal(evaluate(blankEntry()).firstTryPct, null);
 });
 
-test('evaluate: needs 20 answers, first-try share, time and every shape', () => {
-  const L1 = TRIAD_LEVELS[0];
-  const full = { ...blankEntry(), recent: good(WINDOW), shapes: ['major:1', 'major:2', 'major:3'] };
-  assert.equal(evaluate(full, L1).unlocked, true);
-  assert.equal(evaluate({ ...full, shapes: ['major:1', 'major:2'] }, L1).unlocked, false);
-  assert.deepEqual(evaluate({ ...full, shapes: ['major:1', 'major:2'] }, L1).missing, ['major:3']);
-  assert.equal(evaluate({ ...full, recent: good(WINDOW - 1) }, L1).unlocked, false);
-  assert.equal(evaluate({ ...full, recent: good(WINDOW, true, 6500) }, L1).unlocked, false);
-  const mixed = [...good(15, true), ...good(5, false)];
-  assert.equal(evaluate({ ...full, recent: mixed }, L1).unlocked, true);
-  assert.equal(evaluate({ ...full, recent: [...good(14, true), ...good(6, false)] }, L1).unlocked, false);
-  const e = evaluate({ ...full, shapes: ['major:1'] }, L1);
-  assert.equal(e.shapes, 1); assert.equal(e.shapesTotal, 3);
-  assert.equal(evaluate(blankEntry(), L1).firstTryPct, null);
-});
-
-test('bag: every chord once before repeats, missing-shape chords first', () => {
+test('bag: every chord once before repeats, newest group first', () => {
   const bag = createTriadBag(seq(0.3, 0.7, 0.1));
   const l5 = TRIAD_LEVELS[4];
-  const asked = Array.from({ length: l5.pool.length }, () => bag.next(l5, ['major:1']));
+  const asked = Array.from({ length: l5.pool.length }, () => bag.next(l5));
   assert.equal(new Set(asked.map(chordKey)).size, l5.pool.length);
-  const wantedGroup = asked.slice(0, 3).every(c => c.group === '432' && c.quality === 'major');
-  assert.ok(wantedGroup, 'newest group + missing quality first');
-  const second = createTriadBag(() => 0.5);
-  assert.equal(second.next(TRIAD_LEVELS[0], []).group, '321');
+  assert.ok(asked.slice(0, 6).every(c => c.group === '432'), 'newest group first');
+  assert.equal(createTriadBag(() => 0.5).next(TRIAD_LEVELS[0]).group, '321');
 });
 
-test('boss: every shape of the new chords, run by run, up the neck', () => {
+test('boss: one question per new chord, each with every shape', () => {
   const boss = createTriadBoss(TRIAD_LEVELS[0]);
   assert.equal(boss.state, 'running');
-  assert.equal(boss.runs.length, 3);
-  const expect = TRIAD_LEVELS[0].added.flatMap(c => voicingsFor(c.root, c.quality, c.group, { from: 0, to: 12 }));
-  assert.equal(boss.items.length, expect.length);
-  for (const run of boss.runs) {
-    const items = boss.items.filter(i => i.run === boss.runs.indexOf(run));
-    const frets = items.map(i => i.voicing.lowestFret);
-    assert.deepEqual(frets, [...frets].sort((a, b) => a - b));
-    assert.deepEqual(items.map(i => i.n), items.map((_, k) => k + 1));
-    assert.ok(items.every(i => i.of === items.length));
+  assert.equal(boss.items.length, 3);
+  assert.deepEqual(boss.items.map(i => NOTE_NAMES[i.root]), ['C', 'F', 'G']);
+  for (const it of boss.items) {
+    assert.deepEqual(it.voicings, questionVoicings(it.root, it.quality, it.group));
+    assert.deepEqual([...new Set(it.voicings.map(v => v.shape))].sort(), [1, 2, 3]);
+    assert.equal(it.shapes, 3);
   }
-  assert.deepEqual([...new Set(boss.items.map(i => NOTE_NAMES[i.root]))], ['C', 'F', 'G']);
-  assert.equal(NOTE_NAMES[boss.items[0].root], 'C');
-  assert.equal(boss.runStart, true);
+  assert.equal(boss.total, 9);
 });
 
-test('boss: plays through, counts mistakes, awards stars', () => {
+test('boss: times each shape, counts mistakes, awards stars per shape', () => {
   const boss = createTriadBoss(TRIAD_LEVELS[0]);
-  const n = boss.items.length;
   boss.wrong();
-  for (let i = 0; i < n; i++) {
+  for (let c = 0; c < 3; c++) {
     assert.equal(boss.state, 'running');
-    boss.correct(1500);
+    for (let s = 0; s < 3; s++) boss.shape(4500);
+    boss.chordDone();
   }
   assert.equal(boss.state, 'passed');
+  assert.equal(boss.shapesDone, 9);
   assert.equal(boss.mistakes, 1);
   assert.equal(boss.stars, 2);
   const skipped = createTriadBoss(TRIAD_LEVELS[0]);
@@ -113,56 +96,27 @@ test('boss: plays through, counts mistakes, awards stars', () => {
   assert.equal(skipped.stars, 0);
 });
 
-test('climb: 3 shapes in order up the neck with +N frets hints', () => {
-  const climb = createClimb({ root: pc('C'), quality: 'major', group: '321' }, 1);
-  assert.deepEqual(climb.steps.map(s => s.shape), [3, 1, 2]);
-  assert.deepEqual(climb.steps.map(s => s.voicing.lowestFret), [0, 3, 8]);
-  assert.equal(climb.hint, null);
-  assert.deepEqual(climb.advance(true), { done: false, perfect: true });
-  assert.equal(climb.hint, '+3 frets');
-  climb.advance(false);
-  assert.equal(climb.hint, '+5 frets');
-  assert.deepEqual(climb.advance(true), { done: true, perfect: false });
-  assert.equal(climb.current, null);
-  assert.equal(climbHint(climb.steps, 1), '+3 frets');
+test('stars: 3 at <= 4 s per shape with no mistakes, 2 at <= 6 s and <= 2 mistakes, else 1', () => {
+  assert.deepEqual([STAR3_MS, STAR2_MS], [4000, 6000]);
+  assert.equal(starsFor(4000, 0), 3);
+  assert.equal(starsFor(4000, 1), 2);
+  assert.equal(starsFor(6000, 2), 2);
+  assert.equal(starsFor(6000, 3), 1);
+  assert.equal(starsFor(6100, 0), 1);
 });
 
-test('climb: a chord with fewer than 3 shapes below fret 12 still gets 3', () => {
-  const climb = createClimb({ root: pc('F'), quality: 'major', group: '654' }, 9);
-  assert.equal(climb.steps.length, 3);
-  assert.equal(new Set(climb.steps.map(s => s.shape)).size, 3);
-  const lows = climb.steps.map(s => s.voicing.lowestFret);
-  assert.deepEqual(lows, [...lows].sort((a, b) => a - b));
-});
-
-test('climb schedule is due every 6 to 9 questions; chord pick prefers the newest group', () => {
-  const s = createClimbSchedule(() => 0);
-  const due = Array.from({ length: 13 }, () => s.due());
-  assert.deepEqual(due.map((d, i) => d ? i + 1 : 0).filter(Boolean), [6, 12]);
-  assert.equal(pickClimbChord(TRIAD_LEVELS[4], () => 0).group, '432');
-});
-
-test('store: own key, levels unlock one by one, record lights shape dots', () => {
+test('store: own key, levels unlock one by one, each shape answer is recorded', () => {
   const st = memoryStorage();
   const p = createTriadPathStore(st);
   assert.equal(p.current, 1);
   assert.equal(p.isUnlocked(2), false);
   assert.equal(p.select(2), false);
   let r;
-  for (let i = 0; i < WINDOW; i++) r = p.record(1, { quality: 'major', group: '321', shape: (i % 3) + 1, firstTry: true, ms: 2000 });
+  for (let i = 0; i < WINDOW; i++) r = p.record(1, { firstTry: true, ms: 2000 });
   assert.equal(r.bossUnlocked, true);
   assert.equal(p.progress(1).bossUnlocked, true);
-  assert.equal(p.shapeCovered(1, 'major', 2), true);
   assert.ok(st.m.has('fretboard-practice.triad-path.v1'));
-  assert.equal(p.record(1, { quality: 'major', group: '321', shape: 1, firstTry: true, ms: 1000 }).bossUnlocked, false);
-});
-
-test('store: shapes on older groups answer but do not count as coverage', () => {
-  const p = createTriadPathStore(memoryStorage());
-  const r = p.record(5, { quality: 'major', group: '321', shape: 1, firstTry: true, ms: 1000 });
-  assert.equal(r.newShape, false);
-  assert.equal(p.shapeCovered(5, 'major', 1), false);
-  assert.equal(p.record(5, { quality: 'major', group: '432', shape: 1, firstTry: true, ms: 1000 }).newShape, true);
+  assert.equal(p.record(1, { firstTry: true, ms: 1000 }).bossUnlocked, false);
 });
 
 test('store: completing a boss opens the next level and persists', () => {
@@ -186,5 +140,5 @@ test('store: survives corrupt storage', () => {
   assert.equal(p.current, 1);
   const q = createTriadPathStore(memoryStorage({ 'fretboard-practice.triad-path.v1': JSON.stringify({ current: 4, levels: { 1: { done: true, shapes: ['bogus', 'major:1'] } } }) }));
   assert.equal(q.current, 1);
-  assert.equal(q.shapeCovered(1, 'major', 1), true);
+  assert.equal(q.isDone(1), true);
 });

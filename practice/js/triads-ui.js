@@ -1,17 +1,15 @@
-// The Triads screen: Path | Custom, any-shape answers, shape dots, boss round, Climb the neck and
-// the big Show-shapes panel. Everything DOM-side for the Triads mode lives here; app.js only
+// The Triads screen: Path | Custom, every question the chord in all three shapes (each timed on
+// its own), shape dots, boss round and the big Show-shapes panel. Everything DOM-side for the Triads mode lives here; app.js only
 // forwards session events and a few render calls (see the "triads" hooks there). The rules are
 // pure and tested in triad-match.js / triad-path.js.
 
 import { STRINGS, NOTE_NAMES, STRING_GROUPS, DEGREE_LABELS, stringGroupById, spokenName } from './notes.js';
-import { voicingsFor, shapeLayout, QUALITIES, FULL_RANGE } from './triad-match.js';
+import { questionVoicings, shapeLayout, QUALITIES } from './triad-match.js';
 import {
-  TRIAD_LEVELS, createTriadPathStore, createTriadBag, createTriadBoss, createClimbSchedule, createClimb, pickClimbChord,
-  requiredShapes, shapeKey, SHAPE_NAMES, chordKey, STAR2_MS, STAR3_MS,
+  TRIAD_LEVELS, createTriadPathStore, createTriadBag, createTriadBoss, chordKey, STAR2_MS, STAR3_MS,
 } from './triad-path.js';
 import { WINDOW, FIRST_TRY_MIN, AVG_MS_MAX } from './path.js';
 import { createCustomBest } from './combo.js';
-import { CHAIN_BONUS } from './chain.js';
 
 const NATURAL_ROOTS = [0, 2, 4, 5, 7, 9, 11];
 const ALL_ROOTS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
@@ -22,30 +20,29 @@ const chordName = (c) => `${NOTE_NAMES[c.rootPc ?? c.root]} ${c.quality}`;
 const shortChord = (c) => `${NOTE_NAMES[c.root]}${c.quality === 'minor' ? 'm' : ''}`;
 const qualityLabel = (q) => (q === 'major' ? 'Major' : 'Minor');
 const BOSS_INTRO_MS = 1800;
-const INTRO_MS = 1500;
+const stringLabel = (group) => STRINGS[stringGroupById(group).strings[0]].label;
 const runClock = (ms) => { const t = Math.floor(ms / 100) / 10, m = Math.floor(t / 60); return `${m}:${(t - m * 60).toFixed(1).padStart(4, '0')}`; };
 const clock = (ms) => { const t = Math.round(ms / 100) / 10, m = Math.floor(t / 60); return m ? `${m}:${(t - m * 60).toFixed(1).padStart(4, '0')}` : `${t.toFixed(1)} s`; };
 
 /** Phrases the Triads screen speaks (recorded by tools/make-voice.mjs), for preloading. */
 export const TRIAD_CLIPS = [
   ...QUALITIES.flatMap(q => NOTE_NAMES.map(n => `${spokenName(n)} ${q}!`)),
-  ...STRING_GROUPS.map(g => `Strings ${digits(g.id, ' ')}!`), 'Climb the neck!', 'Find every shape!',
+  ...STRING_GROUPS.map(g => `Strings ${digits(g.id, ' ')}!`), 'Find every shape!',
 ];
 
 function levelTip(level) {
-  const g = digits(level.group, '·');
-  if (level.id === 1) return { head: 'Three notes, three shapes', line: `Play the chord's root, 3rd and 5th on strings ${g}, low to high. Any of its three close shapes counts.`, note: 'Show shapes draws all three, and how far apart they sit.' };
-  if (level.id === 2) return { head: 'Minor = flat 3rd', line: 'A minor triad lowers the 3rd by one fret. The shape is the major one with that single note moved down.', note: 'Show shapes switches to the minor shapes when a minor chord is asked.' };
-  if (level.id === 11) return { head: 'Sharps and flats', line: 'The shapes are movable: learn them once, then slide them to any root, black keys included.', note: 'Climb the neck chains show you how far each shape sits above the last.' };
-  if (level.group !== '321' && /^Strings/.test(level.title)) return { head: `New strings: ${g}`, line: `The same three shapes, one string set lower. Their finger patterns change a little because the strings tune differently.`, note: 'Show shapes draws the shapes for the strings in play.' };
-  return { head: level.title, line: `Keep every shape in reach: each new level asks the chords again on strings ${g}, from any position.`, note: 'The boss opens once every shape has been found at least once.' };
+  const g = digits(level.group, '·'), low = stringLabel(level.group);
+  if (level.id === 1) return { head: 'Three notes, three shapes', line: `Every chord comes in three close shapes. Play each one on strings ${g}: start on the ${low} string, then the next two, low to high. Any order.`, note: 'Shapes (top right) draws all three, and how far apart they sit.' };
+  if (level.id === 2) return { head: 'Minor = flat 3rd', line: 'A minor triad lowers the 3rd by one fret. The shape is the major one with that single note moved down.', note: 'Shapes switches to the minor shapes when a minor chord is asked.' };
+  if (level.id === 11) return { head: 'Sharps and flats', line: 'The shapes are movable: learn them once, then slide them to any root, black keys included.', note: 'Shapes shows how far each shape sits above the last.' };
+  if (level.group !== '321' && /^Strings/.test(level.title)) return { head: `New strings: ${g}`, line: `The same three shapes, one string set lower. Start on the ${low} string. Their finger patterns change a little because the strings tune differently.`, note: 'Shapes draws the shapes for the strings in play.' };
+  return { head: level.title, line: `Keep every shape in reach: each new level asks the chords again on strings ${g}, from any position.`, note: 'The boss opens when your last 20 shapes are quick and clean.' };
 }
 
 export function createTriadsUI(ctx) {
   const { ui, session, fretboard, history, pitch, combo } = ctx;
   const store = createTriadPathStore();
   const bag = createTriadBag();
-  const schedule = createClimbSchedule();
   const customBest = createCustomBest({
     getItem: () => localStorage.getItem('fretboard-practice.triad-custom-best.v1'),
     setItem: (k, v) => localStorage.setItem('fretboard-practice.triad-custom-best.v1', v),
@@ -56,17 +53,17 @@ export function createTriadsUI(ctx) {
     popTitle: $('triad-pop-title'), popGoal: $('triad-pop-goal'), popStats: $('triad-pop-stats'), popBoss: $('triad-pop-boss'),
     tipCard: $('triad-tip-card'), tipTag: $('triad-tip-tag'), tipHead: $('triad-tip-head'), tipLine: $('triad-tip-line'), tipNote: $('triad-tip-note'), tipGot: $('triad-tip-got'),
     modePicker: $('triad-mode-picker'), qualityPicker: ui.triadPicker, groupPicker: ui.groupPicker,
-    shapes: $('shapes-big'), shapesTitle: $('shapes-title'), shapesBody: $('shapes-body'), shapesClose: $('shapes-close'),
+    pathRow: document.querySelector('#triad-path .path__row'), customRow: document.querySelector('.triad-custom'), shapes: $('shapes-big'), shapesTitle: $('shapes-title'), shapesBody: $('shapes-body'), shapesClose: $('shapes-close'),
   };
 
   let boss = null;          // the triad boss round in progress, else null
-  let climb = null;         // Climb the neck in progress, else null
   let notice = null;        // {text, tone} shown instead of the usual status on the next question
   let bossFinale = null;
   let tipOpen = false;
   let lastGroup = null;     // string group of the previous question: the voice names the strings only when they change
   let introTimer = 0;
   let shapesKey = '';
+  let shapesWasOpen = false;
 
   const settings = () => ctx.getSettings();
   const active = () => settings().mode === 'triads';
@@ -78,7 +75,7 @@ export function createTriadsUI(ctx) {
   const asTarget = (chord, voicings, kind, extra = {}) => ({
     rootPc: chord.root ?? chord.rootPc, quality: chord.quality, group: chord.group, voicings, kind, levelId: isPath() ? level().id : null, ...extra,
   });
-  const allVoicings = (c) => voicingsFor(c.root, c.quality, c.group, FULL_RANGE);
+  const allVoicings = (c) => questionVoicings(c.root, c.quality, c.group);
 
   function customChord(previous, rng) {
     const s = settings();
@@ -91,31 +88,41 @@ export function createTriadsUI(ctx) {
     return fresh[Math.floor(rng() * fresh.length)];
   }
 
-  /** The session's pickTriad hook. */
+  /** The session's pickTriad hook: every question is the chord in all its shapes. */
   function pick(opts, previous, rng) {
     if (boss && boss.current) {
       const it = boss.current;
-      return asTarget(it, [it.voicing], 'boss', { item: it, levelId: boss.levelId });
+      return asTarget(it, it.voicings, 'boss', { item: it, levelId: boss.levelId });
     }
     if (isPath()) {
-      const lvl = level();
-      if (climb && climb.levelId !== lvl.id) climb = null;
-      if (!climb && schedule.due()) {
-        const c = pickClimbChord(lvl, rng);
-        if (c) { const next = createClimb(c, lvl.id); if (next.steps.length === 3) climb = next; }
-      }
-      if (climb && !climb.done) return asTarget(climb, [climb.current.voicing], 'climb', { step: climb.index, climb });
-      const chord = bag.next(lvl, store.progress(lvl.id).missing);
+      const chord = bag.next(level());
       return chord ? asTarget(chord, allVoicings(chord), 'normal') : null;
     }
     const chord = customChord(previous, rng);
     return chord ? asTarget(chord, allVoicings(chord), 'normal') : null;
   }
 
-  // ---------- the strip: prompt, step dots, status ----------
+  // ---------- the strip: prompt, shape dots, step dots, status ----------
 
-  function renderDots(done) {
-    ui.bossPips.innerHTML = [0, 1, 2].map(i => `<i class="${i < done ? 'is-done' : i === done ? 'is-now' : ''}"></i>`).join('');
+  const foundShapes = () => (session.matcher && session.state !== 'idle' ? session.matcher.found : []);
+
+  /** Shape dots (one per shape of the question, filled as found) then the 3 step dots of the shape in play. */
+  function renderDots(steps = 0) {
+    const total = session.matcher && session.state !== 'idle' ? session.matcher.total : 3;
+    const got = new Set(foundShapes().map(v => v.shape));
+    const shapes = Array.from({ length: total }, (_, i) => `<i class="sh${got.has(i + 1) ? ' is-found' : ''}" title="Shape ${i + 1}"></i>`).join('');
+    const pips = [0, 1, 2].map(i => `<i class="${i < steps ? 'is-done' : i === steps ? 'is-now' : ''}"></i>`).join('');
+    ui.bossPips.innerHTML = `<span class="sdots" role="img" aria-label="${got.size} of ${total} shapes found">${shapes}</span><span class="pips">${pips}</span>`;
+  }
+
+  /** The board: every shape found so far, plus the notes of the shape in play. */
+  function paintBoard() {
+    fretboard.clearNotes();
+    for (const v of foundShapes()) for (const n of v.notes) fretboard.showNote(n.string, n.fret, 'correct', DEGREE_LABELS[n.degree], true);
+    for (let i = 0; i < session.step; i++) {
+      const n = session.steps[i];
+      fretboard.showNote(n.string, n.fret, 'correct', DEGREE_LABELS[n.degree] || n.name, true);
+    }
   }
 
   function showIntro(kicker, big, start, ms, chain) {
@@ -139,56 +146,43 @@ export function createTriadsUI(ctx) {
     pitch.reset();
     ui.ring.classList.remove('is-done');
     ctx.setTip('');
-    fretboard.highlightString(null);
+    fretboard.highlightString(g.strings[0]);
     fretboard.focusStrings(g.strings);
-    ctx.scrollBoardTo(t.kind === 'normal' ? 6 : t.voicings[0].lowestFret + 1);
-    ctx.setPrompt(`Strings ${digits(t.group, '·')}`, name, 'listening');
+    ctx.scrollBoardTo(5);
+    ctx.setPrompt(`Start on the ${stringLabel(t.group)} string`, name, 'listening');
     renderDots(0);
     renderShapes();
     const strings = lastGroup !== t.group ? ` Strings ${digits(t.group, ' ')}!` : '';
     lastGroup = t.group;
-    let text = `${said}${strings}`, status = 'Play the 3 notes low to high — any shape', tone = '';
+    let text = `${said}${strings}`, status = 'Play all 3 shapes, any order · each one low to high';
     if (t.kind === 'boss') {
       const it = t.item;
-      for (const f of boss.found) for (const n of f.voicing.notes) fretboard.showNote(n.string, n.fret, 'correct', DEGREE_LABELS[n.degree], true);
-      ui.foundVal.textContent = `${it.n - 1}/${it.of}`;
-      status = `Find every shape · ${it.n - 1} of ${it.of} found${boss.mistakes ? ` · ${boss.mistakes} mistake${boss.mistakes > 1 ? 's' : ''}` : ''}`;
-      if (boss.runStart) {
-        const first = it.run === 0, prev = first ? '' : shortChord(boss.runs[it.run - 1]);
-        showIntro(first ? 'Boss round!' : `${prev} done · chord ${it.run + 1} of ${boss.runs.length}`, `${name}!`, `${it.of} shapes · left to right up the neck —`, BOSS_INTRO_MS, false);
-        text = `${first ? 'Boss round! ' : ''}${said} Find every shape!`;
-      } else text = '';
-    } else if (t.kind === 'climb') {
-      const prev = climb.index > 0 ? climb.steps[climb.index - 1].voicing : null;
-      status = `Shape ${climb.index + 1} of 3 · Play the 3 notes low to high`;
-      if (prev) {
-        for (const n of prev.notes) fretboard.showNote(n.string, n.fret, 'root', DEGREE_LABELS[n.degree], true);
-        fretboard.showArrow(prev.notes[0], t.voicings[0].notes[0]);
-        status = `${climb.hint} →`; tone = 'chain';
-        text = '';
-      } else {
-        showIntro('3 shapes', name, 'Each one higher up the neck —', INTRO_MS, true);
-        text = `Climb the neck! ${said}${strings}`;
-      }
+      ui.foundVal.textContent = `0/${it.shapes}`;
+      status = `Find every shape · chord ${it.n} of ${it.of}${boss.mistakes ? ` · ${boss.mistakes} mistake${boss.mistakes > 1 ? 's' : ''}` : ''}`;
+      const first = it.run === 0, prev = first ? '' : shortChord(boss.items[it.run - 1]);
+      showIntro(first ? 'Boss round!' : `${prev} done · chord ${it.n} of ${it.of}`, `${name}!`, `all ${it.shapes} shapes · start on the ${stringLabel(t.group)} string —`, BOSS_INTRO_MS, false);
+      text = `${first ? 'Boss round! ' : ''}${said} Find every shape!`;
     }
-    if (notice) { ctx.setStatus(notice.text, notice.tone); notice = null; } else ctx.setStatus(status, tone);
+    if (notice) { ctx.setStatus(notice.text, notice.tone); notice = null; } else ctx.setStatus(status);
     ctx.announce(text, null, { speak: settings().voice, holdClock: true }).then(() => (t.kind === 'boss' ? null : ctx.playCue()));
   }
 
   function onStep(p) {
-    const done = session.steps[p.step - 1];
-    fretboard.showNote(done.string, done.fret, 'correct', DEGREE_LABELS[done.degree] || done.name);
+    paintBoard();
     renderDots(p.step);
     const next = session.note;
     ctx.setStatus(`${p.step} of 3 ✓ — now string ${STRINGS[next.string].number}`, 'ok');
   }
 
+  function onDup(p) {
+    ctx.setStatus('Already have that one — find another shape', 'chain');
+  }
+
   function onHint(p) {
     if (ctx.comboActive()) ctx.comboMiss();
-    if (climb) climb.miss();
     if (p.stage === 1) {
-      const t = session.target;
-      ctx.setTip(t.quality === 'major' ? 'Major: root, 3rd, 5th. Start on the lowest string and go up.' : 'Minor: root, ♭3rd, 5th. Start on the lowest string and go up.');
+      const t = session.target, lab = stringLabel(t.group);
+      ctx.setTip(`Start on the ${lab} string, the lowest note of a shape, then go up. ${t.quality === 'major' ? 'Major: root, 3rd, 5th.' : 'Minor: root, ♭3rd, 5th.'}`);
     } else {
       const n = session.steps[p.step];
       fretboard.showNote(n.string, n.fret, 'hint', DEGREE_LABELS[n.degree] || n.name);
@@ -197,49 +191,54 @@ export function createTriadsUI(ctx) {
     }
   }
 
+  /** One shape played: log it as a timed answer (history, path store, boss, combo). Returns the status extra. */
+  function recordShape(p) {
+    const t = p.target, lvl = isPath() ? level() : null, clean = p.firstTry && !p.hinted;
+    history.recordTriad(t.quality, { clean, ms: p.ms, hinted: p.hinted });
+    let extra = '';
+    if (t.kind === 'boss' && boss) { boss.shape(p.ms); extra = `${boss.shapesDone} of ${boss.total}`; }
+    else if (lvl) {
+      const r = store.record(lvl.id, { firstTry: clean, ms: p.ms });
+      if (r.bossUnlocked) { extra = 'Boss round unlocked!'; popTile(lvl.id); }
+    }
+    if (ctx.comboActive() && !bossFinale && clean) ctx.comboHit(p.ms);
+    return extra;
+  }
+
+  function onShape(p) {
+    const extra = recordShape(p);
+    paintBoard();
+    renderDots(0);
+    markShapesFound();
+    renderBossStrip();
+    ctx.setStatus(`Shape ${p.shape} ✓ ${(p.ms / 1000).toFixed(1)} s · ${p.total - p.found} to go${extra ? ` · ${extra}` : ''}`, 'ok');
+    ctx.updateStats();
+    ctx.renderHeatPanel();
+    renderAll();
+  }
+
   function onCorrect(p) {
-    const t = p.target, v = p.played.voicing, lvl = isPath() ? level() : null;
-    const result = { clean: p.firstTry && !p.hinted, ms: p.ms, hinted: p.hinted };
-    for (const n of v.notes) fretboard.showNote(n.string, n.fret, 'correct', DEGREE_LABELS[n.degree]);
-    history.recordTriad(t.quality, result);
+    const t = p.target;
+    let extra = recordShape(p);
+    paintBoard();
     ui.noteName.dataset.state = 'correct';
     renderDots(3);
-    let extra = '';
-    if (t.kind === 'boss' && boss) {
-      if (boss.correct(p.ms) === 'passed') finishBoss(); else extra = `${boss.index} of ${boss.items.length}`;
-    } else if (lvl) {
-      const covered = store.shapeCovered(lvl.id, t.quality, v.shape);
-      const r = store.record(lvl.id, { quality: t.quality, group: t.group, shape: v.shape, firstTry: p.firstTry && !p.hinted, ms: p.ms });
-      if (r.bossUnlocked) { extra = 'Boss round unlocked!'; popTile(lvl.id); }
-      else if (r.newShape) extra = `New shape: ${SHAPE_NAMES[v.shape - 1]}`;
-      else if (covered && t.kind === 'normal' && t.group === lvl.group && store.progress(lvl.id).missing.some(k => k.startsWith(`${t.quality}:`))) extra = 'Try another shape';
-    }
-    if (ctx.comboActive() && !bossFinale && p.firstTry && !p.hinted) ctx.comboHit(p.ms);
-    if (t.kind === 'climb' && climb && !boss) onClimbCorrect(p);
-    ctx.setStatus(`Correct · ${(p.ms / 1000).toFixed(1)} s${extra ? ` · ${extra}` : ''}`, 'ok');
+    markShapesFound();
+    if (t.kind === 'boss' && boss && boss.chordDone() === 'passed') finishBoss();
+    ctx.setStatus(`All ${p.total} shapes ✓ · last ${(p.ms / 1000).toFixed(1)} s${extra ? ` · ${extra}` : ''}`, 'ok');
     if (settings().voice && settings().speakFeedback) ctx.speakCorrect();
     ctx.updateStats();
     ctx.renderHeatPanel();
     renderAll();
   }
 
-  function onClimbCorrect(p) {
-    const r = climb.advance(p.firstTry && !p.hinted);
-    if (!r.done) return;
-    climb = null;
-    if (!r.perfect) return;
-    const bonus = CHAIN_BONUS * combo.multiplier;
-    if (ctx.comboActive()) { combo.bonus(bonus); ctx.saveComboBests(); ctx.renderCombo(); ctx.flash(ui.comboGain, `+${bonus}`, 1400); }
-    ctx.flash(ui.comboShout, 'Chain complete!', 1700);
-    ctx.queueShout('Chain complete!');
-  }
-
   function onWrong(p) {
     if (ctx.comboActive()) ctx.comboMiss();
-    if (climb) climb.miss();
     ui.noteName.dataset.state = 'wrong';
     ctx.later(() => { if (session.state === 'listening') ui.noteName.dataset.state = 'listening'; }, 600);
-    const text = p.octaveOff ? `That's ${p.name}, but an octave too ${p.octaveOff > 0 ? 'high' : 'low'}` : `That was ${p.name}`;
+    const lab = stringLabel(session.target.group);
+    let text = p.octaveOff ? `That's ${p.name}, but an octave too ${p.octaveOff > 0 ? 'high' : 'low'}` : `That was ${p.name}`;
+    if (session.step === 0) text += ` — start on the ${lab} string`;
     const spoken = p.octaveOff ? `octave too ${p.octaveOff > 0 ? 'high' : 'low'}` : `that was ${spokenName(p.name)}`;
     const inBoss = !!(boss && boss.state === 'running');
     if (inBoss) { boss.wrong(); renderBossStrip(); }
@@ -254,6 +253,8 @@ export function createTriadsUI(ctx) {
     switch (type) {
       case 'target': onTarget(p); return true;
       case 'step': onStep(p); return true;
+      case 'shape': onShape(p); return true;
+      case 'dup': onDup(p); return true;
       case 'hint': onHint(p); return true;
       case 'correct': onCorrect(p); return true;
       case 'wrong': onWrong(p); return true;
@@ -262,7 +263,6 @@ export function createTriadsUI(ctx) {
   }
 
   function onSkip() {
-    climb = null;
     const t = session.target;
     if (t) history.recordTriad(t.quality, { skipped: true });
     if (boss && boss.state === 'running') failBoss('Boss round over: skipping ends it. Try again anytime');
@@ -270,7 +270,7 @@ export function createTriadsUI(ctx) {
 
   function stopped() {
     clearTimeout(introTimer);
-    boss = null; climb = null; notice = null; lastGroup = null;
+    boss = null; notice = null; lastGroup = null;
     renderAll();
     renderIdle();
     if (bossFinale) { ctx.setStatus(`Level ${bossFinale.level} complete ${'★'.repeat(bossFinale.stars)}`, 'ok'); bossFinale = null; }
@@ -284,8 +284,8 @@ export function createTriadsUI(ctx) {
     bossFinale = { level: lvl.id, stars: r.stars };
     ui.bossEndKicker.textContent = r.stars === 3 ? 'Flawless!' : r.stars === 2 ? 'Boss round cleared!' : 'Boss round beaten!';
     ui.bossEndStars.innerHTML = [1, 2, 3].map(n => `<span class="${n <= r.stars ? 'is-on' : ''}">★</span>`).join('');
-    ui.bossEndStats.innerHTML = `<div><b>${boss.runs.map(shortChord).join(' · ')}</b><span>every shape, frets 0-12</span></div>`
-      + `<div><b>${boss.items.length}</b><span>shapes</span></div><div><b>${clock(boss.totalMs)}</b><span>total</span></div>`
+    ui.bossEndStats.innerHTML = `<div><b>${boss.items.map(shortChord).join(' · ')}</b><span>every shape</span></div>`
+      + `<div><b>${boss.times.length}</b><span>shapes</span></div><div><b>${clock(boss.totalMs)}</b><span>total</span></div>`
       + `<div><b>${(boss.avgMs / 1000).toFixed(1)} s</b><span>per shape</span></div><div><b>${boss.mistakes}</b><span>mistake${boss.mistakes === 1 ? '' : 's'}</span></div>`;
     ui.bossEndNext.textContent = next ? `Level ${next.id} unlocked: ${next.title}` : 'Path complete: every level done';
     ui.bossEnd.hidden = false;
@@ -306,7 +306,7 @@ export function createTriadsUI(ctx) {
     if (!active() || !isPath() || !store.progress(lvl.id).bossUnlocked) return;
     const b = createTriadBoss(lvl);
     if (b.state !== 'running') { ctx.setStatus('No shape of this level fits.', 'bad'); return; }
-    boss = b; notice = null; climb = null; bossFinale = null; ctx.hideBossEnd();
+    boss = b; notice = null; bossFinale = null; ctx.hideBossEnd();
     renderAll();
     if (session.state === 'idle') await ctx.toggleSession(); else session.skip();
   }
@@ -319,11 +319,11 @@ export function createTriadsUI(ctx) {
     ui.timeBlock.hidden = on;
     if (!on) { ui.bossHp.hidden = false; return; }
     const cur = boss.items[boss.index];
-    ui.bossTitle.textContent = `★ Boss · Level ${boss.levelId} · ${chordName(cur)} · chord ${cur.run + 1}/${boss.runs.length}`;
+    ui.bossTitle.textContent = `★ Boss · Level ${boss.levelId} · ${chordName(cur)} · chord ${cur.n}/${cur.of}`;
     ui.bossHp.hidden = true; ui.bossCd.hidden = true;
     ui.bossHearts.textContent = `${boss.mistakes} ✗`;
     ui.bossHearts.setAttribute('aria-label', `${boss.mistakes} mistakes`);
-    ui.foundVal.textContent = `${boss.found.length}/${cur.of}`;
+    ui.foundVal.textContent = `${foundShapes().length}/${cur.shapes}`;
   }
 
   // ---------- level row ----------
@@ -332,12 +332,12 @@ export function createTriadsUI(ctx) {
     const li = document.createElement('li');
     const b = document.createElement('button');
     b.type = 'button'; b.className = 'path__tile'; b.dataset.id = l.id;
-    b.innerHTML = `<b class="path__num">L${l.id}</b><span class="path__names">${l.short}</span><span class="path__mark"></span><span class="tdots" aria-hidden="true"></span>`;
+    b.innerHTML = `<b class="path__num">L${l.id}</b><span class="path__names">${l.short}</span><span class="path__mark"></span>`;
     b.addEventListener('click', () => {
       if (l.id === store.current) { el.pop.hidden = !el.pop.hidden; return; }
       if (!store.select(l.id)) return;
       el.pop.hidden = true;
-      boss = null; notice = null; climb = null;
+      boss = null; notice = null;
       openTip();
       renderAll();
       if (session.state !== 'idle' && session.mode === 'triads') session.skip();
@@ -367,29 +367,23 @@ export function createTriadsUI(ctx) {
       b.classList.toggle('is-current', now);
       if (now) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
       b.querySelector('.path__mark').innerHTML = !open ? LOCK_SVG : done ? stars(store.stars(l.id)) : '';
-      const dots = b.querySelector('.tdots');
-      if (now) {
-        const have = new Set(store.progress(l.id).missing);
-        dots.innerHTML = requiredShapes(l).map(k => `<i class="${have.has(k) ? '' : 'is-on'}" title="${qualityLabel(k.split(':')[0])} · ${SHAPE_NAMES[+k.split(':')[1] - 1]}"></i>`).join('');
-      } else dots.innerHTML = '';
       b.title = `Level ${l.id} · ${l.title}${now ? ' (click for progress)' : ''}`;
       b.setAttribute('aria-label', `Level ${l.id}, ${l.title}${!open ? ', locked' : done ? `, done, ${store.stars(l.id)} of 3 stars` : now ? ', current' : ''}`);
     });
-    tiles[lvl.id - 1].title = `Level ${lvl.id} · ${lvl.title}: ${pr.answered}/${WINDOW} answered, ${pr.firstTryPct == null ? '—' : `${pr.firstTryPct}%`} first try, ${pr.avgMs == null ? '—' : `${(pr.avgMs / 1000).toFixed(1)} s`} avg, shapes ${pr.shapes}/${pr.shapesTotal}`;
+    tiles[lvl.id - 1].title = `Level ${lvl.id} · ${lvl.title}: ${pr.answered}/${WINDOW} answered, ${pr.firstTryPct == null ? '—' : `${pr.firstTryPct}%`} first try, ${pr.avgMs == null ? '—' : `${(pr.avgMs / 1000).toFixed(1)} s`} avg`;
     el.popTitle.textContent = `Level ${lvl.id} · ${lvl.title}`;
-    el.popGoal.textContent = pr.bossUnlocked ? 'Boss round open: play every shape of each of the level\'s new chords, left to right up the neck.'
-      : `Unlock the boss: last ${WINDOW} answers ${Math.round(FIRST_TRY_MIN * 100)}%+ first try, ${AVG_MS_MAX / 1000} s or less on average, and every shape found.`;
+    el.popGoal.textContent = pr.bossUnlocked ? 'Boss round open: play all three shapes of each of the level\'s new chords.'
+      : `Unlock the boss: last ${WINDOW} shapes ${Math.round(FIRST_TRY_MIN * 100)}%+ first try, ${AVG_MS_MAX / 1000} s or less per shape on average.`;
     const box = (label, value, goal, met) => `<div class="pstat${met ? ' is-met' : ''}"><span class="pstat__label">${label}</span><span class="pstat__value">${value}${met ? ' ✓' : ''}</span><span class="pstat__goal">${goal}</span></div>`;
-    el.popStats.innerHTML = box('Answered', `${pr.answered}/${WINDOW}`, 'last 20', pr.met.count)
+    el.popStats.innerHTML = box('Shapes', `${pr.answered}/${WINDOW}`, 'last 20', pr.met.count)
       + box('First try', pr.firstTryPct == null ? '—' : `${pr.firstTryPct}%`, `${Math.round(FIRST_TRY_MIN * 100)}% or more`, pr.met.firstTry)
-      + box('Avg time', pr.avgMs == null ? '—' : `${(pr.avgMs / 1000).toFixed(1)} s`, `${AVG_MS_MAX / 1000} s or less`, pr.met.time)
-      + box('Shapes', `${pr.shapes}/${pr.shapesTotal}`, 'every shape', pr.met.shapes);
+      + box('Avg per shape', pr.avgMs == null ? '—' : `${(pr.avgMs / 1000).toFixed(1)} s`, `${AVG_MS_MAX / 1000} s or less`, pr.met.time);
     el.bossBtn.disabled = !pr.bossUnlocked || running;
     el.bossBtn.classList.toggle('is-ready', pr.bossUnlocked && !running);
-    el.bossBtn.innerHTML = running ? `Boss ${boss.index}/${boss.items.length}` : `${pr.bossUnlocked ? '★' : LOCK_SVG} ${pr.done ? 'Boss again' : 'Boss'}`;
+    el.bossBtn.innerHTML = running ? `Boss ${boss.shapesDone}/${boss.total}` : `${pr.bossUnlocked ? '★' : LOCK_SVG} ${pr.done ? 'Boss again' : 'Boss'}`;
     el.bossBtn.title = pr.bossUnlocked ? 'Start the boss round for this level' : 'Unlock the boss: see the level progress';
     el.popBoss.textContent = running ? 'Wrong notes count against your stars. Skipping ends it.'
-      : pr.bossUnlocked ? `${pr.done ? `Best ${stars(pr.stars)} · ` : ''}★ pass · ★★ avg ${STAR2_MS / 1000} s, 2 mistakes max · ★★★ avg ${STAR3_MS / 1000} s, none` : '';
+      : pr.bossUnlocked ? `${pr.done ? `Best ${stars(pr.stars)} · ` : ''}★ pass · ★★ avg ${STAR2_MS / 1000} s per shape, 2 mistakes max · ★★★ avg ${STAR3_MS / 1000} s, none` : '';
     renderTip();
   }
 
@@ -441,7 +435,7 @@ export function createTriadsUI(ctx) {
   for (const m of [['path', 'Path', 'Work through the levels, a few chords at a time'], ['custom', 'Custom', 'Choose major or minor and the string groups yourself']]) {
     chip(el.modePicker, m[1], { id: m[0] }, () => {
       if (settings().triadMode === m[0]) return;
-      boss = null; notice = null; climb = null;
+      boss = null; notice = null;
       ctx.commit({ triadMode: m[0] });
       if (session.state !== 'idle' && session.mode === 'triads') session.skip();
     });
@@ -485,25 +479,36 @@ export function createTriadsUI(ctx) {
     return { quality: s.triadQualities[0], group: s.triadGroups[0], name: `${qualityLabel(s.triadQualities[0])} triads` };
   }
 
+  /** A tick on each diagram whose shape the player already found in the current question. */
+  function markShapesFound() {
+    const got = new Set(foundShapes().map(v => v.shape));
+    el.shapesBody.querySelectorAll('.tri-fig').forEach(f => f.classList.toggle('is-found', got.has(+f.dataset.shape)));
+  }
+
   function renderShapes() {
     const open = active() && settings().showShapes;
     el.shapes.hidden = !open;
-    ui.prompt.classList.toggle('is-away', open);
+    // The toggle sits beside Tip in Path, in the Custom pickers row otherwise.
+    const host = isPath() ? el.pathRow : el.customRow;
+    if (host && ui.shapesToggle.parentElement !== host) host.appendChild(ui.shapesToggle);
     ui.shapesToggle.hidden = !active();
     ui.shapesToggle.setAttribute('aria-pressed', open);
+    ui.shapesToggle.classList.toggle('is-on', open);
     ui.shapesToggle.textContent = open ? 'Shapes ▴' : 'Shapes ▾';
-    if (!open) { shapesKey = ''; return; }
+    if (!open) { shapesKey = ''; shapesWasOpen = false; return; }
+    if (!shapesWasOpen) { shapesWasOpen = true; setTimeout(() => el.shapes.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 0); }
     const sub = shapesSubject(), g = stringGroupById(sub.group), key = `${sub.name}|${sub.group}`;
-    if (key === shapesKey) return;
+    if (key === shapesKey) { markShapesFound(); return; }
     shapesKey = key;
     el.shapesTitle.textContent = `${sub.name} · strings ${digits(sub.group, ' · ')}`;
     const lay = shapeLayout(sub.quality, sub.group);
     if (!lay) { el.shapesBody.textContent = ''; return; }
     const frets = (n) => `+${n} fret${n === 1 ? '' : 's'}`;
-    el.shapesBody.innerHTML = lay.shapes.map((sh, i) => `<figure class="tri-fig">
-        <figcaption><b>Shape ${sh.index}</b> ${SHAPE_NAMES[sh.index - 1]}${sh.offset ? ` · starts ${frets(sh.offset)}` : ''}</figcaption>${diagramSvg(sh, g)}</figure>${
+    el.shapesBody.innerHTML = lay.shapes.map((sh, i) => `<figure class="tri-fig" data-shape="${sh.index}">
+        <figcaption><b>Shape ${sh.index}</b><span class="tri-check" aria-label="found"> ✓</span>${sh.offset ? ` · starts ${frets(sh.offset)}` : ''}</figcaption>${diagramSvg(sh, g)}</figure>${
         i < 2 ? `<div class="tri-arrow" aria-label="Next shape ${frets(lay.upFrets[i])} higher"><b>${frets(lay.upFrets[i])}</b><span>→</span></div>` : ''}`).join('')
       + `<div class="tri-arrow tri-arrow--loop"><b>${frets(lay.upFrets[2])}</b><span>→ shape 1 again, an octave up</span></div>`;
+    markShapesFound();
   }
   el.shapesClose.addEventListener('click', () => ctx.commit({ showShapes: false }));
 
@@ -520,7 +525,7 @@ export function createTriadsUI(ctx) {
     fretboard.focusStrings(stringGroupById(s.group).strings);
     ctx.setPrompt(`Strings ${digits(s.group, '·')}`, s.name, 'idle');
     renderDots(0);
-    ctx.setStatus('Press Start, then play the 3 notes low to high — any shape');
+    ctx.setStatus('Press Start, then play all 3 shapes of the chord, each low to high');
   }
 
   /** Called from applySettingsToUI. */
@@ -545,13 +550,12 @@ export function createTriadsUI(ctx) {
     get boss() { return boss; },
     active,
     warm: () => ctx.voice.preload(TRIAD_CLIPS),
-    cancelBoss() { boss = null; climb = null; notice = null; },
-    dropClimb() { climb = null; },
+    cancelBoss() { boss = null; notice = null; },
     comboOn: () => active() && !boss,
     comboKey: () => (!active() ? null : boss ? 'boss' : isPath() ? `triad:${store.current}` : 'triad:custom'),
     bests: () => (isPath() ? store.bests(store.current) : customBest.get()),
     saveBests(b) { if (isPath()) store.saveBests(store.current, b); else customBest.save(b); },
-    resetPath() { store.reset(); boss = null; climb = null; tipOpen = false; },
+    resetPath() { store.reset(); boss = null; tipOpen = false; },
     store,
   };
 }

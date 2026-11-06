@@ -33,7 +33,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '33';
+const BUILD = '34';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -490,7 +490,7 @@ function syncComboContext() {
   const key = triads.comboKey() || (boss ? 'boss' : settings.noteMode === 'path' ? `path:${path.current}` : 'custom');
   if (key === comboCtx) return;
   comboCtx = key;
-  chain = null; triads.dropClimb();
+  chain = null;
   combo.setBest(key === 'boss' ? {} : key.startsWith('triad:') ? triads.bests() : key === 'custom' ? customBest.get() : path.bests(path.current));
   clearComboFx();
   renderCombo();
@@ -1310,7 +1310,7 @@ const TICKER = {
   note: ['Press Start or Space and allow the mic', 'Play the note shown, on the string shown', 'Path: clear each level’s boss round to unlock the next', 'Custom: pick your own notes and strings', 'Stuck? H shows where it is, N skips', 'Turn on Say + play the note to find it by ear, R plays it again', 'Your fretboard, over time shows which notes need work'],
   intervals: ['Play the root, then the interval above it', 'Practise one interval, or let it pick at random', 'H shows a tip first, then where both notes are', 'N skips to the next one'],
   arpeggios: ['Play the chord one note per string, from the low string up', 'Pick a chord type, or let it pick at random', 'Each note counts as soon as you hit it', 'H shows a tip, then where the next note is', 'N skips to the next chord'],
-  triads: ['Play the 3 notes of the triad low to high, on the strings shown', 'Any of the three shapes counts', 'Path: find every shape, then beat the boss round', 'Shapes shows all three and how far apart they sit', 'H shows a tip, then where the next note is', 'N skips to the next triad'],
+  triads: ['Play the chord in all three shapes, in any order', 'Each shape: start on the thickest string shown, then go up', 'Path: answer fast and clean to unlock the boss round', 'Shapes shows all three and how far apart they sit', 'H shows a tip, then where the next note is', 'N skips to the next triad'],
 };
 
 function setTicker(mode) {

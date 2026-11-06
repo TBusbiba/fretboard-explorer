@@ -786,8 +786,8 @@ input[type="range"]::-moz-range-thumb {
 
 
 /* ================= one screen: header, tabs, level chips, prompt strip, controls under the board (Practice only) ================= */
-.p-one .top { padding: 6px 20px; }
-.p-one .stage { padding: 8px 20px 14px; gap: 6px; }
+.p-one .top { padding: 4px 20px; }
+.p-one .stage { padding: 4px 20px 14px; gap: 3px; }
 .p-one .picker { margin: 0; justify-content: flex-start; gap: 8px; }
 .p-one .picker .chip, .p-one .picker--mode .chip { min-height: 32px; padding: 0 10px; }
 .p-one .picker--custom { gap: 6px 22px; }
@@ -805,7 +805,7 @@ input[type="range"]::-moz-range-thumb {
 
 /* level chips */
 .p-one .path { position: relative; display: flex; flex-direction: column; gap: 8px; }
-.path__row { display: flex; align-items: center; gap: 6px; overflow-x: auto; padding: 0 4px 5px 0; scrollbar-width: thin; }
+.path__row { display: flex; align-items: center; gap: 6px; overflow-x: auto; padding: 0 4px 3px 0; scrollbar-width: thin; }
 .path__map { display: flex; gap: 6px; list-style: none; margin: 0; padding: 0; flex: none; }
 .path__map li { flex: none; }
 .path__tile {
@@ -869,6 +869,7 @@ input[type="range"]::-moz-range-thumb {
 .p-one .prompt__note { margin: 0; font: 700 88px/1 var(--nb-sans); letter-spacing: -0.03em; min-width: 0; }
 .p-one .prompt__note.is-long { font-size: clamp(32px, 4.4vw, 56px); line-height: 1.05; margin: 0; }
 .p-one .prompt.has-shapes .prompt__note.is-long { font-size: clamp(32px, 4.4vw, 56px); }
+@media (min-width: 561px) { .p-one .prompt__note.is-long { white-space: nowrap; } .p-one .prompt__left { max-width: 60%; } }
 .p-one .prompt__mid { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 4px; }
 .p-one .prompt__status { min-height: 0; font: 700 clamp(17px, 1.9vw, 24px)/1.2 var(--nb-sans); }
 .p-one .prompt__status.is-chain { align-self: flex-start; font-size: 16px; padding: 3px 12px 4px; }
@@ -962,7 +963,7 @@ input[type="range"]::-moz-range-thumb {
 .p-one .ring__label { font-size: 11px; }
 
 /* below the fold */
-.p-one .nb-ticker { margin-top: 18px; }
+.p-one .nb-ticker { margin: 0; font-size: 13px; padding: 3px 0; border-width: 2px 0; }
 .p-one .stats { margin-top: 8px; gap: 14px; }
 .p-one .heat { margin-top: 12px; }
 
@@ -1007,13 +1008,22 @@ input[type="range"]::-moz-range-thumb {
 
 /* ================= Triads ================= */
 .btn[hidden] { display: none; }
-.p-one .prompt.is-away { display: none; }
-#triad-path .tdots { display: inline-flex; gap: 3px; }
-#triad-path .tdots:empty { display: none; }
-#triad-path .tdots i { width: 9px; height: 9px; border: 2px solid var(--nb-ink); border-radius: 50%; background: var(--nb-card); }
-#triad-path .tdots i.is-on { background: var(--nb-salmon); }
+.chip[hidden] { display: none; }
+.chip#shapes-toggle.is-on { background: var(--nb-cyan); }
+.path__row #shapes-toggle { margin-left: auto; }
+.path__row #shapes-toggle + .path__tipbtn { margin-left: 0; }
 
-/* Show shapes: the big panel that takes the prompt strip's place */
+/* shape dots (filled as shapes are found) and the 3 step dots of the shape in play */
+.boss-pips { display: flex; align-items: center; gap: 14px; }
+.boss-pips:empty { display: none; }
+.boss-pips .sdots, .boss-pips .pips { display: inline-flex; align-items: center; gap: 5px; }
+.boss-pips .sdots i { width: 16px; height: 16px; border: 2.5px solid var(--nb-ink); border-radius: 50%; background: var(--nb-card); }
+.boss-pips .sdots i.is-found { background: var(--nb-salmon); }
+.boss-pips .pips i { width: 9px; height: 9px; border: 2px solid var(--nb-ink); border-radius: 50%; background: var(--nb-card); }
+.boss-pips .pips i.is-done { background: var(--nb-green); }
+.boss-pips .pips i.is-now { background: var(--nb-yellow); }
+
+/* Show shapes: the big panel, full width right below the controls row */
 .shapesbig {
   display: flex; flex-direction: column; min-width: 0;
   background: var(--nb-card); border: var(--nb-border); border-radius: var(--nb-radius); box-shadow: 6px 6px 0 var(--nb-ink);
@@ -1030,6 +1040,9 @@ input[type="range"]::-moz-range-thumb {
 .tri-fig { margin: 0; flex: 0 1 272px; min-width: 220px; display: flex; flex-direction: column; align-items: stretch; }
 .tri-fig figcaption { font: 500 13px/1.1 var(--nb-sans); white-space: nowrap; }
 .tri-fig figcaption b { font-weight: 700; }
+.tri-check { display: none; font-weight: 700; color: var(--nb-ink); background: var(--nb-green); border: 2px solid var(--nb-ink); border-radius: 50%; padding: 0 4px; margin-left: 4px; }
+.tri-fig.is-found .tri-check { display: inline-block; }
+.tri-fig.is-found .tri-svg { outline: 3px solid var(--nb-green); outline-offset: 2px; border-radius: 4px; }
 .tri-svg { display: block; width: 100%; height: auto; }
 .tri-arrow { flex: none; display: flex; flex-direction: column; align-items: center; gap: 0; font: 700 14px/1.15 var(--nb-sans); text-align: center; }
 .tri-arrow span { font-size: 26px; line-height: 1; }

@@ -124,6 +124,7 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
     session.hintAnchor = session.startedAt;
     session.held = false;
     session.hintStage = 0;
+    session.shapeHinted = false;
     session.wrongSeen = new Set();
     session.hadWrong = false;
     session.state = 'listening';
@@ -134,6 +135,7 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
   function showHint() {
     if (session.state !== 'listening' || session.hintStage >= session.hintStages) return;
     session.hintStage += 1;
+    session.shapeHinted = true;
     session.hintAnchor = now();
     emit('hint', { target: session.target, stage: session.hintStage, stages: session.hintStages, step: session.step });
   }
@@ -179,43 +181,56 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
   /** MIDI pitches that would be accepted right now (empty when no question is open). */
   session.acceptedMidis = () => {
     if (session.state !== 'listening' || !session.note) return [];
-    if (session.matcher) return [...new Set(session.matcher.candidates.map(v => v.notes[session.step].midi))];
+    if (session.matcher) return session.matcher.expected();
     return [session.note.midi, ...acceptedNow().valid];
   };
 
-  // Triads with host-picked voicings: any voicing still matching the notes so far counts.
+  // Triads with host-picked voicings: the chord in every shape, each shape low to high from the
+  // thickest string. The clock, first try and hint count per shape (session.startedAt restarts).
   function triadDetected(midi) {
     const r = session.matcher.feed(midi);
+    if (r.status === 'dup') { emit('dup', { shape: r.shape }); return; }
     if (r.status === 'wrong') {
       if (session.wrongSeen.has(midi)) return;
       session.wrongSeen.add(midi);
       session.hadWrong = true;
       stats.wrong += 1;
-      const near = session.matcher.candidates.map(v => v.notes[session.step].midi)
+      const near = session.matcher.expected()
         .reduce((a, b) => (Math.abs(b - midi) < Math.abs(a - midi) ? b : a));
       const diff = midi - near;
       emit('wrong', { midi, name: midiToNoteName(midi), fret: -1, octaveOff: diff % 12 === 0 ? Math.round(diff / 12) : 0 });
       return;
     }
-    session.steps = voicingSteps(session.matcher.candidates[0]);
     if (r.status === 'step') {
+      session.steps = voicingSteps(r.voicing);
       session.step = r.step;
       session.note = session.steps[r.step];
       session.wrongSeen = new Set();
       session.hintStage = Math.min(session.hintStage, 1);
       session.hintAnchor = now();
-      emit('step', { step: r.step, total: 3, note: session.note });
+      emit('step', { step: r.step, total: 3, note: session.note, voicing: r.voicing });
       return;
     }
-    const ms = Math.max(1, session.held ? 0 : now() - session.startedAt);
-    const firstTry = !session.hadWrong;
+    const t = now();
+    const ms = Math.max(1, session.held ? 0 : t - session.startedAt);
+    const firstTry = !session.hadWrong, hinted = session.hintStage > 0 || session.shapeHinted;
     stats.total += 1;
     if (firstTry) stats.firstTry += 1;
     stats.times.push(ms);
+    const info = { target: session.target, voicing: r.voicing, shape: r.shape, found: r.found, total: r.total, voicings: session.matcher.found, ms, firstTry, hinted };
+    session.shapeHinted = false; session.hadWrong = false; session.wrongSeen = new Set();
+    if (r.status === 'shape') {
+      session.step = 0;
+      session.steps = voicingSteps(session.matcher.candidates[0]);
+      session.note = session.steps[0];
+      session.startedAt = t; session.hintAnchor = t; session.hintStage = 0;
+      emit('shape', info);
+      return;
+    }
     session.state = 'resolved';
-    session.resolvedAt = now();
-    session.played = { voicing: r.voicing };
-    emit('correct', { target: session.target, played: session.played, ms, firstTry, hinted: session.hintStage > 0 });
+    session.resolvedAt = t;
+    session.played = { voicing: r.voicing, voicings: session.matcher.found };
+    emit('correct', { ...info, played: session.played });
   }
 
   session.noteDetected = (midi) => {

@@ -43,24 +43,56 @@ export function voicingsFor(rootPc, quality, groupId, range = FULL_RANGE) {
   return out.sort((a, b) => a.lowestFret - b.lowestFret || a.shape - b.shape);
 }
 
+/** All the shapes of a chord for one question: frets 0-12, reaching up to fret 14 when the chord has fewer than 3 shapes below. */
+export function questionVoicings(rootPc, quality, groupId, to = FULL_RANGE.to) {
+  for (let hi = to; ; hi++) {
+    const vs = voicingsFor(rootPc, quality, groupId, { from: FULL_RANGE.from, to: hi });
+    if (new Set(vs.map(v => v.shape)).size >= 3 || hi >= to + 2) return vs;
+  }
+}
+
 /**
- * Matches the 3 played notes against a set of voicings. The first note narrows the candidates,
- * each later note must continue one of them (exact MIDI). A wrong note changes nothing.
+ * Matches a whole question: the chord in every shape of `voicings`, each played low to high from
+ * the thickest string of the group, in any order. A first note must be the lowest note of a
+ * voicing whose shape is still open; it fixes the voicing, later notes must continue it (exact
+ * MIDI). A wrong note changes nothing; a first note of a shape already done is `dup`.
  */
 export function createTriadMatcher(voicings) {
+  const shapes = [...new Set(voicings.map(v => v.shape))];
   let candidates = [...voicings], step = 0;
+  const done = new Map();   // shape -> the voicing played
+  const open = () => voicings.filter(v => !done.has(v.shape));
   return {
     get step() { return step; },
     get candidates() { return candidates; },
-    /** @returns {{status:'step'|'done'|'wrong', step:number, voicing?:object}} */
+    get found() { return [...done.values()]; },
+    get total() { return shapes.length; },
+    /** The pitches that would be accepted next. */
+    expected() { return [...new Set(candidates.map(v => v.notes[step].midi))]; },
+    /**
+     * @returns {{status:'step'|'shape'|'done'|'dup'|'wrong', step:number, voicing?:object, shape?:number, found?:number, total?:number}}
+     * `step`: note n of a shape taken; `shape`: a shape finished, more to go; `done`: the last shape finished.
+     */
     feed(midi) {
-      if (step >= 3) return { status: 'done', step, voicing: candidates[0] };
+      if (done.size >= shapes.length) return { status: 'done', step: 3, found: done.size, total: shapes.length };
+      if (step === 0) {
+        const hit = voicings.filter(v => v.notes[0].midi === midi);
+        if (!hit.length) return { status: 'wrong', step };
+        const fresh = hit.filter(v => !done.has(v.shape));
+        if (!fresh.length) return { status: 'dup', step, shape: hit[0].shape };
+        candidates = fresh; step = 1;
+        return { status: 'step', step, voicing: fresh[0] };
+      }
       const next = candidates.filter(v => v.notes[step].midi === midi);
       if (!next.length) return { status: 'wrong', step };
       candidates = next; step += 1;
-      return step === 3 ? { status: 'done', step, voicing: candidates[0] } : { status: 'step', step };
+      if (step < 3) return { status: 'step', step, voicing: next[0] };
+      const v = next[0];
+      done.set(v.shape, v);
+      step = 0; candidates = open();
+      return { status: done.size >= shapes.length ? 'done' : 'shape', step: 3, voicing: v, shape: v.shape, found: done.size, total: shapes.length };
     },
-    reset() { candidates = [...voicings]; step = 0; },
+    reset() { done.clear(); candidates = [...voicings]; step = 0; },
   };
 }
 

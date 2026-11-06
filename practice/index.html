@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="33">
+<html lang="en" data-build="34">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -23,6 +23,8 @@
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="6" r="2" fill="var(--nb-card)"/><circle cx="15" cy="12" r="2" fill="var(--nb-card)"/><circle cx="7" cy="18" r="2" fill="var(--nb-card)"/></svg>
     </button>
   </header>
+
+  <div class="nb-ticker"><div class="nb-ticker__track" id="ticker"><span>Press Start or Space and allow the mic ★ Play the note shown, on the string shown ★ Stuck? H shows where it is, N skips ★ Turn on Say + play the note to find it by ear, R plays it again ★ Your fretboard, over time shows which notes need work ★ </span><span aria-hidden="true">Press Start or Space and allow the mic ★ Play the note shown, on the string shown ★ Stuck? H shows where it is, N skips ★ Turn on Say + play the note to find it by ear, R plays it again ★ Your fretboard, over time shows which notes need work ★ </span></div></div>
 
   <main class="stage" id="stage">
     <div class="bossline" id="boss-strip" hidden aria-hidden="true">
@@ -90,6 +92,7 @@
       <div class="path__row">
         <ol class="path__map" id="triad-map"></ol>
         <button type="button" class="chip chip--boss" id="triad-boss-btn" disabled>Boss</button>
+        <button type="button" class="chip" id="shapes-toggle" aria-pressed="false" hidden title="Show the three shapes of this chord and how far apart they sit">Shapes ▾</button>
         <button type="button" class="chip path__tipbtn" id="triad-tip-btn" aria-controls="triad-tip-card" aria-expanded="false" title="Show the tip for this level">Tip</button>
       </div>
       <div class="path__pop" id="triad-pop" hidden>
@@ -153,15 +156,6 @@
       <div class="combo__bar" id="combo-bar" hidden aria-hidden="true"><i id="combo-fill"></i></div>
     </section>
 
-    <section class="shapesbig" id="shapes-big" aria-label="Triad shapes" hidden>
-      <div class="shapesbig__head">
-        <strong id="shapes-title">Triad shapes</strong>
-        <small>Movable: slide any shape to any root. R = root.</small>
-        <button type="button" class="btn btn--ghost btn--small" id="shapes-close">Close ✕</button>
-      </div>
-      <div class="shapesbig__body" id="shapes-body"></div>
-    </section>
-
     <section class="board">
       <div class="board__scroll" id="board-scroll">
         <svg class="fretboard" id="fretboard"></svg>
@@ -178,7 +172,6 @@
       </div>
 
       <div class="controls__center">
-        <button type="button" class="btn btn--ghost" id="shapes-toggle" aria-pressed="false" hidden title="Show the three shapes of this chord and how far apart they sit">Shapes ▾</button>
         <button class="btn btn--ghost" id="hint-btn" disabled>Hint <kbd>H</kbd></button>
         <button class="btn btn--primary" id="start-btn">Start <kbd>Space</kbd></button>
         <button class="btn btn--ghost" id="skip-btn" disabled>Skip <kbd>N</kbd></button>
@@ -200,7 +193,14 @@
       </div>
     </section>
 
-    <div class="nb-ticker"><div class="nb-ticker__track" id="ticker"><span>Press Start or Space and allow the mic ★ Play the note shown, on the string shown ★ Stuck? H shows where it is, N skips ★ Turn on Say + play the note to find it by ear, R plays it again ★ Your fretboard, over time shows which notes need work ★ </span><span aria-hidden="true">Press Start or Space and allow the mic ★ Play the note shown, on the string shown ★ Stuck? H shows where it is, N skips ★ Turn on Say + play the note to find it by ear, R plays it again ★ Your fretboard, over time shows which notes need work ★ </span></div></div>
+    <section class="shapesbig" id="shapes-big" aria-label="Triad shapes" hidden>
+      <div class="shapesbig__head">
+        <strong id="shapes-title">Triad shapes</strong>
+        <small>Movable: slide any shape to any root. R = root.</small>
+        <button type="button" class="btn btn--ghost btn--small" id="shapes-close">Close ✕</button>
+      </div>
+      <div class="shapesbig__body" id="shapes-body"></div>
+    </section>
 
     <section class="stats" id="stats">
       <div class="stat"><span class="stat__value" id="stat-count">0</span><span class="stat__label">notes</span></div>
