@@ -45,15 +45,15 @@ test('level 1: all E and A spots; last third is shuffled rapid fire', () => {
   assert.ok(phase(f, 'new').length > 0);
 });
 
-test('countdown: none in phase 1, then 4 / 3 / 2 s by thirds of the rapid phase', () => {
+test('countdown: none in phase 1, then 6 / 5 / 4 s by thirds of the rapid phase', () => {
   const f = createBossFight(lvl(6), range, { rng: rngSeed() });
   const limits = [];
   while (f.current()) { limits.push(f.timeLimitMs()); f.answer(midiOf(f.current()), 500); }
   const nNew = phase(f, 'new').length, rapid = limits.slice(nNew);
   assert.ok(limits.slice(0, nNew).every(l => l === null));
-  assert.equal(rapid[0], 4000);
-  assert.equal(rapid[Math.floor(rapid.length / 2)], 3000);
-  assert.equal(rapid[rapid.length - 1], 2000);
+  assert.equal(rapid[0], 6000);
+  assert.equal(rapid[Math.floor(rapid.length / 2)], 5000);
+  assert.equal(rapid[rapid.length - 1], 4000);
   assert.ok(rapid.every((l, i) => i === 0 || l <= rapid[i - 1]));
 });
 

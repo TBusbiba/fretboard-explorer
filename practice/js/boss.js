@@ -12,7 +12,7 @@ export const HIT_DAMAGE = 100;
 export const FAST_MS = 1000;   // full damage at or under this
 export const SLOW_MS = 4000;   // half damage at or over this
 export const RAPID_CAP = 24;   // most spots in the rapid phase
-export const COUNTDOWN_MS = [4000, 3000, 2000]; // per third of the rapid phase
+export const COUNTDOWN_MS = [6000, 5000, 4000]; // per third of the rapid phase
 
 /** Damage for an answer taking `ms`: full <=1 s, half >=4 s, linear between. */
 export function damageFor(ms) {

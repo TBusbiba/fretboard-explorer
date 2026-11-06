@@ -226,12 +226,13 @@ test('boss stars: 3 = avg <= 2 s and no mistakes, 2 = avg <= 3 s and <= 2 mistak
 test('store: the boss round opens on the 20th good answer and stays open', () => {
   const path = createPath(memoryStorage());
   const spots = requiredSpots(L1, FULL).map(k => { const [pc, string] = k.split(':').map(Number); return { string, fret: fretsFor(pc, string, FULL)[0] }; });
-  let opened = 0;
-  for (let i = 0; i < 20; i++) {
+  let opened = 0, openings = 0;
+  for (let i = 0; i < 25; i++) {
     const { string, fret } = spots[i % spots.length];
-    if (path.record(1, { string, fret, firstTry: true, ms: 2000 }, FULL).bossUnlocked) opened = i + 1;
+    if (path.record(1, { string, fret, firstTry: true, ms: 2000 }, FULL).bossUnlocked) { opened = i + 1; openings++; }
   }
   assert.equal(opened, 20);
+  assert.equal(openings, 1);
   assert.equal(path.progress(1, FULL).bossUnlocked, true);
   for (let i = 0; i < 20; i++) path.record(1, { string: 5, fret: 0, firstTry: false, ms: 9000 }, FULL);
   assert.equal(path.progress(1, FULL).unlocked, false);   // the window is now bad ...

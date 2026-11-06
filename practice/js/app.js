@@ -913,7 +913,11 @@ function onNoteCorrect(p) {
   } else if (settings.noteMode === 'path') {
     const at = p.played || p.target;
     const r = path.record(path.current, { string: at.string, fret: at.fret, firstTry: p.firstTry && !p.hinted, ms: p.ms }, fretRange());
-    if (r.bossUnlocked) { extra = 'Boss round unlocked!'; popTile(path.current); hud.confetti(); }
+    if (r.bossUnlocked) {
+      extra = 'Boss round unlocked!'; popTile(path.current); hud.confetti();
+      const lvlId = path.current;
+      setTimeout(() => { if (session.state !== 'idle' && !(boss && boss.state === 'running') && path.current === lvlId) startBoss(); }, 900);
+    }
   }
   renderPath();
   return extra;
