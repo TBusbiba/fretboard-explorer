@@ -1114,3 +1114,14 @@ body[data-mode="scales"] .prompt__status[hidden] { display: none; }
   .sc-bar { height: 8px; }
 }
 #scales-drill { align-items: center; }
+
+/* ---------- Triads feedback: shape complete (green) and wrong note (red) ---------- */
+.p-one .prompt.is-hit, .prompt.is-hit { background: var(--nb-green); }
+.p-one .prompt.is-miss, .prompt.is-miss { background: var(--nb-rose); }
+.fb-note.is-pop { animation: none; }
+.boss-pips .sdots i.is-new { background: var(--nb-green); }
+@media (prefers-reduced-motion: no-preference) {
+  .fb-note.is-pop { --pop: 1.45; animation: nb-pop-heat 340ms var(--ease); }
+  .boss-pips .sdots i.is-new { animation: nb-pop-heat 340ms var(--ease); --pop: 1.5; }
+  .prompt.is-miss.is-shaking { animation: nb-shake 200ms linear; }
+}

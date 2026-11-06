@@ -34,7 +34,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '35';
+const BUILD = '36';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -1055,7 +1055,7 @@ const triads = createTriadsUI({
   getSettings: () => settings,
   commit: (patch) => commit(patch),
   announce: (...a) => announce(...a),
-  playCue: () => playCue(),
+  playCue: () => playCue(), buzz: () => sound.buzz(),
   voiceOpts: () => voiceOpts(),
   setPrompt: (...a) => setPrompt(...a), setStatus: (...a) => setStatus(...a), setTip: (t) => setTip(t),
   scrollBoardTo: (f) => scrollBoardTo(f), updateStats: () => updateStats(), renderHeatPanel: () => renderHeatPanel(),

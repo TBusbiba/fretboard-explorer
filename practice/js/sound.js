@@ -60,6 +60,23 @@ export function createSound({ onPlaying = () => {} } = {}) {
       }
     },
 
+    /**
+     * A very short, quiet low blip for a wrong note. Deliberately outside the playback gate: the
+     * mic keeps listening, and the pitch (below a guitar's range) is not heard as a note.
+     */
+    async buzz({ ms = 100, freq = 62, volume = 0.07 } = {}) {
+      try {
+        const c = await context();
+        const t = c.currentTime, end = t + ms / 1000;
+        const osc = c.createOscillator(), gain = c.createGain();
+        osc.type = 'square'; osc.frequency.value = freq;
+        gain.gain.setValueAtTime(volume, t);
+        gain.gain.linearRampToValueAtTime(0, end);
+        osc.connect(gain).connect(c.destination);
+        osc.start(t); osc.stop(end + 0.01);
+      } catch { /* no audio: the flash still shows */ }
+    },
+
     get playing() { return playing > 0; },
   };
 }

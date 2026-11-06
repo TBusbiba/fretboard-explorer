@@ -142,3 +142,32 @@ test('store: survives corrupt storage', () => {
   assert.equal(q.current, 1);
   assert.equal(q.isDone(1), true);
 });
+
+test('regression: 20 quick first-try shapes open the L1 boss, a pass opens L2 (survives a reload)', () => {
+  const st = memoryStorage();
+  const s = createTriadPathStore(st);
+  assert.equal(s.isUnlocked(2), false);
+  for (let i = 0; i < 19; i++) assert.equal(s.record(1, { firstTry: true, ms: 2500 }).bossUnlocked, false);
+  assert.equal(s.progress(1).bossUnlocked, false);
+  assert.equal(s.record(1, { firstTry: true, ms: 2500 }).bossUnlocked, true);
+  const again = createTriadPathStore(st);
+  assert.equal(again.progress(1).bossUnlocked, true);
+  assert.equal(again.isUnlocked(2), false);
+  const boss = createTriadBoss(TRIAD_LEVELS[0]);
+  while (boss.state === 'running') { for (let i = 0; i < boss.current.shapes; i++) boss.shape(3000); boss.chordDone(); }
+  assert.equal(boss.state, 'passed');
+  const r = again.completeBoss(1, boss.avgMs, boss.mistakes);
+  assert.equal(r.next, 2);
+  assert.equal(again.isUnlocked(2), true);
+  assert.equal(again.current, 2);
+  assert.equal(createTriadPathStore(st).isUnlocked(2), true);
+});
+
+test('regression: one hinted/slow shape per question (a clock that includes the prompt) misses the 75% bar; clean shapes pass', () => {
+  const s = createTriadPathStore(memoryStorage());
+  for (let i = 0; i < 20; i++) s.record(1, { firstTry: i % 3 !== 0, ms: 3000 });
+  const p = s.progress(1);
+  assert.equal(p.met.firstTry, false);
+  assert.equal(p.bossUnlocked, false);
+  assert.equal(p.met.count, true);
+});

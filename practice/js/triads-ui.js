@@ -20,6 +20,9 @@ const chordName = (c) => `${NOTE_NAMES[c.rootPc ?? c.root]} ${c.quality}`;
 const shortChord = (c) => `${NOTE_NAMES[c.root]}${c.quality === 'minor' ? 'm' : ''}`;
 const qualityLabel = (q) => (q === 'major' ? 'Major' : 'Minor');
 const BOSS_INTRO_MS = 1800;
+const CLOCK_HOLD_CAP_MS = 9000;   // never freeze a shape's clock longer than this while the prompt and cue play
+const HIT_MS = 450, MISS_MS = 220;
+const SHOUTS = ['Nice!', 'Great!', 'Good!'];
 const stringLabel = (group) => STRINGS[stringGroupById(group).strings[0]].label;
 const runClock = (ms) => { const t = Math.floor(ms / 100) / 10, m = Math.floor(t / 60); return `${m}:${(t - m * 60).toFixed(1).padStart(4, '0')}`; };
 const clock = (ms) => { const t = Math.round(ms / 100) / 10, m = Math.floor(t / 60); return m ? `${m}:${(t - m * 60).toFixed(1).padStart(4, '0')}` : `${t.toFixed(1)} s`; };
@@ -64,6 +67,8 @@ export function createTriadsUI(ctx) {
   let introTimer = 0;
   let shapesKey = '';
   let shapesWasOpen = false;
+  let shoutAt = 0;          // rotates the shape-complete shout
+  let fxTimer = 0;
 
   const settings = () => ctx.getSettings();
   const active = () => settings().mode === 'triads';
@@ -107,22 +112,37 @@ export function createTriadsUI(ctx) {
   const foundShapes = () => (session.matcher && session.state !== 'idle' ? session.matcher.found : []);
 
   /** Shape dots (one per shape of the question, filled as found) then the 3 step dots of the shape in play. */
-  function renderDots(steps = 0) {
+  function renderDots(steps = 0, fresh = 0) {
     const total = session.matcher && session.state !== 'idle' ? session.matcher.total : 3;
     const got = new Set(foundShapes().map(v => v.shape));
-    const shapes = Array.from({ length: total }, (_, i) => `<i class="sh${got.has(i + 1) ? ' is-found' : ''}" title="Shape ${i + 1}"></i>`).join('');
+    const shapes = Array.from({ length: total }, (_, i) => `<i class="sh${got.has(i + 1) ? ' is-found' : ''}${fresh === i + 1 ? ' is-new' : ''}" title="Shape ${i + 1}"></i>`).join('');
     const pips = [0, 1, 2].map(i => `<i class="${i < steps ? 'is-done' : i === steps ? 'is-now' : ''}"></i>`).join('');
     ui.bossPips.innerHTML = `<span class="sdots" role="img" aria-label="${got.size} of ${total} shapes found">${shapes}</span><span class="pips">${pips}</span>`;
   }
 
   /** The board: every shape found so far, plus the notes of the shape in play. */
-  function paintBoard() {
+  function paintBoard(pop = null) {
     fretboard.clearNotes();
-    for (const v of foundShapes()) for (const n of v.notes) fretboard.showNote(n.string, n.fret, 'correct', DEGREE_LABELS[n.degree], true);
+    for (const v of foundShapes()) {
+      for (const n of v.notes) {
+        const g = fretboard.showNote(n.string, n.fret, 'correct', DEGREE_LABELS[n.degree], true);
+        if (pop === v && g && g.firstChild) g.firstChild.classList.add('is-pop');
+      }
+    }
     for (let i = 0; i < session.step; i++) {
       const n = session.steps[i];
       fretboard.showNote(n.string, n.fret, 'correct', DEGREE_LABELS[n.degree] || n.name, true);
     }
+  }
+
+  /** A short strip flash: 'hit' (green) or 'miss' (red + a small shake, skipped under reduced motion by the CSS). */
+  function flashStrip(kind) {
+    const c = ui.prompt.classList;
+    c.remove('is-hit', 'is-miss', 'is-shaking'); void ui.prompt.offsetWidth;
+    c.add(kind === 'hit' ? 'is-hit' : 'is-miss');
+    if (kind === 'miss') c.add('is-shaking');
+    clearTimeout(fxTimer);
+    fxTimer = setTimeout(() => c.remove('is-hit', 'is-miss', 'is-shaking'), kind === 'hit' ? HIT_MS : MISS_MS);
   }
 
   function showIntro(kicker, big, start, ms, chain) {
@@ -164,7 +184,13 @@ export function createTriadsUI(ctx) {
       text = `${first ? 'Boss round! ' : ''}${said} Find every shape!`;
     }
     if (notice) { ctx.setStatus(notice.text, notice.tone); notice = null; } else ctx.setStatus(status);
-    ctx.announce(text, null, { speak: settings().voice, holdClock: true }).then(() => (t.kind === 'boss' ? null : ctx.playCue()));
+    if (t.kind === 'boss') { ctx.announce(text, null, { speak: settings().voice, holdClock: true }); return; }
+    // The shape's clock and hint countdown start only once the prompt and the cue are over, so the
+    // first shape of a question is not charged for them (that kept first-try below the unlock bar).
+    session.holdClock();
+    const free = () => { if (session.target === t && session.held) session.restartClock(); };
+    const cap = setTimeout(free, CLOCK_HOLD_CAP_MS);
+    ctx.announce(text, null, { speak: settings().voice }).then(() => ctx.playCue()).catch(() => {}).finally(() => { clearTimeout(cap); free(); });
   }
 
   function onStep(p) {
@@ -207,9 +233,12 @@ export function createTriadsUI(ctx) {
 
   function onShape(p) {
     const extra = recordShape(p);
-    paintBoard();
-    renderDots(0);
+    const v = p.voicing;
+    paintBoard(v);
+    renderDots(0, p.shape);
     markShapesFound();
+    flashStrip('hit');
+    if (settings().voice && settings().speakFeedback) ctx.voice.speak(SHOUTS[shoutAt++ % SHOUTS.length], { ...ctx.voiceOpts(), clipsOnly: true });
     renderBossStrip();
     ctx.setStatus(`Shape ${p.shape} ✓ ${(p.ms / 1000).toFixed(1)} s · ${p.total - p.found} to go${extra ? ` · ${extra}` : ''}`, 'ok');
     ctx.updateStats();
@@ -220,9 +249,10 @@ export function createTriadsUI(ctx) {
   function onCorrect(p) {
     const t = p.target;
     let extra = recordShape(p);
-    paintBoard();
+    paintBoard(p.voicing);
     ui.noteName.dataset.state = 'correct';
-    renderDots(3);
+    renderDots(3, p.shape);
+    flashStrip('hit');
     markShapesFound();
     if (t.kind === 'boss' && boss && boss.chordDone() === 'passed') finishBoss();
     ctx.setStatus(`All ${p.total} shapes ✓ · last ${(p.ms / 1000).toFixed(1)} s${extra ? ` · ${extra}` : ''}`, 'ok');
@@ -232,18 +262,13 @@ export function createTriadsUI(ctx) {
     renderAll();
   }
 
-  function onWrong(p) {
+  function onWrong() {
     if (ctx.comboActive()) ctx.comboMiss();
-    ui.noteName.dataset.state = 'wrong';
-    ctx.later(() => { if (session.state === 'listening') ui.noteName.dataset.state = 'listening'; }, 600);
-    const lab = stringLabel(session.target.group);
-    let text = p.octaveOff ? `That's ${p.name}, but an octave too ${p.octaveOff > 0 ? 'high' : 'low'}` : `That was ${p.name}`;
-    if (session.step === 0) text += ` — start on the ${lab} string`;
-    const spoken = p.octaveOff ? `octave too ${p.octaveOff > 0 ? 'high' : 'low'}` : `that was ${spokenName(p.name)}`;
+    ctx.buzz();
+    flashStrip('miss');
     const inBoss = !!(boss && boss.state === 'running');
     if (inBoss) { boss.wrong(); renderBossStrip(); }
-    ctx.setStatus(inBoss ? `${text} · ${boss.mistakes} mistake${boss.mistakes > 1 ? 's' : ''}` : text, 'bad');
-    if (settings().voice && settings().speakFeedback) ctx.voice.speak(spoken, ctx.voiceOpts());
+    ctx.setStatus(inBoss ? `Not that one · ${boss.mistakes} mistake${boss.mistakes > 1 ? 's' : ''}` : 'Not that one', 'bad');
     ctx.updateStats();
   }
 
@@ -257,7 +282,7 @@ export function createTriadsUI(ctx) {
       case 'dup': onDup(p); return true;
       case 'hint': onHint(p); return true;
       case 'correct': onCorrect(p); return true;
-      case 'wrong': onWrong(p); return true;
+      case 'wrong': onWrong(); return true;
       default: return false;
     }
   }
@@ -372,16 +397,20 @@ export function createTriadsUI(ctx) {
     });
     tiles[lvl.id - 1].title = `Level ${lvl.id} · ${lvl.title}: ${pr.answered}/${WINDOW} answered, ${pr.firstTryPct == null ? '—' : `${pr.firstTryPct}%`} first try, ${pr.avgMs == null ? '—' : `${(pr.avgMs / 1000).toFixed(1)} s`} avg`;
     el.popTitle.textContent = `Level ${lvl.id} · ${lvl.title}`;
+    const missing = [];
+    if (!pr.met.count) missing.push(`${WINDOW - pr.answered} more shape${WINDOW - pr.answered === 1 ? '' : 's'}`);
+    if (pr.answered && !pr.met.firstTry) missing.push(`first try ${pr.firstTryPct}%, needs ${Math.round(FIRST_TRY_MIN * 100)}%`);
+    if (pr.avgMs != null && !pr.met.time) missing.push(`average ${(pr.avgMs / 1000).toFixed(1)} s, needs ${AVG_MS_MAX / 1000} s or less`);
     el.popGoal.textContent = pr.bossUnlocked ? 'Boss round open: play all three shapes of each of the level\'s new chords.'
-      : `Unlock the boss: last ${WINDOW} shapes ${Math.round(FIRST_TRY_MIN * 100)}%+ first try, ${AVG_MS_MAX / 1000} s or less per shape on average.`;
+      : `Unlock the boss: last ${WINDOW} shapes, ${Math.round(FIRST_TRY_MIN * 100)}%+ first try (no wrong note, no hint), ${AVG_MS_MAX / 1000} s or less per shape on average.${missing.length ? ` Still missing: ${missing.join('; ')}.` : ''}`;
     const box = (label, value, goal, met) => `<div class="pstat${met ? ' is-met' : ''}"><span class="pstat__label">${label}</span><span class="pstat__value">${value}${met ? ' ✓' : ''}</span><span class="pstat__goal">${goal}</span></div>`;
     el.popStats.innerHTML = box('Shapes', `${pr.answered}/${WINDOW}`, 'last 20', pr.met.count)
       + box('First try', pr.firstTryPct == null ? '—' : `${pr.firstTryPct}%`, `${Math.round(FIRST_TRY_MIN * 100)}% or more`, pr.met.firstTry)
       + box('Avg per shape', pr.avgMs == null ? '—' : `${(pr.avgMs / 1000).toFixed(1)} s`, `${AVG_MS_MAX / 1000} s or less`, pr.met.time);
     el.bossBtn.disabled = !pr.bossUnlocked || running;
     el.bossBtn.classList.toggle('is-ready', pr.bossUnlocked && !running);
-    el.bossBtn.innerHTML = running ? `Boss ${boss.shapesDone}/${boss.total}` : `${pr.bossUnlocked ? '★' : LOCK_SVG} ${pr.done ? 'Boss again' : 'Boss'}`;
-    el.bossBtn.title = pr.bossUnlocked ? 'Start the boss round for this level' : 'Unlock the boss: see the level progress';
+    el.bossBtn.innerHTML = running ? `Boss ${boss.shapesDone}/${boss.total}` : `${pr.bossUnlocked ? '★' : LOCK_SVG} ${pr.done ? 'Boss again' : pr.bossUnlocked ? 'Boss' : `Boss ${Math.min(pr.answered, WINDOW)}/${WINDOW}`}`;
+    el.bossBtn.title = pr.bossUnlocked ? 'Start the boss round for this level' : `Unlock the boss: ${pr.answered}/${WINDOW} shapes, ${pr.firstTryPct == null ? '—' : `${pr.firstTryPct}%`} first try, ${pr.avgMs == null ? '—' : `${(pr.avgMs / 1000).toFixed(1)} s`} avg per shape`;
     el.popBoss.textContent = running ? 'Wrong notes count against your stars. Skipping ends it.'
       : pr.bossUnlocked ? `${pr.done ? `Best ${stars(pr.stars)} · ` : ''}★ pass · ★★ avg ${STAR2_MS / 1000} s per shape, 2 mistakes max · ★★★ avg ${STAR3_MS / 1000} s, none` : '';
     renderTip();
@@ -515,15 +544,15 @@ export function createTriadsUI(ctx) {
   // ---------- idle strip, mode switching, rendering from settings ----------
 
   function idleSubject() {
-    if (isPath()) { const l = level(), c = l.added[0] || l.pool[0]; return { group: l.group, name: chordName({ rootPc: c.root, quality: c.quality }) }; }
-    const s = settings(); return { group: s.triadGroups[0], name: `${NOTE_NAMES[0]} ${s.triadQualities[0]}` };
+    if (isPath()) return { group: level().group };
+    return { group: settings().triadGroups[0] };
   }
 
   function renderIdle() {
     if (!active() || session.state !== 'idle') return;
     const s = idleSubject();
     fretboard.focusStrings(stringGroupById(s.group).strings);
-    ctx.setPrompt(`Strings ${digits(s.group, '·')}`, s.name, 'idle');
+    ctx.setPrompt(`Strings ${digits(s.group, '·')}`, 'Triads', 'standby');
     renderDots(0);
     ctx.setStatus('Press Start, then play all 3 shapes of the chord, each low to high');
   }

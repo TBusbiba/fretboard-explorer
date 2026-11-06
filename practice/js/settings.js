@@ -28,7 +28,8 @@ export const DEFAULTS = Object.freeze({
   scaleRoot: 9,           // scales, Drill: root pitch class (9 = A)
   scaleBox: 1,            // scales, Drill: box / position 1-5
   showShapes: false,      // triads: the big Show-shapes panel in place of the prompt strip
-  playNotes: true,        // intervals, arpeggios, triads: play the question's notes after naming it; off = only speak it
+  playNotes: false,       // intervals, arpeggios, triads: play the question's notes after naming it; off (default) = only speak it
+  playNotesOffDone: true, // internal: the one-time switch of saved settings to playNotes off has run
 
   hintDelayMs: 5000,      // null = never
   pauseMs: 900,           // pause after a correct answer before the next target
@@ -62,6 +63,8 @@ const NATURALS = [0, 2, 4, 5, 7, 9, 11];
 const ALL_NOTES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 
 export function migrate(saved) {
+  // Play the notes became opt-in: switch everyone's saved choice off once; they can turn it back on.
+  if (!saved.playNotesOffDone) { saved.playNotes = false; saved.playNotesOffDone = true; }
   for (const [key, oldDefaults] of Object.entries(RELAXED)) {
     if (oldDefaults.includes(saved[key])) delete saved[key];
   }
