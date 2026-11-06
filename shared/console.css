@@ -41,6 +41,18 @@
   --nb-blue: #5aa9ff;
   --nb-rose: #ff5c7a;
 
+  /* charcoal fretboard (Explorer, Practice, Chords) */
+  --nb-board: #17181b;
+  --nb-board-stage: #26272d;
+  --nb-board-fret: #8f8f99;
+  --nb-board-string: #d9d9de;
+  --nb-board-nut: #d9d9de;
+  --nb-board-empty: #2b2c31;
+  --nb-board-empty-stroke: #8a8a92;
+  --nb-board-num: #cfcfd6;
+  --nb-board-dot: #ffd400;
+  --nb-board-hi: rgba(61, 224, 255, .18);
+
   /* feedback (text-safe on paper) */
   --nb-ok: #1a7a3a;
   --nb-bad: #c42a1b;
