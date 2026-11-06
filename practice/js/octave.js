@@ -48,12 +48,9 @@ export function subOctaveRatio(buf, sampleRate, hz) {
  * and the signal has real energy at the lower octave, return `expectedHz`;
  * otherwise return `hz`.
  */
-export function correctTowardExpected(buf, sampleRate, hz, expectedHz, { ratio = 0.2 } = {}) {
+export function correctTowardExpected(buf, sampleRate, hz, expectedHz, { ratio = 0.08 } = {}) {
   if (!expectedHz || Math.abs(1200 * Math.log2(hz / (2 * expectedHz))) > 50) return hz;
-  const atF = goertzel(buf, sampleRate, hz);
-  if (atF === 0) return hz;
-  const half = hz / 2;
-  return goertzel(buf, sampleRate, half) > ratio * atF || goertzel(buf, sampleRate, half * 1.5) > ratio * atF ? expectedHz : hz;
+  return subOctaveRatio(buf, sampleRate, hz) > ratio ? expectedHz : hz;
 }
 
 /** Normalized autocorrelation of `buf` at a (fractional) lag in samples. */
