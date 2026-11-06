@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="31">
+<html lang="en" data-build="32">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -27,15 +27,10 @@
   <main class="stage" id="stage">
     <div class="bossline" id="boss-strip" hidden aria-hidden="true">
       <span class="bossline__title" id="boss-title">★ Boss</span>
-      <div class="bossline__notes" id="boss-notes"></div>
-      <div class="bossline__time">
-        <span class="pacel">★★★ 2s</span>
-        <div class="bp" id="boss-pace" title="Pace per spot: 3 stars at 2 s average, 2 stars at 3 s">
-          <div class="bp__bar"><i id="boss-pace-fill"></i><u style="left:50%"></u><u style="left:75%"></u></div>
-        </div>
-        <span class="pacel">★★ 3s</span>
-        <b class="bt" id="boss-time" aria-label="Boss round time">0:00.0</b>
-      </div>
+      <div class="bhp" id="boss-hp" role="img" aria-label="Boss health"><span class="bhp__name">BOSS</span><div class="bhp__bar"><i id="boss-hp-fill"></i></div></div>
+      <div class="bhearts" id="boss-hearts" role="img" aria-label="Hearts"></div>
+      <div class="bcd" id="boss-cd" hidden title="Time left for this spot"><div class="bcd__bar"><i id="boss-cd-fill"></i></div><b id="boss-cd-val">4.0</b></div>
+      <b class="bt" id="boss-time" aria-label="Boss round time">0:00.0</b>
     </div>
     <div class="modebar">
     <div class="mode segmented" role="radiogroup" aria-label="Practice mode">
@@ -101,7 +96,6 @@
         <div class="prompt__mid">
           <div class="prompt__status" id="status">Pick a string, play the note it names, and the mic will confirm it.</div>
           <div class="prompt__tip" id="tip" hidden></div>
-          <div class="boss-pips" id="boss-pips"></div>
         </div>
       </div>
       <div class="prompt__right">

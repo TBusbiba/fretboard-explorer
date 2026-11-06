@@ -34,6 +34,7 @@ add('Quick note chain round!', 'hype');
 for (const count of [3, 4, 5]) for (const note of NOTES) add(`${['Three', 'Four', 'Five'][count - 3]} ${note} notes!`, 'hype');
 for (const s of STRING_NAMES) add(`Start with the ${s} string!`, 'hype');
 add('Boss round!', 'hype');
+['Rapid fire!', 'Finish him!', 'The boss wins!', 'Boss defeated!'].forEach(t => add(t, 'hype'));
 for (const note of NOTES) { add(`Find every ${note}!`, 'hype'); add(`Next: every ${note}!`, 'hype'); }
 
 const slug = (t) => normalize(t).replace(/ /g, '-');
