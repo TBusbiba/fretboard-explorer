@@ -29,7 +29,7 @@ const clock = (ms) => { const t = Math.round(ms / 100) / 10, m = Math.floor(t / 
 /** Phrases the Triads screen speaks (recorded by tools/make-voice.mjs), for preloading. */
 export const TRIAD_CLIPS = [
   ...QUALITIES.flatMap(q => NOTE_NAMES.map(n => `${spokenName(n)} ${q}!`)),
-  ...STRING_GROUPS.map(g => `Strings ${digits(g.id, ' ')}!`), 'Find every shape!',
+  'Find every shape!',
 ];
 
 function levelTip(level) {
@@ -62,7 +62,6 @@ export function createTriadsUI(ctx) {
   let notice = null;        // {text, tone} shown instead of the usual status on the next question
   let bossFinale = null;
   let tipOpen = false;
-  let lastGroup = null;     // string group of the previous question: the voice names the strings only when they change
   let introTimer = 0;
   let shapesKey = '';
   let shapesWasOpen = false;
@@ -170,9 +169,7 @@ export function createTriadsUI(ctx) {
     ctx.setPrompt(`Start on the ${stringLabel(t.group)} string`, name, 'listening');
     renderDots(0);
     renderShapes();
-    const strings = lastGroup !== t.group ? ` Strings ${digits(t.group, ' ')}!` : '';
-    lastGroup = t.group;
-    let text = `${said}${strings}`, status = 'Play all 3 shapes, any order · each one low to high';
+    let text = said, status = 'Play all 3 shapes, any order · each one low to high';
     if (t.kind === 'boss') {
       const it = t.item;
       ui.foundVal.textContent = `0/${it.shapes}`;
@@ -293,7 +290,7 @@ export function createTriadsUI(ctx) {
 
   function stopped() {
     clearTimeout(introTimer);
-    boss = null; notice = null; lastGroup = null;
+    boss = null; notice = null;
     renderAll();
     renderIdle();
     if (bossFinale) { ctx.setStatus(`Level ${bossFinale.level} complete ${'★'.repeat(bossFinale.stars)}`, 'ok'); bossFinale = null; }
