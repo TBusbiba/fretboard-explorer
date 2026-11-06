@@ -418,3 +418,47 @@ body .settings-panel .border-b { border-color: var(--nb-ink) !important; border-
   font: 700 14px/1 var(--nb-sans); color: var(--nb-ink);
   border: 2.2px dashed var(--nb-ink); filter: drop-shadow(2px 2px 0 var(--nb-ink));
 }
+
+/* ---------- Charcoal board: dark neck on a graphite stage (matches Practice) ---------- */
+#fretboard > div {
+  background: var(--nb-board-stage); padding: 8px 10px 10px;
+  border: var(--nb-border); border-radius: var(--nb-radius); box-shadow: var(--nb-shadow);
+}
+#fretboard > div > .flex.pr-4 { padding-left: 0; padding-right: 16px; }
+#fretboard .fret-number { color: var(--nb-board-num) !important; font-weight: 500 !important; }
+#fretboard .fret-number.text-white { color: #fff !important; font-weight: 700 !important; }
+#fretboard .fret-number.text-primary { color: var(--nb-board-dot) !important; font-weight: 700 !important; }
+#fretboard .fret-number.selected-position { background: var(--nb-cyan) !important; color: var(--nb-ink) !important; box-shadow: inset 0 0 0 2.5px var(--nb-ink); }
+#fretboard .fret-number.clickable-fret:hover { background: var(--nb-yellow); color: var(--nb-ink) !important; }
+
+#fretboard-body {
+  background: var(--nb-board) !important;
+  border: 2px solid var(--nb-ink) !important;
+  border-radius: var(--nb-radius-sm) !important;
+  box-shadow: none !important;
+}
+.string-line { background: var(--nb-board-string); }
+#fretboard-body:has([data-string="0"]:hover) .grid-rows-6 > div:nth-child(1) .string-line,
+#fretboard-body:has([data-string="1"]:hover) .grid-rows-6 > div:nth-child(2) .string-line,
+#fretboard-body:has([data-string="2"]:hover) .grid-rows-6 > div:nth-child(3) .string-line,
+#fretboard-body:has([data-string="3"]:hover) .grid-rows-6 > div:nth-child(4) .string-line,
+#fretboard-body:has([data-string="4"]:hover) .grid-rows-6 > div:nth-child(5) .string-line,
+#fretboard-body:has([data-string="5"]:hover) .grid-rows-6 > div:nth-child(6) .string-line {
+  background: var(--nb-salmon); box-shadow: 0 0 0 1px var(--nb-board);
+}
+#frets-container > div:first-child { background: var(--nb-board) !important; border-right: 8px solid var(--nb-board-nut) !important; }
+.fret-cell, #frets-container > .fret-cell { border-right: 2px solid var(--nb-board-fret); }
+#frets-container > .fret-cell[data-fret="12"] { border-right: 4px solid var(--nb-board-fret); }
+#frets-container > .fret-cell:hover { background-color: var(--nb-board-hi); }
+.inlay-dot { background: var(--nb-board-dot); border: 2px solid var(--nb-board); }
+
+/* marks: ink ring stays (bright fills read against it), shadow becomes a dark drop on the dark neck */
+.note-circle { border-color: var(--nb-ink) !important; filter: drop-shadow(2px 2px 0 #000); }
+.note-circle:hover { filter: drop-shadow(3px 3px 0 #000); }
+.note-circle.root-note { filter: drop-shadow(3.5px 3.5px 0 #000); }
+.note-circle.root-note:hover { filter: drop-shadow(4.5px 4.5px 0 #000); }
+.note-circle:hover, .note-circle.root-note:hover { outline: 2px solid var(--nb-board-string); outline-offset: 1px; }
+#fretboard-body.caged-on .note-circle:not(.caged-note) { opacity: 0.5; }
+.caged-marker { border-color: var(--nb-board-string); filter: drop-shadow(2px 2px 0 #000); }
+#fretboard-body.free-on .note-slot:empty:hover::after,
+#fretboard-body.free-on .note-circle.free-empty:hover { border: 2.2px dashed var(--nb-board-string) !important; background: rgba(255, 212, 0, 0.3) !important; }
