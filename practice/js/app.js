@@ -130,7 +130,7 @@ function createDebugPanel() {
         : acc.some(m => m + 12 === d.midi) ? 'octave too high'
         : acc.some(m => m - 12 === d.midi) ? 'octave too low' : 'wrong';
       const t = new Date(d.time).toTimeString().slice(0, 8);
-      rows.push(`${t} ${d.rawHz.toFixed(1)}Hz ${midiToNoteName(frequencyToMidi(d.rawHz))} cl${d.clarity.toFixed(2)} r${d.ratio.toFixed(2)} exp ${[...new Set(acc)].map(midiToNoteName).join('/') || '-'} ${result}`);
+      rows.push(`${t} ${d.rawHz.toFixed(1)}Hz ${midiToNoteName(frequencyToMidi(d.rawHz))}→${midiToNoteName(d.midi)}${Math.floor(d.midi / 12) - 1} cl${d.clarity.toFixed(2)} r${d.ratio.toFixed(2)} exp ${[...new Set(acc)].map(midiToNoteName).join('/') || '-'} ${result}`);
       if (rows.length > 8) rows.shift();
       el.textContent = rows.join('\n');
     },

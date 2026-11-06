@@ -79,10 +79,11 @@ export function createPitchDetector({ getSettings, getExpected = () => null, get
       if (now - lastHitAt > STALE_HIT_MS) resetHold();
       return;
     }
-    let hz = correctOctave(buf, ctx.sampleRate, rawHz, { minHz: MIN_HZ });
     const expected = getExpected();
-    if (expected != null && frequencyToMidi(hz) === expected + 12 && hz < LOW_HZ && hasLowerOctave(buf, ctx.sampleRate, hz)) hz /= 2;
     const accepted = getAccepted ? getAccepted() : null;
+    const rawOk = !!accepted && accepted.includes(frequencyToMidi(rawHz));
+    let hz = rawOk ? rawHz : correctOctave(buf, ctx.sampleRate, rawHz, { minHz: MIN_HZ });
+    if (!rawOk && expected != null && frequencyToMidi(hz) === expected + 12 && hz < LOW_HZ && hasLowerOctave(buf, ctx.sampleRate, hz)) hz /= 2;
     let corrected = hz !== rawHz;
     if (accepted && accepted.length && !accepted.includes(frequencyToMidi(hz))) {
       const lower = accepted.find(m => m + 12 === frequencyToMidi(hz));
@@ -105,7 +106,7 @@ export function createPitchDetector({ getSettings, getExpected = () => null, get
       // Octave-up errors on low strings are transient: if the lower octave was
       // read at all while this note settled, that is the real note.
       let final = midi;
-      if (low && recent.filter(([m]) => m === midi - 12).length >= 2) final = midi - 12;
+      if (low && !(accepted && accepted.includes(midi)) && recent.filter(([m]) => m === midi - 12).length >= 2) final = midi - 12;
       if (reported === final) return;
       // A low string fades towards its octave-up partial; that is still the old note
       // ringing, unless the octave is exactly what the app is asking for next.
