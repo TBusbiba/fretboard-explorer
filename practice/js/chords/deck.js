@@ -69,14 +69,14 @@ export function cardsFor(deck, { natural = false } = {}) {
 // ---- Keys deck: diatonic chords of major keys, taught tier by tier ------------
 
 export const KEY_TIERS = { 1: ['C', 'G', 'F'], 2: ['D', 'A', 'B♭', 'E♭'], 3: ['E', 'B', 'A♭', 'D♭', 'F♯'] };
-export const DEGREE_TIERS = { 1: ['I', 'IV', 'V'], 2: ['ii', 'iii', 'vi'] };
+export const DEGREE_TIERS = { 1: ['IV', 'V'], 2: ['ii', 'iii', 'vi'] };
 export const UNLOCK_STEPS = [[1, 1], [1, 2], [2, 1], [2, 2], [3, 1], [3, 2]];
 export const UNLOCK_SHARE = 0.75;
 
 const tierOf = (tiers, v) => Number(Object.keys(tiers).find(t => tiers[t].includes(v)));
 
 let keysMemo = null;
-/** 144 cards: per key, a degree card (name the chord) and a numeral card (name the degree). */
+/** 120 cards: per key, a degree card (name the chord) and a numeral card (name the degree), for ii iii IV V vi (never the I). */
 export function keysCards() {
   if (keysMemo) return keysMemo;
   keysMemo = [];
@@ -84,10 +84,12 @@ export function keysCards() {
     const row = diatonicChords(keyName);
     const keyTier = tierOf(KEY_TIERS, keyName);
     for (const c of row) {
+      if (c.degree === 'I') continue;   // the tonic is the key itself: not asked
       const degTier = tierOf(DEGREE_TIERS, c.degree);
       keysMemo.push({ kind: 'degree', id: `K:${keyName}:${c.degree}`, keyName, degree: c.degree, answer: c, row, keyTier, degTier });
     }
     for (const c of row) {
+      if (c.degree === 'I') continue;   // the tonic is the key itself: not asked
       const degTier = tierOf(DEGREE_TIERS, c.degree);
       keysMemo.push({ kind: 'roman', id: `K:${keyName}:${c.name}`, keyName, degree: c.degree, chordName: c.name, row, keyTier, degTier });
     }

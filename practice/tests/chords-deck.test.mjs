@@ -86,10 +86,10 @@ test('prefs: Natural chords and Notes only start on; saved prefs migrate once, t
 const master = (ids) => Object.fromEntries(ids.map(id => [id, 3]));
 const idsOf = (pool) => pool.map(c => c.id);
 
-test('keys deck: 144 cards, two types, ids as specified', () => {
+test('keys deck: 120 cards, two types, ids as specified', () => {
   const all = keysCards();
-  assert.equal(all.length, 144);
-  assert.equal(new Set(all.map(c => c.id)).size, 144);
+  assert.equal(all.length, 120);
+  assert.equal(new Set(all.map(c => c.id)).size, 120);
   const d = all.find(c => c.id === 'K:C:V');
   assert.deepEqual([d.kind, d.answer.name, d.answer.pc, d.answer.quality], ['degree', 'G', 7, 'major']);
   const r = all.find(c => c.id === 'K:F:Dm');
@@ -97,36 +97,50 @@ test('keys deck: 144 cards, two types, ids as specified', () => {
   assert.deepEqual(r.row.map(c => c.name), ['F', 'Gm', 'Am', 'B♭', 'C', 'Dm']);
 });
 
+test('keys deck never asks the I, and stale I boxes are ignored', () => {
+  const ids = idsOf(keysCards());
+  assert.ok(!ids.includes('K:C:I') && !ids.includes('K:C:C') && !ids.includes('K:F:F'));
+  assert.deepEqual(keysCards().filter(c => c.keyName === 'C' && c.kind === 'degree').map(c => c.degree), ['ii', 'iii', 'IV', 'V', 'vi']);
+  assert.deepEqual(keysPool({}).map(c => c.degree).filter((d, i, a) => a.indexOf(d) === i).sort(), ['IV', 'V']);
+  const pool = idsOf(keysPool({}));
+  assert.equal(keysUnlock({ ...master(pool.slice(0, 8)), 'K:C:I': 4, 'K:G:G': 4 }).step, 0);
+});
+
 test('keys deck ignores the Natural toggle and falls through to nothing else', () => {
-  assert.equal(cardsFor('keys', { natural: true }).length, 144);
-  assert.equal(cardsFor('keys').length, 144);
-  assert.equal(DECKS.keys.length, 144);
+  assert.equal(cardsFor('keys', { natural: true }).length, 120);
+  assert.equal(cardsFor('keys').length, 120);
+  assert.equal(DECKS.keys.length, 120);
   assert.equal(cardsFor('bogus').length, 14);
 });
 
-test('keys pool per unlock state: 18 / 36 / 60 / 84 / 114 / 144', () => {
+test('keys pool per unlock state: 12 / 30 / 46 / 70 / 90 / 120', () => {
   const sizes = [];
   let boxes = {};
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 4; i++) {
     const pool = keysPool(boxes);
     sizes.push(pool.length);
     boxes = master(idsOf(pool));
   }
-  assert.deepEqual(sizes, [18, 36, 60, 84, 114, 144]);
+  // 53 of the 70 is 75 percent: opens the 90 pool, which is then left behind once 68 of its cards are mastered
+  const p70 = idsOf(keysPool(boxes));
+  assert.equal(keysPool(master(p70.slice(0, 52))).length, 70);
+  sizes.push(keysPool(master(p70.slice(0, 53))).length);
+  sizes.push(keysPool(master(idsOf(keysCards()))).length);
+  assert.deepEqual(sizes, [12, 30, 46, 70, 90, 120]);
   const first = keysPool({});
   assert.ok(first.every(c => c.keyTier === 1 && c.degTier === 1));
   assert.ok(idsOf(first).includes('K:G:IV') && idsOf(first).includes('K:G:C') && !idsOf(first).includes('K:C:ii'));
 });
 
-test('keys unlock needs 75 percent of the pool mastered (14 of 18)', () => {
+test('keys unlock needs 75 percent of the pool mastered (9 of 12)', () => {
   const ids = idsOf(keysPool({}));
-  assert.equal(keysUnlock(master(ids.slice(0, 13))).step, 0);
-  assert.equal(keysUnlock(master(ids.slice(0, 14))).step, 1);
+  assert.equal(keysUnlock(master(ids.slice(0, 8))).step, 0);
+  assert.equal(keysUnlock(master(ids.slice(0, 9))).step, 1);
 });
 
 test('keys: one miss does not re-lock a tier already entered, and a seen card opens it', () => {
   const ids = idsOf(keysPool({}));
-  const boxes = { ...master(ids.slice(0, 14)), 'K:C:ii': 0 };
+  const boxes = { ...master(ids.slice(0, 9)), 'K:C:ii': 0 };
   assert.equal(keysUnlock(boxes).step, 1);
   assert.equal(keysUnlock({ ...boxes, [ids[0]]: 0, [ids[1]]: 0, [ids[2]]: 0 }).step, 1);
   assert.equal(keysUnlock({ 'K:C:ii': 0 }).step, 1);
