@@ -38,6 +38,7 @@ let tapped = new Set();   // 'string:fret' spots already marked correct
 let streak = 0;
 let busy = false;         // an animation is resolving; ignore input
 let keysPick = { pc: null, name: null, quality: null, degree: null };   // Keys deck answer in progress
+let epoch = 0;            // bumped on every deck (re)start; a pending animation from an older epoch stops
 let introShown = false;   // the Keys intro runs once per page session
 
 const sound = createSound();
@@ -178,6 +179,7 @@ function renderSlots(popIndex = -1) {
 async function go() {
   if (step !== 'notes' || busy || filledCount() !== 3) return;
   busy = true;
+  const mine = epoch;
   renderKeypad();
   const names = picked.filter(Boolean);
   const result = checkNotes(card, names);
@@ -194,10 +196,12 @@ async function go() {
     burst(cardEl, card.quality === 'min' ? 'var(--cq-min)' : 'var(--accent)');
     // settle the slots into the textbook spelling and order
     await wait(650);
+    if (mine !== epoch) return;
     picked = [...card.notes];
     renderSlots();
     [...$('slots').children].forEach((s) => s.classList.add('is-ok'));
     await wait(500);
+    if (mine !== epoch) return;
     busy = false;
     if (prefs.notesOnly) nextCard();
     else setStep('key');
@@ -207,6 +211,7 @@ async function go() {
     say(`Not quite: ${wrong.join(', ')} ${wrong.length > 1 ? "aren't" : "isn't"} in ${card.name}.`, 'bad');
     shake(cardEl);
     await wait(900);
+    if (mine !== epoch) return;
     // keep the right ones, clear the wrong ones
     picked = picked.map((n) => (n && result.picks.find(p => p.name === n)?.ok ? n : null));
     while (picked.length && picked[picked.length - 1] === null) picked.pop();
@@ -336,6 +341,7 @@ $('keys-roman').addEventListener('click', (ev) => {
 async function checkKeys() {
   if (step !== 'notes' || busy || !card) return;
   busy = true;
+  const mine = epoch;
   const roman = card.kind === 'roman';
   const { correct } = checkKeysAnswer(card, roman ? { degree: keysPick.degree } : { pc: keysPick.pc, quality: keysPick.quality });
   if (correct) {
@@ -344,6 +350,7 @@ async function checkKeys() {
     glow(cardEl);
     burst(cardEl, 'var(--accent)');
     await wait(900);
+    if (mine !== epoch) return;
     busy = false;
     nextCard();
     return;
@@ -356,6 +363,7 @@ async function checkKeys() {
   showWhy(card);
   await wait(900);
   chip?.classList.remove('is-bad');
+  if (mine !== epoch) return;
   busy = false;
   resetKeysPick();
 }
@@ -427,6 +435,7 @@ $('keysig').addEventListener('click', async (ev) => {
   const b = ev.target.closest('[data-sig]');
   if (!b || step !== 'key' || busy) return;
   busy = true;
+  const mine = epoch;
   const sig = Number(b.dataset.sig);
   const right = $('keysig').querySelector(`[data-sig="${card.signature}"]`);
   const list = card.accidentals.length ? `: ${card.accidentals.join(' ')}` : '';
@@ -442,8 +451,10 @@ $('keysig').addEventListener('click', async (ev) => {
     say(`${card.keyName} has ${signatureLabel(card.signature).toLowerCase()}${list}.`, 'bad');
   }
   await wait(sig === card.signature ? 900 : 1700);
+  if (mine !== epoch) return;
   flip(true);
   await wait(450);
+  if (mine !== epoch) return;
   busy = false;
   setStep('fret');
 });
@@ -542,6 +553,8 @@ function renderSteps() {
 async function nextCard({ first = false } = {}) {
   if (busy) return;
   busy = true;
+  const mine = epoch;
+  if (!card) first = true;
   if (!first) {
     // score the card that's leaving
     prefs.boxes = promote(prefs.boxes, card.id, clean);
@@ -552,6 +565,7 @@ async function nextCard({ first = false } = {}) {
     cardEl.classList.remove('is-dealing');
     cardEl.classList.add('is-leaving');
     await wait(REDUCED ? 0 : 380);
+    if (mine !== epoch) return;
   }
   card = pickCard(activeCards(), prefs.boxes, card?.id);
   picked = [];
@@ -732,9 +746,13 @@ $('sound-toggle').addEventListener('click', () => { prefs.sound = !prefs.sound; 
 
 /** Deal the first card of the current deck (the Keys deck opens with its intro the first time). */
 function startDeck() {
+  epoch++;
   renderStats();
   card = null;
   busy = false;
+  step = 'notes';
+  for (const id of ['panel-key', 'panel-fret']) $(id).hidden = true;
+  $('panel-notes').hidden = false;
   syncNotesOnly();
   if (isKeys() && !keysSeen(prefs.boxes) && !introShown) showIntro();
   else nextCard({ first: true });
@@ -743,6 +761,8 @@ function startDeck() {
 function showIntro() {
   introShown = true;
   step = 'intro';
+  picked = [];
+  keysPick = { pc: null, name: null, quality: null, degree: null };
   flip(false, true);
   $('card-tag').textContent = 'Keys deck';
   $('card-name').className = 'card__name mk-key mk-key--ask';
