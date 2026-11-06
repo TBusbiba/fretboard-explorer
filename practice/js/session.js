@@ -18,6 +18,7 @@
 //   stopped {stats}
 //   error   {message}
 
+import { createTriadMatcher } from './triad-match.js';
 import {
   noteAt, pickTarget, pickIntervalTarget, pickArpeggioTarget, pickTriadTarget, fretForMidi, midiToNoteName,
   midiToOctave, STRINGS, intervalById, chordById, triadById,
@@ -31,7 +32,7 @@ export function validMidis(string, fret, range) {
 }
 
 // `pickNote` lets the host choose find-the-note targets itself (the path's boss round).
-export function createSession({ getSettings, now = () => performance.now(), rng = Math.random, onEvent, pickNote = pickTarget, getAcceptRange = () => null }) {
+export function createSession({ getSettings, now = () => performance.now(), rng = Math.random, onEvent, pickNote = pickTarget, getAcceptRange = () => null, pickTriad = null }) {
   const stats = {
     total: 0, firstTry: 0, wrong: 0, skipped: 0, times: [],
     get avgMs() {
@@ -49,6 +50,7 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
     rootNote: null,    // intervals / arpeggios: the root
     interval: null,    // intervals: the interval definition
     chord: null,       // arpeggios: the chord definition
+    matcher: null,     // triads (host-picked): matches the 3 notes against the target's voicings, any shape
     triad: null,       // triads: the triad definition
     hintAnchor: 0,     // time the next hint stage counts from
     stats,
@@ -62,6 +64,8 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
 
   function emit(type, payload = {}) { onEvent(type, payload); }
 
+  const voicingSteps = (v) => v.notes.map(n => ({ ...noteFor(n.midi), string: n.string, fret: n.fret, degree: n.degree }));
+
   function noteFor(midi) { return { name: midiToNoteName(midi), midi, octave: midiToOctave(midi) }; }
 
   function nextTarget() {
@@ -70,7 +74,7 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
     const previous = session.mode === mode ? session.target : null;
     const target = mode === 'intervals' ? pickIntervalTarget(settings, previous, rng)
       : mode === 'arpeggios' ? pickArpeggioTarget(settings, previous, rng)
-      : mode === 'triads' ? pickTriadTarget(settings, previous, rng)
+      : mode === 'triads' ? (pickTriad ? pickTriad(settings, previous, rng) : pickTriadTarget(settings, previous, rng))
       : pickNote(settings, previous, rng);
     if (!target) {
       session.state = 'idle';
@@ -88,8 +92,12 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
     session.mode = mode;
     session.target = target;
     session.step = 0;
-    session.rootNote = null; session.interval = null; session.chord = null; session.triad = null;
-    if (mode === 'intervals') {
+    session.rootNote = null; session.interval = null; session.chord = null; session.triad = null; session.matcher = null;
+    if (mode === 'triads' && pickTriad) {
+      session.matcher = createTriadMatcher(target.voicings);
+      session.steps = voicingSteps(target.voicings[0]);
+      session.hintStages = 2;
+    } else if (mode === 'intervals') {
       session.rootNote = noteAt(target.root.string, target.root.fret);
       session.interval = intervalById(target.interval);
       session.steps = [
@@ -169,10 +177,50 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
   }
 
   /** MIDI pitches that would be accepted right now (empty when no question is open). */
-  session.acceptedMidis = () => (session.state === 'listening' && session.note ? [session.note.midi, ...acceptedNow().valid] : []);
+  session.acceptedMidis = () => {
+    if (session.state !== 'listening' || !session.note) return [];
+    if (session.matcher) return [...new Set(session.matcher.candidates.map(v => v.notes[session.step].midi))];
+    return [session.note.midi, ...acceptedNow().valid];
+  };
+
+  // Triads with host-picked voicings: any voicing still matching the notes so far counts.
+  function triadDetected(midi) {
+    const r = session.matcher.feed(midi);
+    if (r.status === 'wrong') {
+      if (session.wrongSeen.has(midi)) return;
+      session.wrongSeen.add(midi);
+      session.hadWrong = true;
+      stats.wrong += 1;
+      const near = session.matcher.candidates.map(v => v.notes[session.step].midi)
+        .reduce((a, b) => (Math.abs(b - midi) < Math.abs(a - midi) ? b : a));
+      const diff = midi - near;
+      emit('wrong', { midi, name: midiToNoteName(midi), fret: -1, octaveOff: diff % 12 === 0 ? Math.round(diff / 12) : 0 });
+      return;
+    }
+    session.steps = voicingSteps(session.matcher.candidates[0]);
+    if (r.status === 'step') {
+      session.step = r.step;
+      session.note = session.steps[r.step];
+      session.wrongSeen = new Set();
+      session.hintStage = Math.min(session.hintStage, 1);
+      session.hintAnchor = now();
+      emit('step', { step: r.step, total: 3, note: session.note });
+      return;
+    }
+    const ms = Math.max(1, session.held ? 0 : now() - session.startedAt);
+    const firstTry = !session.hadWrong;
+    stats.total += 1;
+    if (firstTry) stats.firstTry += 1;
+    stats.times.push(ms);
+    session.state = 'resolved';
+    session.resolvedAt = now();
+    session.played = { voicing: r.voicing };
+    emit('correct', { target: session.target, played: session.played, ms, firstTry, hinted: session.hintStage > 0 });
+  }
 
   session.noteDetected = (midi) => {
     if (session.state !== 'listening') return;
+    if (session.matcher) { triadDetected(midi); return; }
     const { asked, valid } = acceptedNow();
     if (midi === session.note.midi || valid.includes(midi)) {
       session.played = asked ? { string: asked.string, fret: midi - STRINGS[asked.string].midi } : null;

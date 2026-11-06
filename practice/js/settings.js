@@ -20,9 +20,10 @@ export const DEFAULTS = Object.freeze({
   chordPick: 'random',
   triads: ['major', 'minor', 'dim', 'aug', 'dom7', 'min7'],
   triadPick: ['major', 'minor', 'dim', 'aug', 'dom7', 'min7'], // selected triad types; each question picks one at random
-  triadGroups: ['654', '543', '432', '321'],
-  triadInversion: 'random', // 'random' | 0 | 1 | 2 | 'cycle'
-  showShapes: false,      // triads mode: the movable triad-shape cheat sheet inside the prompt card
+  triadMode: 'path',      // triads: 'path' (the 11 levels) | 'custom' (pick qualities and string groups)
+  triadQualities: ['major', 'minor'], // triads, Custom: which qualities are asked
+  triadGroups: ['654', '543', '432', '321'], // triads, Custom: which string groups are asked
+  showShapes: false,      // triads: the big Show-shapes panel in place of the prompt strip
   playNotes: true,        // intervals, arpeggios, triads: play the question's notes after naming it; off = only speak it
 
   hintDelayMs: 5000,      // null = never
@@ -68,6 +69,14 @@ export function migrate(saved) {
   } else {
     saved.notes = ALL_NOTES.filter(n => saved.notes.includes(n));
   }
+  if (saved.triadMode !== 'path' && saved.triadMode !== 'custom') delete saved.triadMode;
+  const keep = (key, valid) => {
+    if (!Array.isArray(saved[key])) { delete saved[key]; return; }
+    const ok = valid.filter(v => saved[key].includes(v));
+    if (ok.length) saved[key] = ok; else delete saved[key];
+  };
+  keep('triadQualities', ['major', 'minor']);
+  keep('triadGroups', ['654', '543', '432', '321']);
   if (saved.noteMode !== 'path' && saved.noteMode !== 'custom') delete saved.noteMode;
   return saved;
 }

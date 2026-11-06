@@ -1,4 +1,4 @@
-import { STRINGS, FRET_COUNT, INTERVALS, CHORDS, TRIADS, STRING_GROUPS, INVERSIONS, DEGREE_LABELS, NOTE_NAMES, intervalById, chordById, triadById, selectedTriads, stringGroupById, spokenName, tipFor, noteAt, midiToNoteName, frequencyToMidi, pickTarget, pitchClass } from './notes.js';
+import { STRINGS, FRET_COUNT, INTERVALS, CHORDS, DEGREE_LABELS, NOTE_NAMES, intervalById, chordById, triadById, spokenName, tipFor, noteAt, midiToNoteName, frequencyToMidi, pickTarget, pitchClass } from './notes.js';
 import { createFretboard } from './fretboard.js';
 import { createPitchDetector } from './pitch.js';
 import { createVoice, CLIP_VOICE, usesClips } from './voice.js';
@@ -12,7 +12,7 @@ import { createBossFight, LIVES as BOSS_LIVES, COUNTDOWN_MS } from './boss.js';
 import { LEVELS, WINDOW, FIRST_TRY_MIN, AVG_MS_MAX, STAR2_MS, STAR3_MS, levelById, levelTitle, createPath, createSpotBag, levelRange, positionWeigher, bossFretLabel, stringPrompt, NAMES_FROM_LEVEL } from './path.js';
 import { landmarkHint } from './landmarks.js';
 import { levelTip } from './tips.js';
-import { shapeSvg } from './triad-shapes.js';
+import { createTriadsUI } from './triads-ui.js';
 import { loadSettings, saveSettings, resetSettings, DEFAULTS } from './settings.js';
 
 const $ = (id) => document.getElementById(id);
@@ -33,7 +33,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '32';
+const BUILD = '33';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -44,6 +44,7 @@ const RING_LEN = 113.1;
 const WRONG_MARKER_MS = 1200;
 
 let settings = loadSettings();
+if (['intervals', 'arpeggios'].includes(settings.mode)) settings = { ...settings, mode: 'note' };   // tabs not finished yet: greyed out
 
 // What the session actually drills: a single picked interval, or the random pool.
 function sessionSettings() {
@@ -54,7 +55,6 @@ function sessionSettings() {
     ...(isNoteMode() && settings.noteMode === 'path' ? { notes: path.currentLevel.notes, strings: [0, 1, 2, 3, 4, 5], weigh: weighPosition } : {}),
     intervals: pick && pick !== 'random' ? [pick] : settings.intervals,
     chords: cpick && cpick !== 'random' ? [cpick] : settings.chords,
-    triads: selectedTriads(settings.triadPick),
   };
 }
 
@@ -68,7 +68,7 @@ const isNoteMode = () => !['intervals', 'arpeggios', 'triads'].includes(settings
 const sayNames = () => (settings.noteMode === 'path' ? path.current >= NAMES_FROM_LEVEL : settings.sayStringNames);
 const fretRange = () => ({ from: settings.fretFrom, to: settings.fretTo });
 // The frets actually drilled: in the Path, the setting kept inside 0-12.
-const boardRange = () => (isNoteMode() && settings.noteMode === 'path' ? levelRange(path.currentLevel, fretRange()) : fretRange());
+const boardRange = () => (settings.mode === 'triads' ? { from: 0, to: 12 } : isNoteMode() && settings.noteMode === 'path' ? levelRange(path.currentLevel, fretRange()) : fretRange());
 function syncBoardRange() { const r = boardRange(); fretboard.setRange(r.from, r.to); }
 let weigher = null;   // rebuilt from the history after every answer
 function weighPosition(string, fret) { return (weigher ||= positionWeigher(history.positions()))(string, fret); }
@@ -174,6 +174,7 @@ const session = createSession({
     return boardRange();
   },
   onEvent: handleSessionEvent,
+  pickTriad: (opts, previous, rng) => triads.pick(opts, previous, rng),
 });
 
 // ---------- elements ----------
@@ -189,11 +190,11 @@ const ui = {
   noteModePicker: $('note-mode-picker'), path: $('path'), pathMap: $('path-map'), pathTitle: $('path-title'), pathGoal: $('path-goal'),
   pathStats: $('path-stats'), bossBtn: $('boss-btn'), bossNote: $('boss-note'),
   earPicker: $('ear-picker'), earToggle: $('ear-toggle'), earReplay: $('ear-replay'), namesToggle: $('names-toggle'),
-  shapesToggle: $('shapes-toggle'), prompt: $('prompt'), promptTools: $('prompt-tools'), cueToggle: $('cue-toggle'), cuePicker: $('cue-picker'), shapes: $('shapes'), shapesTabs: $('shapes-tabs'), shapesList: $('shapes-list'),
-  picker: $('interval-picker'), chordPicker: $('chord-picker'), triadPicker: $('triad-picker'), groupPicker: $('group-picker'), inversionPicker: $('inversion-picker'),
+  shapesToggle: $('shapes-toggle'), prompt: $('prompt'),
+  picker: $('interval-picker'), chordPicker: $('chord-picker'), triadPicker: $('triad-picker'), groupPicker: $('group-picker'),
   combo: $('combo'), comboBadge: $('combo-badge'), comboN: $('combo-n'), comboMult: $('combo-mult'), comboScore: $('combo-score'), comboGain: $('combo-gain'), comboBest: $('combo-best'),
   tipBtn: $('tip-btn'), tipCard: $('tip-card'), tipTag: $('tip-tag'), tipHead: $('tip-head'), tipLine: $('tip-line'), tipNote: $('tip-note'), tipFig: $('tip-fig'), tipSwipe: $('tip-swipe'), tipGot: $('tip-got'),
-  chainIntro: $('chain-intro'), chainKicker: $('chain-kicker'), bossStrip: $('boss-strip'), bossTime: $('boss-time'), bossHp: $('boss-hp'), bossHpFill: $('boss-hp-fill'), bossHearts: $('boss-hearts'), bossCd: $('boss-cd'), bossCdFill: $('boss-cd-fill'), bossCdVal: $('boss-cd-val'),
+  chainIntro: $('chain-intro'), chainKicker: $('chain-kicker'), bossStrip: $('boss-strip'), bossPips: $('boss-pips'), bossTime: $('boss-time'), bossHp: $('boss-hp'), bossHpFill: $('boss-hp-fill'), bossHearts: $('boss-hearts'), bossCd: $('boss-cd'), bossCdFill: $('boss-cd-fill'), bossCdVal: $('boss-cd-val'),
   bossEnd: $('boss-end'), bossEndKicker: $('boss-end-kicker'), bossEndStars: $('boss-end-stars'), bossEndStats: $('boss-end-stats'), bossEndNext: $('boss-end-next'), bossEndGo: $('boss-end-go'), chainBig: $('chain-big'), chainStart: $('chain-start'),
   comboBar: $('combo-bar'), comboFill: $('combo-fill'), comboShout: $('combo-shout'), comboFlag: $('combo-flag'),
   heatReset: $('heat-reset'), heatBody: $('heat-body'),
@@ -201,11 +202,9 @@ const ui = {
 
 // ---------- session events ----------
 let wrongTimers = [];
-let shapesType = null;   // triad type shown in the shapes cheat sheet
-let shapesNow = null;    // {triad, group} of the question being drilled, else null
-let lastTriadKey = null; // chord + strings of the previous triad target, to keep the voice short within a sequence
 
 function handleSessionEvent(type, p) {
+  if (triads.onEvent(type, p)) { syncButtons(); return; }   // Triads: practice/js/triads-ui.js
   switch (type) {
     case 'target': {
       wrongTimers.forEach(clearTimeout); wrongTimers = [];
@@ -233,25 +232,6 @@ function handleSessionEvent(type, p) {
         setStatus('Play the root first');
         announce(`${spokenName(rootNote.name)} ${chord.spoken}, from string ${STRINGS[root.string].number}`, null)
           .then(playCue);
-      } else if (p.mode === 'triads') {
-        const triad = session.triad, rootNote = session.rootNote, inv = INVERSIONS[p.target.inversion], group = stringGroupById(p.target.group);
-        const low = session.steps[0];
-        fretboard.highlightString(null);
-        scrollBoardTo(low.fret + 1);
-        shapesNow = { triad: p.target.triad, group: p.target.group };
-        shapesType = p.target.triad;
-        renderShapes();
-        setPrompt(`Triad · strings ${group.label} · ${inv.label}`, `${rootNote.name} ${triad.label}`, 'listening');
-        setStatus(`Play it low to high, starting on string ${STRINGS[low.string].number}`);
-        // Same chord on the same strings as last time (a Root → 1st → 2nd or Climb
-        // sequence): just name the inversion.
-        const key = `${p.target.group}|${p.target.triad}|${p.target.rootPc}`;
-        const continuing = key === lastTriadKey;
-        lastTriadKey = key;
-        const text = continuing
-          ? inv.label
-          : `${spokenName(rootNote.name)} ${triad.spoken}, ${inv.label}, strings ${group.strings.map(s => STRINGS[s].number).join(' ')}`;
-        announce(text, null).then(playCue);
       } else {
         fretboard.highlightString(p.target.string);
         scrollBoardTo(p.target.fret);
@@ -286,7 +266,7 @@ function handleSessionEvent(type, p) {
     }
     case 'step': {
       const done = session.steps[p.step - 1];
-      if (session.mode === 'arpeggios' || session.mode === 'triads') {
+      if (session.mode === 'arpeggios') {
         fretboard.showNote(done.string, done.fret, 'correct', DEGREE_LABELS[done.degree] || done.name);
         const next = session.note;
         setStatus(`${p.step} of ${p.total} ✓ — next: ${DEGREE_LABELS[next.degree] || next.name} (${next.name}) on string ${STRINGS[next.string].number}`, 'ok');
@@ -301,9 +281,9 @@ function handleSessionEvent(type, p) {
     case 'hint':
       if (comboActive()) comboMiss();
       if (chain && session.mode === 'note') chain.miss();
-      if (session.mode === 'arpeggios' || session.mode === 'triads') {
+      if (session.mode === 'arpeggios') {
         if (p.stage === 1) {
-          setTip(session.mode === 'triads' ? `${session.triad.tip} ${INVERSIONS[session.target.inversion].tip}` : session.chord.tip);
+          setTip(session.chord.tip);
         } else {
           // Only the note that is due now; the next one gets its own countdown.
           const n = session.steps[p.step];
@@ -335,9 +315,6 @@ function handleSessionEvent(type, p) {
       } else if (session.mode === 'arpeggios') {
         for (const n of session.steps) fretboard.showNote(n.string, n.fret, 'correct', DEGREE_LABELS[n.degree] || n.name);
         history.recordChord(p.target.chord, result);
-      } else if (session.mode === 'triads') {
-        for (const n of session.steps) fretboard.showNote(n.string, n.fret, 'correct', DEGREE_LABELS[n.degree] || n.name);
-        history.recordTriad(p.target.triad, result);
       } else {
         const at = p.played || p.target;
         fretboard.showNote(at.string, at.fret, 'correct', session.note.name);
@@ -389,14 +366,12 @@ function handleSessionEvent(type, p) {
       combo.reset(); clearComboFx(); chain = null; hideChainIntro();
       renderPath();
       promptToken++;
-      lastTriadKey = null;
-      shapesNow = null;
-      renderShapes();
       voice.cancel();
       fretboard.clearNotes();
       fretboard.highlightString(null);
       setPrompt('Stopped', '', 'idle');
       setStatus(`${p.stats.total} notes · press Start to go again`);
+      triads.stopped();
       if (bossFinale) { lightWholeBoard(bossFinale); setStatus(`Level ${bossFinale.level} complete ${'★'.repeat(bossFinale.stars)}`, 'ok'); bossFinale = null; }
       setTip('');
       setRing(0);
@@ -429,6 +404,7 @@ function warmClips() {
   clipsWarm = true;
   voice.preload(['Correct', 'Good', 'Octave too high', 'Octave too low', 'Nice!', 'Great!', 'On fire!', 'Unstoppable!', 'Legendary!', 'Chain complete!',
     'New best streak!', 'Quick note chain round!', 'Boss round!']);
+  triads.warm();
 }
 
 function setPrompt(stringText, noteText, state) {
@@ -495,10 +471,10 @@ ui.earReplay.addEventListener('click', hearAgain);
 $('say-names-toggle').addEventListener('click', () => commit({ sayStringNames: !settings.sayStringNames }));
 ui.namesToggle.addEventListener('click', () => commit({ showStringNames: !settings.showStringNames }));
 ui.shapesToggle.addEventListener('click', () => commit({ showShapes: !settings.showShapes }));
-ui.cueToggle.addEventListener('click', () => commit({ playNotes: !settings.playNotes }));
+$('play-notes').addEventListener('change', (e) => commit({ playNotes: e.target.checked }));
 
 // ---------- streak, combo and points (Find the note: Path and Custom, not boss rounds) ----------
-const comboActive = () => isNoteMode() && !boss;
+const comboActive = () => (isNoteMode() && !boss) || triads.comboOn();
 let comboCtx = null;
 let fxTimers = [];
 const fxLater = (fn, ms) => fxTimers.push(setTimeout(fn, ms));
@@ -511,18 +487,19 @@ function clearComboFx() {
 
 /** Switching level, Path/Custom or into a boss starts a fresh run against that context's bests. */
 function syncComboContext() {
-  const key = boss ? 'boss' : settings.noteMode === 'path' ? `path:${path.current}` : 'custom';
+  const key = triads.comboKey() || (boss ? 'boss' : settings.noteMode === 'path' ? `path:${path.current}` : 'custom');
   if (key === comboCtx) return;
   comboCtx = key;
-  chain = null;
-  combo.setBest(key === 'boss' ? {} : key === 'custom' ? customBest.get() : path.bests(path.current));
+  chain = null; triads.dropClimb();
+  combo.setBest(key === 'boss' ? {} : key.startsWith('triad:') ? triads.bests() : key === 'custom' ? customBest.get() : path.bests(path.current));
   clearComboFx();
   renderCombo();
 }
 
 function saveComboBests() {
   const b = { streak: combo.bestStreak, score: combo.bestScore };
-  if (settings.noteMode === 'path') path.saveBests(path.current, b); else customBest.save(b);
+  if (triads.active()) triads.saveBests(b);
+  else if (settings.noteMode === 'path') path.saveBests(path.current, b); else customBest.save(b);
 }
 
 function renderCombo() {
@@ -637,6 +614,7 @@ function showBossIntro(b, item) {
 let lastBossLives = BOSS_LIVES;
 /** The boss line: phase, boss HP, hearts, and (rapid fire only) the per-spot countdown. */
 function renderBossStrip() {
+  if (triads.active()) { triads.renderBossStrip(); return; }
   const on = !!(boss && boss.state === 'running');
   ui.bossStrip.hidden = !on;
   ui.stage.classList.toggle('is-focus', on);
@@ -644,6 +622,7 @@ function renderBossStrip() {
   ui.timeBlock.hidden = on;
   if (!on) { lastBossLives = BOSS_LIVES; return; }
   const c = boss.current();
+  ui.bossHp.hidden = false;
   ui.bossTitle.textContent = `★ Boss · L${boss.levelId} · ${c.phase === 'rapid' ? 'Rapid fire' : 'New notes'}`;
   ui.bossHpFill.style.transform = `scaleX(${boss.hp / boss.maxHp})`;
   ui.bossHp.setAttribute('aria-label', `Boss health ${Math.round(100 * boss.hp / boss.maxHp)} percent`);
@@ -669,9 +648,11 @@ const runClock = (ms) => { const t = Math.floor(ms / 100) / 10, m = Math.floor(t
 
 /** Boss clock (answer time only: paused on the intro cards and while the voice holds the question) and the rapid-fire countdown, which costs a heart at zero. */
 function updateBossTimer() {
-  if (!boss || boss.state !== 'running') return;
+  const b = boss || triads.boss;
+  if (!b || b.state !== 'running') return;
   const live = session.state === 'listening' && !session.held && ui.chainIntro.hidden ? performance.now() - session.startedAt : 0;
-  ui.bossTime.textContent = runClock(boss.totalMs + live);
+  ui.bossTime.textContent = runClock(b.totalMs + live);
+  if (b !== boss) return;   // Triads boss: clock only, no countdown
   const limit = boss.timeLimitMs();
   if (limit == null) return;
   ui.bossCdFill.style.transform = `scaleX(${Math.max(0, 1 - live / limit)})`;
@@ -925,7 +906,7 @@ function skipNow() {
     if (comboActive()) comboMiss();
     if (session.mode === 'intervals') history.recordInterval(session.target.interval, { skipped: true });
     else if (session.mode === 'arpeggios') history.recordChord(session.target.chord, { skipped: true });
-    else if (session.mode === 'triads') history.recordTriad(session.target.triad, { skipped: true });
+    else if (session.mode === 'triads') triads.onSkip();
     else {
       history.recordPosition(session.target, { skipped: true });
       weigher = null;
@@ -1062,6 +1043,28 @@ ui.heatReset.addEventListener('click', () => {
   syncButtons();
 });
 
+// ---------- triads (practice/js/triads-ui.js) ----------
+const triads = createTriadsUI({
+  $, ui, session, fretboard, history, pitch, combo, voice,
+  getSettings: () => settings,
+  commit: (patch) => commit(patch),
+  announce: (...a) => announce(...a),
+  playCue: () => playCue(),
+  voiceOpts: () => voiceOpts(),
+  setPrompt: (...a) => setPrompt(...a), setStatus: (...a) => setStatus(...a), setTip: (t) => setTip(t),
+  scrollBoardTo: (f) => scrollBoardTo(f), updateStats: () => updateStats(), renderHeatPanel: () => renderHeatPanel(),
+  comboActive: () => comboActive(), comboHit: (ms) => comboHit(ms), comboMiss: () => comboMiss(), renderCombo: () => renderCombo(),
+  saveComboBests: () => saveComboBests(), syncComboContext: () => syncComboContext(), flash: (...a) => flash(...a), queueShout: (t) => queueShout(t),
+  speakCorrect: () => speakCorrect(), toggleSession: () => toggleSession(),
+  hideChainIntro: () => hideChainIntro(), hideBossEnd: () => hideBossEnd(),
+  clearWrongTimers: () => { wrongTimers.forEach(clearTimeout); wrongTimers = []; },
+  later: (fn, ms) => wrongTimers.push(setTimeout(fn, ms)),
+});
+$('triad-path-reset').addEventListener('click', () => {
+  if (!confirm('Reset your Triads path? Every level goes back to locked except level 1.')) return;
+  triads.resetPath(); applySettingsToUI();
+});
+
 // ---------- controls ----------
 async function toggleSession() {
   if (session.state === 'idle') {
@@ -1080,7 +1083,7 @@ ui.hintBtn.addEventListener('click', () => { session.showHint(); syncButtons(); 
 
 // mode switcher
 document.querySelectorAll('input[name="mode"]').forEach((r) => r.addEventListener('change', () => {
-  boss = null; notice = null;
+  boss = null; notice = null; triads.cancelBoss();
   commit({ mode: r.value });
   if (session.state !== 'idle') session.skip(); // re-pick in the new mode right away
 }));
@@ -1151,42 +1154,6 @@ for (const opt of [{ id: 'random', label: 'Random' }, ...CHORDS.map(c => ({ id: 
     if (session.state !== 'idle' && session.mode === 'arpeggios') session.skip();
   });
   ui.chordPicker.appendChild(b);
-}
-
-for (const opt of TRIADS.map(t => ({ id: t.id, label: t.label }))) {
-  const b = document.createElement('button');
-  b.type = 'button'; b.className = 'chip'; b.dataset.id = opt.id; b.textContent = opt.label;
-  b.setAttribute('aria-pressed', 'false');
-  b.addEventListener('click', () => {
-    const on = new Set(selectedTriads(settings.triadPick));
-    on.has(opt.id) ? on.delete(opt.id) : on.add(opt.id);
-    if (on.size === 0) return; // keep at least one type
-    commit({ triadPick: TRIADS.map(t => t.id).filter(id => on.has(id)) });
-    if (session.state !== 'idle' && session.mode === 'triads') session.skip();
-  });
-  ui.triadPicker.appendChild(b);
-}
-for (const opt of [{ id: 'random', label: 'Any inversion' }, { id: 0, label: 'Root position' }, { id: 1, label: '1st inversion' }, { id: 2, label: '2nd inversion' }, { id: 'ordered', label: 'Root → 1st → 2nd' }, { id: 'cycle', label: 'Climb up the neck' }]) {
-  const b = document.createElement('button');
-  b.type = 'button'; b.className = 'chip'; b.dataset.id = String(opt.id); b.textContent = opt.label;
-  b.addEventListener('click', () => {
-    commit({ triadInversion: opt.id });
-    if (session.state !== 'idle' && session.mode === 'triads') session.skip();
-  });
-  ui.inversionPicker.appendChild(b);
-}
-for (const g of STRING_GROUPS) {
-  const b = document.createElement('button');
-  b.type = 'button'; b.className = 'chip'; b.dataset.id = g.id; b.textContent = `strings ${g.label}`;
-  b.setAttribute('aria-pressed', 'false');
-  b.addEventListener('click', () => {
-    const on = new Set(settings.triadGroups);
-    on.has(g.id) ? on.delete(g.id) : on.add(g.id);
-    if (on.size === 0) return; // keep at least one group
-    commit({ triadGroups: STRING_GROUPS.map(x => x.id).filter(id => on.has(id)) });
-    if (session.state !== 'idle' && session.mode === 'triads') session.skip();
-  });
-  ui.groupPicker.appendChild(b);
 }
 
 document.addEventListener('keydown', (e) => {
@@ -1343,7 +1310,7 @@ const TICKER = {
   note: ['Press Start or Space and allow the mic', 'Play the note shown, on the string shown', 'Path: clear each level’s boss round to unlock the next', 'Custom: pick your own notes and strings', 'Stuck? H shows where it is, N skips', 'Turn on Say + play the note to find it by ear, R plays it again', 'Your fretboard, over time shows which notes need work'],
   intervals: ['Play the root, then the interval above it', 'Practise one interval, or let it pick at random', 'H shows a tip first, then where both notes are', 'N skips to the next one'],
   arpeggios: ['Play the chord one note per string, from the low string up', 'Pick a chord type, or let it pick at random', 'Each note counts as soon as you hit it', 'H shows a tip, then where the next note is', 'N skips to the next chord'],
-  triads: ['Play the three notes of the triad on the string group shown', 'Choose the triad types, the inversion and which string groups to use', 'H shows a tip, then where the next note is', 'N skips to the next triad'],
+  triads: ['Play the 3 notes of the triad low to high, on the strings shown', 'Any of the three shapes counts', 'Path: find every shape, then beat the boss round', 'Shapes shows all three and how far apart they sit', 'H shows a tip, then where the next note is', 'N skips to the next triad'],
 };
 
 function setTicker(mode) {
@@ -1351,46 +1318,10 @@ function setTicker(mode) {
   document.querySelectorAll('#ticker > span').forEach((s) => { s.textContent = text; });
 }
 
-// ---------- triad shapes cheat sheet ----------
-// Movable shapes, degrees only: nothing here shows the current question's frets.
-function renderShapes() {
-  ui.promptTools.hidden = settings.mode !== 'triads';
-  const show = settings.mode === 'triads' && settings.showShapes;
-  ui.shapes.hidden = !show;
-  ui.prompt.classList.toggle('has-shapes', show);
-  if (!show) return;
-  const types = selectedTriads(settings.triadPick);
-  if (!types.includes(shapesType)) shapesType = types.includes(shapesNow && shapesNow.triad) ? shapesNow.triad : types[0];
-  const focused = ui.shapes.contains(document.activeElement) ? document.activeElement.dataset.id : null;
-  ui.shapesTabs.replaceChildren(...types.map((id) => {
-    const b = document.createElement('button');
-    b.type = 'button'; b.className = 'chip chip--small'; b.dataset.id = id; b.textContent = triadById(id).label;
-    b.setAttribute('aria-pressed', id === shapesType);
-    b.addEventListener('click', () => { shapesType = id; renderShapes(); });
-    return b;
-  }));
-  const on = new Set(settings.triadGroups);
-  ui.shapesList.innerHTML = STRING_GROUPS.filter((g) => on.has(g.id)).map((g) => {
-    const now = shapesNow && shapesNow.group === g.id;
-    return `<figure class="shapes__item${now ? ' is-now' : ''}">
-      <figcaption><span>Strings ${g.label}</span>${now ? '<b>Now</b>' : ''}</figcaption>${shapeSvg(shapesType, g.id)}</figure>`;
-  }).join('');
-  if (focused) ui.shapesTabs.querySelector(`[data-id="${focused}"]`)?.focus();
-}
-
 function applySettingsToUI() {
   const mode = ['intervals', 'arpeggios', 'triads'].includes(settings.mode) ? settings.mode : 'note';
   setTicker(mode);
-  ui.triadPicker.hidden = mode !== 'triads';
-  ui.triadPicker.querySelectorAll('.chip[data-id]').forEach((c) => { const on = selectedTriads(settings.triadPick).includes(c.dataset.id); c.classList.toggle('is-active', on); c.setAttribute('aria-pressed', on); });
-  ui.shapesToggle.setAttribute('aria-pressed', settings.showShapes);
-  ui.cuePicker.hidden = mode === 'note';
-  ui.cueToggle.setAttribute('aria-pressed', settings.playNotes);
-  renderShapes();
-  ui.inversionPicker.hidden = mode !== 'triads';
-  ui.inversionPicker.querySelectorAll('.chip').forEach((c) => c.classList.toggle('is-active', c.dataset.id === String(settings.triadInversion ?? 'random')));
-  ui.groupPicker.hidden = mode !== 'triads';
-  ui.groupPicker.querySelectorAll('.chip').forEach((c) => { const on = settings.triadGroups.includes(c.dataset.id); c.classList.toggle('is-active', on); c.setAttribute('aria-pressed', on); });
+  $('play-notes').checked = settings.playNotes;
   document.querySelector(`input[name="mode"][value="${mode}"]`).checked = true;
   ui.picker.hidden = mode !== 'intervals';
   ui.picker.querySelectorAll('.chip').forEach((c) => c.classList.toggle('is-active', c.dataset.id === (settings.intervalPick || 'random')));
@@ -1403,6 +1334,7 @@ function applySettingsToUI() {
   ui.noteModePicker.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', c.dataset.id === settings.noteMode));
   ui.customPicker.hidden = mode !== 'note' || settings.noteMode !== 'custom';
   renderPath();
+  triads.render();
   ui.customNotes.querySelectorAll('.chip[data-pc]').forEach((c) => c.setAttribute('aria-pressed', settings.notes.includes(+c.dataset.pc)));
   $('custom-accidentals').setAttribute('aria-pressed', hasAccidentals(settings.notes));
   ui.customStrings.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', settings.strings.includes(+c.dataset.index)));
@@ -1451,4 +1383,4 @@ updateStats();
 renderHeatPanel();
 
 // Expose for poking around in devtools.
-window.practice = { session, pitch, voice, sound, fretboard, history, path, startBoss, renderHeatPanel, get boss() { return boss; }, get settings() { return settings; }, DEFAULTS };
+window.practice = { triads, session, pitch, voice, sound, fretboard, history, path, startBoss, renderHeatPanel, get boss() { return boss; }, get settings() { return settings; }, DEFAULTS };

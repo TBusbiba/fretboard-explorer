@@ -4,7 +4,15 @@
 // store; `storage` is injectable for tests. Mirrors path.js (Find the note).
 
 import { NOTE_NAMES } from './notes.js';
-import { WINDOW, FIRST_TRY_MIN, AVG_MS_MAX, starsFor } from './path.js';
+import { WINDOW, FIRST_TRY_MIN, AVG_MS_MAX } from './path.js';
+
+export const STAR2_MS = 6000;      // boss average per 3-note answer for 2 stars (with <= STAR2_MISTAKES)
+export const STAR3_MS = 4000;      // ... and for 3 stars (with no mistakes)
+export const STAR2_MISTAKES = 2;
+/** 3 stars: average <= 4 s and no mistakes; 2 stars: <= 6 s and at most 2 mistakes; else 1. */
+export function starsFor(avgMs, mistakes = 0) {
+  return avgMs <= STAR3_MS && mistakes === 0 ? 3 : avgMs <= STAR2_MS && mistakes <= STAR2_MISTAKES ? 2 : 1;
+}
 import { createChainSchedule } from './chain.js';
 import { voicingsFor, QUALITIES, FULL_RANGE } from './triad-match.js';
 

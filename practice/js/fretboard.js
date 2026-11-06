@@ -119,6 +119,13 @@ export function createFretboard(svg) {
       glints.forEach((l, i) => l.classList.toggle('is-target', i === index));
     },
 
+    /** Emphasise these strings (indices) and fade the rest; null clears. */
+    focusStrings(indices) {
+      stringGroups.forEach((g, i) => g.classList.toggle('is-faded', !!indices && !indices.includes(i)));
+      stringLabels.forEach((l, i) => l.classList.toggle('is-faded', !!indices && !indices.includes(i)));
+      stringLines.forEach((l, i) => l.classList.toggle('is-focus', !!indices && indices.includes(i)));
+    },
+
     /** kind: 'hint' | 'correct' | 'wrong' | 'root'. Replaces any marker at that position. `still` skips the string pluck (re-lighting spots). */
     showNote(string, fret, kind, text, still = false) {
       api.hideNote(string, fret);
