@@ -1,6 +1,10 @@
 // Chord flashcards: the decks, theory-correct spelling, answer checking and a
 // small Leitner scheduler. Pure: no DOM.
 
+// keys.js imports spell/pitchClass from here; neither module calls the other's
+// exports while loading, so the cycle is safe.
+import { KEY_ORDER, DEGREES, diatonicChords } from '../keys.js';
+
 const LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
 const LETTER_PC = [0, 2, 4, 5, 7, 9, 11];
 export const ORDER_OF_SHARPS = ['F♯', 'C♯', 'G♯', 'D♯', 'A♯', 'E♯', 'B♯'];
@@ -53,11 +57,72 @@ function makeCard(root, quality, signature) {
 export const DECKS = {
   major: MAJOR_KEYS.map(([r, s]) => makeCard(r, 'maj', s)),
   minor: MINOR_KEYS.map(([r, s]) => makeCard(r, 'min', s)),
+  get keys() { return keysCards(); },
 };
 
 export function cardsFor(deck, { natural = false } = {}) {
+  if (deck === 'keys') return keysCards();
   const cards = deck === 'both' ? [...DECKS.major, ...DECKS.minor] : DECKS[deck] || DECKS.major;
   return natural ? cards.filter(c => c.root.length === 1) : cards;
+}
+
+// ---- Keys deck: diatonic chords of major keys, taught tier by tier ------------
+
+export const KEY_TIERS = { 1: ['C', 'G', 'F'], 2: ['D', 'A', 'B♭', 'E♭'], 3: ['E', 'B', 'A♭', 'D♭', 'F♯'] };
+export const DEGREE_TIERS = { 1: ['I', 'IV', 'V'], 2: ['ii', 'iii', 'vi'] };
+export const UNLOCK_STEPS = [[1, 1], [1, 2], [2, 1], [2, 2], [3, 1], [3, 2]];
+export const UNLOCK_SHARE = 0.75;
+
+const tierOf = (tiers, v) => Number(Object.keys(tiers).find(t => tiers[t].includes(v)));
+
+let keysMemo = null;
+/** 144 cards: per key, a degree card (name the chord) and a numeral card (name the degree). */
+export function keysCards() {
+  if (keysMemo) return keysMemo;
+  keysMemo = [];
+  for (const keyName of KEY_ORDER) {
+    const row = diatonicChords(keyName);
+    const keyTier = tierOf(KEY_TIERS, keyName);
+    for (const c of row) {
+      const degTier = tierOf(DEGREE_TIERS, c.degree);
+      keysMemo.push({ kind: 'degree', id: `K:${keyName}:${c.degree}`, keyName, degree: c.degree, answer: c, row, keyTier, degTier });
+    }
+    for (const c of row) {
+      const degTier = tierOf(DEGREE_TIERS, c.degree);
+      keysMemo.push({ kind: 'roman', id: `K:${keyName}:${c.name}`, keyName, degree: c.degree, chordName: c.name, row, keyTier, degTier });
+    }
+  }
+  return keysMemo;
+}
+
+const inStep = (c, i) => UNLOCK_STEPS.slice(0, i + 1).some(([k, d]) => c.keyTier <= k && c.degTier <= d);
+
+/** Which unlock step the learner is on, derived from the boxes alone. */
+export function keysUnlock(boxes = {}) {
+  const all = keysCards();
+  let step = 0;
+  while (step < UNLOCK_STEPS.length - 1) {
+    const pool = all.filter(c => inStep(c, step));
+    const mastered = pool.filter(c => (boxes[c.id] ?? 0) >= MASTERED_BOX).length;
+    const entered = all.some(c => inStep(c, step + 1) && !inStep(c, step) && c.id in boxes);
+    if (mastered >= UNLOCK_SHARE * pool.length || entered) step++;
+    else break;
+  }
+  const [keyTier, degTier] = UNLOCK_STEPS[step];
+  return { step, keyTier, degTier };
+}
+
+export function keysPool(boxes = {}) {
+  const { step } = keysUnlock(boxes);
+  return keysCards().filter(c => inStep(c, step));
+}
+
+export const keysSeen = (boxes = {}) => Object.keys(boxes).some(id => id.startsWith('K:'));
+
+/** degree card: answer = { pc, quality }; numeral card: answer = { degree }. */
+export function checkKeysAnswer(card, answer) {
+  if (card.kind === 'roman') return { correct: answer.degree === card.degree };
+  return { correct: answer.pc === card.answer.pc && answer.quality === card.answer.quality };
 }
 
 export function signatureLabel(sig) {

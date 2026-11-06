@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   DECKS, cardsFor, spell, pitchClass, checkNotes, noteForPitch, chordMidis,
   promote, pickCard, signatureLabel, loadPrefs,
+  keysCards, keysPool, keysUnlock, keysSeen, checkKeysAnswer,
 } from '../js/chords/deck.js';
 
 const card = (id) => cardsFor('both').find(c => c.id === id);
@@ -80,4 +81,69 @@ test('prefs: Natural chords and Notes only start on; saved prefs migrate once, t
   assert.deepEqual([old.deck, old.natural, old.notesOnly, old.defaultsV2], ['minor', true, true, true]);
   const later = loadPrefs({ ...old, natural: false });
   assert.deepEqual([later.natural, later.notesOnly], [false, true]);
+});
+
+const master = (ids) => Object.fromEntries(ids.map(id => [id, 3]));
+const idsOf = (pool) => pool.map(c => c.id);
+
+test('keys deck: 144 cards, two types, ids as specified', () => {
+  const all = keysCards();
+  assert.equal(all.length, 144);
+  assert.equal(new Set(all.map(c => c.id)).size, 144);
+  const d = all.find(c => c.id === 'K:C:V');
+  assert.deepEqual([d.kind, d.answer.name, d.answer.pc, d.answer.quality], ['degree', 'G', 7, 'major']);
+  const r = all.find(c => c.id === 'K:F:Dm');
+  assert.deepEqual([r.kind, r.degree, r.chordName], ['roman', 'vi', 'Dm']);
+  assert.deepEqual(r.row.map(c => c.name), ['F', 'Gm', 'Am', 'B♭', 'C', 'Dm']);
+});
+
+test('keys deck ignores the Natural toggle and falls through to nothing else', () => {
+  assert.equal(cardsFor('keys', { natural: true }).length, 144);
+  assert.equal(cardsFor('keys').length, 144);
+  assert.equal(DECKS.keys.length, 144);
+  assert.equal(cardsFor('bogus').length, 14);
+});
+
+test('keys pool per unlock state: 18 / 36 / 60 / 84 / 114 / 144', () => {
+  const sizes = [];
+  let boxes = {};
+  for (let i = 0; i < 6; i++) {
+    const pool = keysPool(boxes);
+    sizes.push(pool.length);
+    boxes = master(idsOf(pool));
+  }
+  assert.deepEqual(sizes, [18, 36, 60, 84, 114, 144]);
+  const first = keysPool({});
+  assert.ok(first.every(c => c.keyTier === 1 && c.degTier === 1));
+  assert.ok(idsOf(first).includes('K:G:IV') && idsOf(first).includes('K:G:C') && !idsOf(first).includes('K:C:ii'));
+});
+
+test('keys unlock needs 75 percent of the pool mastered (14 of 18)', () => {
+  const ids = idsOf(keysPool({}));
+  assert.equal(keysUnlock(master(ids.slice(0, 13))).step, 0);
+  assert.equal(keysUnlock(master(ids.slice(0, 14))).step, 1);
+});
+
+test('keys: one miss does not re-lock a tier already entered, and a seen card opens it', () => {
+  const ids = idsOf(keysPool({}));
+  const boxes = { ...master(ids.slice(0, 14)), 'K:C:ii': 0 };
+  assert.equal(keysUnlock(boxes).step, 1);
+  assert.equal(keysUnlock({ ...boxes, [ids[0]]: 0, [ids[1]]: 0, [ids[2]]: 0 }).step, 1);
+  assert.equal(keysUnlock({ 'K:C:ii': 0 }).step, 1);
+});
+
+test('keysSeen turns on after the first scored keys card only', () => {
+  assert.equal(keysSeen({}), false);
+  assert.equal(keysSeen({ C: 2, Am: 1 }), false);
+  assert.equal(keysSeen({ 'K:C:V': 0 }), true);
+});
+
+test('keys answers: degree needs pitch class and quality; numeral needs the degree', () => {
+  const d = keysCards().find(c => c.id === 'K:C:V');
+  assert.equal(checkKeysAnswer(d, { pc: 7, quality: 'major' }).correct, true);
+  assert.equal(checkKeysAnswer(d, { pc: 7, quality: 'minor' }).correct, false);
+  assert.equal(checkKeysAnswer(d, { pc: 2, quality: 'major' }).correct, false);
+  const r = keysCards().find(c => c.id === 'K:F:Dm');
+  assert.equal(checkKeysAnswer(r, { degree: 'vi' }).correct, true);
+  assert.equal(checkKeysAnswer(r, { degree: 'ii' }).correct, false);
 });
