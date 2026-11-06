@@ -1,9 +1,9 @@
 // SVG fretboard with true proportional fret spacing. Renders once; later calls
 // only add/remove note markers and toggle classes, so the board never re-lays out.
 //
-// Drawn as the Neo-Brutalist neck: a white strip with ink strings and frets,
-// yellow inlays where a real neck has its dots, and notes as round discs with
-// an ink outline and a hard shadow. A played string vibrates.
+// Drawn as the charcoal neck (colours live in the CSS tokens): light strings, grey
+// frets, yellow inlays, notes as round discs. A played string vibrates; a clean
+// answer can bling().
 
 import { STRINGS, FRET_COUNT } from './notes.js';
 
@@ -97,6 +97,7 @@ export function createFretboard(svg) {
   const arrows = el('g', { class: 'fb-arrows' }, svg);
   const box = el('g', { class: 'fb-box' }, svg);
   const notes = el('g', { class: 'fb-notes' }, svg);
+  const svgBling = el('g', { class: 'fb-blings' }, svg);
   const live = new Map(); // key -> g
 
   function key(string, fret) { return `${string}:${fret}`; }
@@ -152,6 +153,22 @@ export function createFretboard(svg) {
       live.delete(key(string, fret));
       g.classList.add('is-leaving');
       setTimeout(() => g.remove(), 220);
+    },
+
+    /** A sparkle burst round a note that just landed clean: eight rays and two stars, CSS-animated, gone in under a second. */
+    bling(string, fret) {
+      const r = noteRadius(fret), cx = noteX(fret), cy = stringY(string);
+      const g = el('g', { class: 'fb-bling', transform: `translate(${cx} ${cy})` }, svgBling);
+      const burst = el('g', { class: 'fb-bling__burst' }, g);
+      for (let a = 0; a < 8; a++) {
+        const an = a * Math.PI / 4, r1 = r + 5, r2 = r + (a % 2 ? 12 : 19);
+        el('line', { x1: Math.cos(an) * r1, y1: Math.sin(an) * r1, x2: Math.cos(an) * r2, y2: Math.sin(an) * r2 }, burst);
+      }
+      for (const [dx, dy, z] of [[r + 22, -r - 18, 11], [-r - 24, -r - 8, 8]]) {
+        const k = z * 0.28;
+        el('path', { class: 'fb-bling__star', d: `M${dx},${dy - z}L${dx + k},${dy - k}L${dx + z},${dy}L${dx + k},${dy + k}L${dx},${dy + z}L${dx - k},${dy + k}L${dx - z},${dy}L${dx - k},${dy - k}Z` }, g);
+      }
+      setTimeout(() => g.remove(), 900);
     },
 
     /** An arrow from one spot to another (a chain hint), stopping at the discs' edges. */

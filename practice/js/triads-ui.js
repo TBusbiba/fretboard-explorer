@@ -10,6 +10,7 @@ import {
 } from './triad-path.js';
 import { WINDOW, FIRST_TRY_MIN, AVG_MS_MAX } from './path.js';
 import { createCustomBest } from './combo.js';
+import * as hud from './hud.js';
 
 const NATURAL_ROOTS = [0, 2, 4, 5, 7, 9, 11];
 const ALL_ROOTS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
@@ -55,7 +56,7 @@ export function createTriadsUI(ctx) {
     popTitle: $('triad-pop-title'), popGoal: $('triad-pop-goal'), popStats: $('triad-pop-stats'), popBoss: $('triad-pop-boss'),
     tipCard: $('triad-tip-card'), tipTag: $('triad-tip-tag'), tipHead: $('triad-tip-head'), tipLine: $('triad-tip-line'), tipNote: $('triad-tip-note'), tipGot: $('triad-tip-got'),
     modePicker: $('triad-mode-picker'), qualityPicker: ui.triadPicker, groupPicker: ui.groupPicker,
-    pathRow: document.querySelector('#triad-path .path__row'), customRow: document.querySelector('.triad-custom'), shapes: $('shapes-big'), shapesTitle: $('shapes-title'), shapesBody: $('shapes-body'), shapesClose: $('shapes-close'),
+    shapes: $('shapes-big'), shapesTitle: $('shapes-title'), shapesBody: $('shapes-body'), shapesClose: $('shapes-close'),
   };
 
   let boss = null;          // the triad boss round in progress, else null
@@ -130,6 +131,12 @@ export function createTriadsUI(ctx) {
       const n = session.steps[i];
       fretboard.showNote(n.string, n.fret, 'correct', DEGREE_LABELS[n.degree] || n.name, true);
     }
+  }
+
+  /** The sparkle burst on the last (highest) note of a shape just played. */
+  function blingTop(v) {
+    const n = v && v.notes && v.notes[v.notes.length - 1];
+    if (n) fretboard.bling(n.string, n.fret);
   }
 
   /** A short strip flash: 'hit' (green) or 'miss' (red + a small shake, skipped under reduced motion by the CSS). */
@@ -220,7 +227,7 @@ export function createTriadsUI(ctx) {
     if (t.kind === 'boss' && boss) { boss.shape(p.ms); extra = `${boss.shapesDone} of ${boss.total}`; }
     else if (lvl) {
       const r = store.record(lvl.id, { firstTry: clean, ms: p.ms });
-      if (r.bossUnlocked) { extra = 'Boss round unlocked!'; popTile(lvl.id); }
+      if (r.bossUnlocked) { extra = 'Boss round unlocked!'; popTile(lvl.id); hud.confetti(); }
     }
     if (ctx.comboActive() && !bossFinale && clean) ctx.comboHit(p.ms);
     return extra;
@@ -234,6 +241,7 @@ export function createTriadsUI(ctx) {
     markShapesFound();
     flashStrip('hit');
     ctx.bling();
+    blingTop(v);
     renderBossStrip();
     ctx.setStatus(`Shape ${p.shape} ✓ ${(p.ms / 1000).toFixed(1)} s · ${p.total - p.found} to go${extra ? ` · ${extra}` : ''}`, 'ok');
     ctx.updateStats();
@@ -245,6 +253,7 @@ export function createTriadsUI(ctx) {
     const t = p.target;
     let extra = recordShape(p);
     paintBoard(p.voicing);
+    blingTop(p.voicing);
     ui.noteName.dataset.state = 'correct';
     renderDots(3, p.shape);
     flashStrip('hit');
@@ -310,6 +319,7 @@ export function createTriadsUI(ctx) {
     ui.bossEndNext.textContent = next ? `Level ${next.id} unlocked: ${next.title}` : 'Path complete: every level done';
     ui.bossEnd.hidden = false;
     ui.bossEnd.classList.remove('is-on'); void ui.bossEnd.offsetWidth; ui.bossEnd.classList.add('is-on');
+    hud.confetti();
     boss = null;
     popTile(lvl.id);
     setTimeout(() => { if (session.state !== 'idle') ctx.toggleSession(); }, 0);
@@ -333,13 +343,13 @@ export function createTriadsUI(ctx) {
 
   function renderBossStrip() {
     const on = !!(boss && boss.state === 'running');
-    ui.bossStrip.hidden = !on;
     ui.stage.classList.toggle('is-focus', on);
     ui.foundBlock.hidden = !on;
     ui.timeBlock.hidden = on;
     if (!on) { ui.bossHp.hidden = false; return; }
     const cur = boss.items[boss.index];
-    ui.bossTitle.textContent = `★ Boss · Level ${boss.levelId} · ${chordName(cur)} · chord ${cur.n}/${cur.of}`;
+    ui.bossTitle.textContent = `L${boss.levelId} · ${chordName(cur)} · ${cur.n}/${cur.of}`;
+    $('boss-hearts-label').textContent = 'Mistakes';
     ui.bossHp.hidden = true; ui.bossCd.hidden = true;
     ui.bossHearts.textContent = `${boss.mistakes} ✗`;
     ui.bossHearts.setAttribute('aria-label', `${boss.mistakes} mistakes`);
@@ -355,6 +365,8 @@ export function createTriadsUI(ctx) {
     b.innerHTML = `<b class="path__num">L${l.id}</b><span class="path__names">${l.short}</span><span class="path__mark"></span>`;
     b.addEventListener('click', () => {
       if (l.id === store.current) { el.pop.hidden = !el.pop.hidden; return; }
+      if (!store.isUnlocked(l.id)) { showLocked(l); return; }
+      hud.hideLock();
       if (!store.select(l.id)) return;
       el.pop.hidden = true;
       boss = null; notice = null;
@@ -369,6 +381,23 @@ export function createTriadsUI(ctx) {
   document.addEventListener('pointerdown', (e) => { if (!el.pop.hidden && !el.row.contains(e.target)) el.pop.hidden = true; });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') el.pop.hidden = true; });
 
+  const critsOf = (pr) => [
+    { text: `${Math.min(pr.answered, WINDOW)} / ${WINDOW} shapes`, state: pr.met.count ? 'met' : 'open' },
+    hud.crit(`${pr.firstTryPct}% first try`, pr.firstTryPct, pr.met.firstTry, `≥ ${Math.round(FIRST_TRY_MIN * 100)}% 1st try`),
+    hud.crit(`avg ${pr.avgMs == null ? '' : (pr.avgMs / 1000).toFixed(1)} s`, pr.avgMs, pr.met.time, `avg ≤ ${AVG_MS_MAX / 1000} s`),
+  ];
+
+  function showLocked(l) {
+    const before = TRIAD_LEVELS[l.id - 2], isCurrent = before.id === store.current;
+    el.pop.hidden = true;
+    hud.showLock({
+      kicker: `Path · Level ${l.id}`, title: `${l.title} is locked`,
+      text: `Beat the L${before.id} boss to open it${isCurrent ? `: ${WINDOW} shapes, ${Math.round(FIRST_TRY_MIN * 100)}% clean first try, ${AVG_MS_MAX / 1000} s average or less.` : ': finish the earlier levels first.'}`,
+      rows: isCurrent ? critsOf(store.progress(before.id)) : [],
+      backLabel: `Back to L${store.current}`, onBack: () => {},
+    });
+  }
+
   function popTile(id) {
     const t = tiles[id - 1];
     t.classList.remove('is-pop'); void t.offsetWidth; t.classList.add('is-pop');
@@ -377,11 +406,11 @@ export function createTriadsUI(ctx) {
   function renderRow() {
     const show = active() && isPath();
     el.row.hidden = !show;
-    if (!show) { el.tipCard.hidden = true; return; }
+    if (!show) { el.tipCard.hidden = true; if (active()) hud.setPath(null); return; }
     const lvl = level(), pr = store.progress(lvl.id), running = !!(boss && boss.state === 'running');
     tiles.forEach((b, i) => {
       const l = TRIAD_LEVELS[i], open = store.isUnlocked(l.id), done = store.isDone(l.id), now = l.id === lvl.id;
-      b.disabled = !open;
+      b.setAttribute('aria-disabled', String(!open));
       b.classList.toggle('is-locked', !open);
       b.classList.toggle('is-done', done);
       b.classList.toggle('is-current', now);
@@ -402,6 +431,13 @@ export function createTriadsUI(ctx) {
     el.popStats.innerHTML = box('Shapes', `${pr.answered}/${WINDOW}`, 'last 20', pr.met.count)
       + box('First try', pr.firstTryPct == null ? '—' : `${pr.firstTryPct}%`, `${Math.round(FIRST_TRY_MIN * 100)}% or more`, pr.met.firstTry)
       + box('Avg per shape', pr.avgMs == null ? '—' : `${(pr.avgMs / 1000).toFixed(1)} s`, `${AVG_MS_MAX / 1000} s or less`, pr.met.time);
+    hud.setPath({
+      level: { n: lvl.id, sub: lvl.title },
+      note: hud.opensNote(lvl.id, TRIAD_LEVELS.length, pr.done), locked: !pr.done && lvl.id < TRIAD_LEVELS.length,
+      meter: running
+        ? { n: boss.shapesDone, of: boss.total, crits: [{ text: `${boss.mistakes} mistake${boss.mistakes === 1 ? '' : 's'}`, state: boss.mistakes ? 'bad' : 'met' }, { text: boss.times.length ? `avg ${(boss.avgMs / 1000).toFixed(1)} s` : `avg ≤ ${AVG_MS_MAX / 1000} s`, state: 'open' }] }
+        : { n: Math.min(pr.answered, WINDOW), of: WINDOW, crits: critsOf(pr).slice(1) },
+    });
     el.bossBtn.disabled = !pr.bossUnlocked || running;
     el.bossBtn.classList.toggle('is-ready', pr.bossUnlocked && !running);
     el.bossBtn.innerHTML = running ? `Boss ${boss.shapesDone}/${boss.total}` : `${pr.bossUnlocked ? '★' : LOCK_SVG} ${pr.done ? 'Boss again' : pr.bossUnlocked ? 'Boss' : `Boss ${Math.min(pr.answered, WINDOW)}/${WINDOW}`}`;
@@ -512,15 +548,12 @@ export function createTriadsUI(ctx) {
   function renderShapes() {
     const open = active() && settings().showShapes;
     el.shapes.hidden = !open;
-    // The toggle sits beside Tip in Path, in the Custom pickers row otherwise.
-    const host = isPath() ? el.pathRow : el.customRow;
-    if (host && ui.shapesToggle.parentElement !== host) host.appendChild(ui.shapesToggle);
     ui.shapesToggle.hidden = !active();
     ui.shapesToggle.setAttribute('aria-pressed', open);
     ui.shapesToggle.classList.toggle('is-on', open);
     ui.shapesToggle.textContent = open ? 'Shapes ▴' : 'Shapes ▾';
     if (!open) { shapesKey = ''; shapesWasOpen = false; return; }
-    if (!shapesWasOpen) { shapesWasOpen = true; setTimeout(() => el.shapes.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 0); }
+    shapesWasOpen = true;
     const sub = shapesSubject(), g = stringGroupById(sub.group), key = `${sub.name}|${sub.group}`;
     if (key === shapesKey) { markShapesFound(); return; }
     shapesKey = key;

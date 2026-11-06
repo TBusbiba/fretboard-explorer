@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="36">
+<html lang="en" data-build="37">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="../shared/console.css">
   <link rel="stylesheet" href="styles.css">
 </head>
-<body class="p-one">
+<body class="p-hud">
   <header class="top">
     <a class="top__back ns-brand" href="../index.html" aria-label="Fretboard Explorer home">
       <span class="ns-brand__led" aria-hidden="true"></span><span class="ns-brand__word">fretboard</span><span class="ns-brand__model">FB-1</span>
@@ -19,37 +19,41 @@
       <a href="../chordmap/index.html">Chord Map</a>
     </nav>
     <h1 class="top__title ns-sr">Fretboard Practice</h1>
-    <button class="icon-btn" id="settings-open" aria-label="Open settings" aria-controls="settings" aria-expanded="false">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="6" r="2" fill="var(--nb-card)"/><circle cx="15" cy="12" r="2" fill="var(--nb-card)"/><circle cx="7" cy="18" r="2" fill="var(--nb-card)"/></svg>
-    </button>
+    <div class="top__right">
+      <div class="meter" title="Microphone level">
+        <svg class="meter__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+        <div class="meter__track"><div class="meter__fill" id="meter-fill"></div><div class="meter__gate" id="meter-gate"></div></div>
+      </div>
+      <button class="icon-btn" id="settings-open" aria-label="Open settings" aria-controls="settings" aria-expanded="false">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="6" r="2" fill="var(--nb-card)"/><circle cx="15" cy="12" r="2" fill="var(--nb-card)"/><circle cx="7" cy="18" r="2" fill="var(--nb-card)"/></svg>
+      </button>
+      <div class="mic-note" id="mic-note" hidden></div>
+    </div>
   </header>
 
-  <div class="nb-ticker"><div class="nb-ticker__track" id="ticker"><span>Press Start or Space and allow the mic ★ Play the note shown, on the string shown ★ Stuck? H shows where it is, N skips ★ Turn on Say + play the note to find it by ear, R plays it again ★ Your fretboard, over time shows which notes need work ★ </span><span aria-hidden="true">Press Start or Space and allow the mic ★ Play the note shown, on the string shown ★ Stuck? H shows where it is, N skips ★ Turn on Say + play the note to find it by ear, R plays it again ★ Your fretboard, over time shows which notes need work ★ </span></div></div>
-
   <main class="stage" id="stage">
-    <div class="bossline" id="boss-strip" hidden aria-hidden="true">
-      <span class="bossline__title" id="boss-title">★ Boss</span>
-      <div class="bhp" id="boss-hp" role="img" aria-label="Boss health"><span class="bhp__name">BOSS</span><div class="bhp__bar"><i id="boss-hp-fill"></i></div></div>
-      <div class="bhearts" id="boss-hearts" role="img" aria-label="Hearts"></div>
-      <div class="bcd" id="boss-cd" hidden title="Time left for this spot"><div class="bcd__bar"><i id="boss-cd-fill"></i></div><b id="boss-cd-val">4.0</b></div>
-      <b class="bt" id="boss-time" aria-label="Boss round time">0:00.0</b>
-    </div>
     <div class="modebar">
-    <div class="mode segmented" role="radiogroup" aria-label="Practice mode">
-      <label><input type="radio" name="mode" value="note"><span>Find the note</span></label>
-      <label class="is-soon"><input type="radio" name="mode" value="intervals" disabled><span>Intervals<small class="soon">Soon</small></span></label>
-      <label class="is-soon"><input type="radio" name="mode" value="arpeggios" disabled><span>Arpeggios<small class="soon">Soon</small></span></label>
-      <label><input type="radio" name="mode" value="triads"><span>Triads</span></label>
-      <label><input type="radio" name="mode" value="scales"><span>Scales</span></label>
-      <span class="mode__link is-soon" aria-disabled="true"><span>Vibrato<small class="soon">Soon</small></span></span>
-      <a class="mode__link" href="chords.html"><span>Chords</span></a>
-    </div>
-    <div class="picker picker--mode" id="note-mode-picker" role="group" aria-label="Find the note: path or custom" hidden>
-      <button type="button" class="chip" data-id="path" aria-pressed="true" title="Work through the levels, a few notes at a time">Path</button>
-      <button type="button" class="chip" data-id="custom" aria-pressed="false" title="Choose the notes and strings yourself">Custom</button>
-    </div>
-    <div class="picker picker--mode" id="triad-mode-picker" role="group" aria-label="Triads: path or custom" hidden></div>
-    <div class="picker picker--mode" id="scales-mode-picker" role="group" aria-label="Scales: path or drill" hidden></div>
+      <div class="mode" role="radiogroup" aria-label="Practice mode">
+        <label><input type="radio" name="mode" value="note"><span>Find the note</span></label>
+        <label><input type="radio" name="mode" value="scales"><span>Scales</span></label>
+        <label><input type="radio" name="mode" value="triads"><span>Triads</span></label>
+        <a class="mode__link" href="chords.html"><span>Chords</span></a>
+        <span class="mode__soon" aria-disabled="true" title="Not finished yet">Intervals · Arpeggios · Vibrato: soon</span>
+      </div>
+      <div class="modebar__right">
+        <div class="picker picker--inline" id="ear-picker" role="group" aria-label="Find it by ear" hidden>
+          <button type="button" class="chip" id="ear-toggle" aria-pressed="false" title="Say the note's name and play it, then find it by ear">Say + play the note</button>
+          <button type="button" class="chip" id="names-toggle" aria-pressed="true" title="Show the string names (E B G D A E) beside the fretboard">String names</button>
+          <button type="button" class="chip chip--plain" id="ear-replay" disabled title="Say and play the note again">Hear it again <kbd>R</kbd></button>
+        </div>
+        <button type="button" class="chip" id="shapes-toggle" aria-pressed="false" hidden title="Show the three shapes of this chord and how far apart they sit">Shapes ▾</button>
+        <div class="picker picker--mode" id="note-mode-picker" role="group" aria-label="Find the note: path or custom" hidden>
+          <button type="button" class="chip" data-id="path" aria-pressed="true" title="Work through the levels, a few notes at a time">Path</button>
+          <button type="button" class="chip" data-id="custom" aria-pressed="false" title="Choose the notes and strings yourself">Custom</button>
+        </div>
+        <div class="picker picker--mode" id="triad-mode-picker" role="group" aria-label="Triads: path or custom" hidden></div>
+        <div class="picker picker--mode" id="scales-mode-picker" role="group" aria-label="Scales: path or drill" hidden></div>
+      </div>
     </div>
     <div class="picker" id="interval-picker" role="group" aria-label="Which interval" hidden></div>
     <div class="picker" id="chord-picker" role="group" aria-label="Which chord" hidden></div>
@@ -68,158 +72,163 @@
       <div class="picker__group" role="group" aria-label="Prompt wording"><button type="button" class="chip" id="say-names-toggle" aria-pressed="false" title="Say &quot;A string, C!&quot; instead of &quot;String 5, C&quot;">Say string names</button></div>
     </div>
 
-    <section class="path" id="path" aria-label="Level path" hidden>
-      <div class="path__row">
+    <div class="stagecard" id="stagecard">
+      <section class="prompt" id="prompt">
+        <div class="hud">
+          <div class="hud__l">
+            <div class="hpill hpill--y" id="hud-level" hidden><small>Level 1</small><b>Box 1</b></div>
+            <div class="hpill hpill--y boss-only"><small>Boss</small><b id="boss-title">★ Boss</b></div>
+            <div class="hpill boss-only"><small id="boss-hearts-label">Lives</small><b class="bhearts" id="boss-hearts" role="img" aria-label="Hearts"></b></div>
+          </div>
+          <div class="hud__c prompt__main" aria-live="polite">
+            <div class="bhp boss-only" id="boss-hp" role="img" aria-label="Boss health"><small class="bhp__name">BOSS</small><div class="bhp__bar"><i id="boss-hp-fill"></i></div></div>
+            <div class="prompt__string" id="string-name">Press start</div>
+            <div class="prompt__note" id="note-name" data-state="idle"></div>
+            <div class="boss-pips" id="boss-pips"></div>
+            <div class="prompt__status" id="status">Pick a string, play the note it names, and the mic will confirm it.</div>
+            <div class="prompt__tip" id="tip" hidden></div>
+          </div>
+          <div class="hud__r prompt__right">
+            <div class="pblock" id="time-block"><small>Time</small><b id="time-val">0:00</b></div>
+            <div class="pblock boss-only" id="boss-time-block"><small>Time</small><b class="bt" id="boss-time" aria-label="Boss round time">0:00.0</b></div>
+            <div class="pblock hpill--sa boss-only bcd" id="boss-cd" hidden title="Time left for this spot"><small>Rapid fire</small><b id="boss-cd-val">4.0</b><div class="bcd__bar"><i id="boss-cd-fill"></i></div></div>
+            <div class="sc-stats" id="sc-stats" hidden>
+              <div class="pblock"><small>Score</small><b id="sc-score">0</b></div>
+              <div class="pblock" id="sc-miss-block"><small>Miss</small><b id="sc-miss">0</b></div>
+            </div>
+            <div class="pblock pblock--found" id="found-block" hidden><small>Found</small><b id="found-val">0/0</b></div>
+            <div class="combo" id="combo" hidden>
+              <div class="pblock pblock--combo" id="combo-badge"><small>Combo</small><b id="combo-mult">×1</b></div>
+              <div class="pblock combo__score"><span class="combo__gain" id="combo-gain" aria-hidden="true"></span><small>Score</small><b id="combo-score">0</b><em id="combo-best"></em></div>
+              <div class="pblock combo__n"><small>Streak</small><b id="combo-n">0</b></div>
+            </div>
+          </div>
+        </div>
+        <div class="sc-result" id="sc-result" hidden></div>
+        <div class="combo__shout" id="combo-shout" aria-hidden="true"></div>
+        <div class="combo__flag" id="combo-flag" role="status"></div>
+        <div class="hud__clean" id="hud-clean" aria-hidden="true"></div>
+        <div class="chain-intro" id="chain-intro" hidden aria-hidden="true">
+          <div class="chain-intro__kicker" id="chain-kicker">Quick note chain round!</div>
+          <div class="chain-intro__big" id="chain-big">3 C notes!</div>
+          <div class="chain-intro__start" id="chain-start">Start with the A string —</div>
+        </div>
+        <div class="boss-end" id="boss-end" hidden role="dialog" aria-label="Boss round result">
+          <div class="boss-end__card">
+            <div class="boss-end__head">
+              <div class="boss-end__kicker" id="boss-end-kicker">Boss round cleared!</div>
+              <div class="boss-end__stars" id="boss-end-stars" aria-hidden="true">★★★</div>
+            </div>
+            <div class="boss-end__body">
+              <div class="boss-end__stats" id="boss-end-stats"></div>
+              <div class="boss-end__next" id="boss-end-next"></div>
+            </div>
+            <button type="button" class="btn btn--primary" id="boss-end-go">Keep going</button>
+          </div>
+        </div>
+        <div class="lockcard" id="lock-card" hidden role="dialog" aria-label="Level locked">
+          <div class="lockcard__head"><span class="lockcard__icon" aria-hidden="true">🔒</span><div><small id="lock-kicker">Path · Level 2</small><b id="lock-title">Box 2 is locked</b></div></div>
+          <p class="lockcard__text" id="lock-text"></p>
+          <div class="lockcard__rows" id="lock-rows"></div>
+          <button type="button" class="btn btn--primary" id="lock-back">Back to L1</button>
+        </div>
+        <div class="combo__bar" id="combo-bar" hidden aria-hidden="true"><i id="combo-fill"></i></div>
+      </section>
+
+      <section class="board">
+        <div class="board__scroll" id="board-scroll">
+          <svg class="fretboard" id="fretboard"></svg>
+        </div>
+      </section>
+
+      <section class="shapesbig" id="shapes-big" aria-label="Triad shapes" hidden>
+        <div class="shapesbig__head">
+          <strong id="shapes-title">Triad shapes</strong>
+          <small>Movable: slide any shape to any root. R = root.</small>
+          <button type="button" class="btn btn--ghost btn--small" id="shapes-close">Close ✕</button>
+        </div>
+        <div class="shapesbig__body" id="shapes-body"></div>
+      </section>
+    </div>
+
+    <div class="dock" id="dock">
+      <section class="path" id="path" aria-label="Level path" hidden>
         <ol class="path__map" id="path-map"></ol>
         <button type="button" class="chip chip--boss" id="boss-btn" disabled>Boss</button>
-        <button type="button" class="chip path__tipbtn" id="tip-btn" aria-controls="tip-card" aria-expanded="false" title="Show the tip for this level">Tip</button>
-      </div>
-      <div class="path__pop" id="path-strip" hidden>
-        <div class="path__head">
-          <strong id="path-title"></strong>
-          <span id="path-goal"></span>
+        <button type="button" class="btn btn--ghost path__tipbtn" id="tip-btn" aria-controls="tip-card" aria-expanded="false" title="Show the tip for this level">Tip</button>
+        <div class="path__pop" id="path-strip" hidden>
+          <div class="path__head">
+            <strong id="path-title"></strong>
+            <span id="path-goal"></span>
+          </div>
+          <div class="path__stats" id="path-stats"></div>
+          <span class="path__bossnote" id="boss-note"></span>
         </div>
-        <div class="path__stats" id="path-stats"></div>
-        <span class="path__bossnote" id="boss-note"></span>
-      </div>
-      <aside class="tipcard" id="tip-card" role="region" aria-labelledby="tip-head" hidden>
-        <div class="tipcard__text">
-          <span class="tipcard__tag" id="tip-tag">Tip</span>
-          <h3 class="tipcard__head" id="tip-head"></h3>
-          <p class="tipcard__line" id="tip-line"></p>
-          <p class="tipcard__note" id="tip-note"></p>
-          <button type="button" class="btn btn--small tipcard__got" id="tip-got">Got it</button>
-        </div>
-        <div class="tipcard__fig" id="tip-fig"></div>
-        <p class="tipcard__swipe" id="tip-swipe" hidden>Swipe the diagram sideways →</p>
-      </aside>
-    </section>
+        <aside class="tipcard" id="tip-card" role="region" aria-labelledby="tip-head" hidden>
+          <div class="tipcard__text">
+            <span class="tipcard__tag" id="tip-tag">Tip</span>
+            <h3 class="tipcard__head" id="tip-head"></h3>
+            <p class="tipcard__line" id="tip-line"></p>
+            <p class="tipcard__note" id="tip-note"></p>
+            <button type="button" class="btn btn--small tipcard__got" id="tip-got">Got it</button>
+          </div>
+          <div class="tipcard__fig" id="tip-fig"></div>
+          <p class="tipcard__swipe" id="tip-swipe" hidden>Swipe the diagram sideways →</p>
+        </aside>
+      </section>
 
-    <section class="path" id="triad-path" aria-label="Triad level path" hidden>
-      <div class="path__row">
+      <section class="path" id="triad-path" aria-label="Triad level path" hidden>
         <ol class="path__map" id="triad-map"></ol>
         <button type="button" class="chip chip--boss" id="triad-boss-btn" disabled>Boss</button>
-        <button type="button" class="chip" id="shapes-toggle" aria-pressed="false" hidden title="Show the three shapes of this chord and how far apart they sit">Shapes ▾</button>
-        <button type="button" class="chip path__tipbtn" id="triad-tip-btn" aria-controls="triad-tip-card" aria-expanded="false" title="Show the tip for this level">Tip</button>
-      </div>
-      <div class="path__pop" id="triad-pop" hidden>
-        <div class="path__head">
-          <strong id="triad-pop-title"></strong>
-          <span id="triad-pop-goal"></span>
+        <button type="button" class="btn btn--ghost path__tipbtn" id="triad-tip-btn" aria-controls="triad-tip-card" aria-expanded="false" title="Show the tip for this level">Tip</button>
+        <div class="path__pop" id="triad-pop" hidden>
+          <div class="path__head">
+            <strong id="triad-pop-title"></strong>
+            <span id="triad-pop-goal"></span>
+          </div>
+          <div class="path__stats" id="triad-pop-stats"></div>
+          <span class="path__bossnote" id="triad-pop-boss"></span>
         </div>
-        <div class="path__stats" id="triad-pop-stats"></div>
-        <span class="path__bossnote" id="triad-pop-boss"></span>
-      </div>
-      <aside class="tipcard" id="triad-tip-card" role="region" aria-labelledby="triad-tip-head" hidden>
-        <div class="tipcard__text">
-          <span class="tipcard__tag" id="triad-tip-tag">Tip</span>
-          <h3 class="tipcard__head" id="triad-tip-head"></h3>
-          <p class="tipcard__line" id="triad-tip-line"></p>
-          <p class="tipcard__note" id="triad-tip-note"></p>
-          <button type="button" class="btn btn--small tipcard__got" id="triad-tip-got">Got it</button>
-        </div>
-      </aside>
-    </section>
+        <aside class="tipcard" id="triad-tip-card" role="region" aria-labelledby="triad-tip-head" hidden>
+          <div class="tipcard__text">
+            <span class="tipcard__tag" id="triad-tip-tag">Tip</span>
+            <h3 class="tipcard__head" id="triad-tip-head"></h3>
+            <p class="tipcard__line" id="triad-tip-line"></p>
+            <p class="tipcard__note" id="triad-tip-note"></p>
+            <button type="button" class="btn btn--small tipcard__got" id="triad-tip-got">Got it</button>
+          </div>
+        </aside>
+      </section>
 
-    <section class="path" id="scales-path" aria-label="Scales level path" hidden>
-      <div class="path__row">
+      <section class="path" id="scales-path" aria-label="Scales level path" hidden>
         <ol class="path__map" id="scales-map"></ol>
         <button type="button" class="chip chip--boss" id="scales-boss-btn" disabled>Boss</button>
-        <button type="button" class="chip path__tipbtn" id="scales-tip-btn" aria-controls="scales-tip-card" aria-expanded="false" title="Show the tip for this level">Tip</button>
-      </div>
-      <div class="path__pop" id="scales-pop" hidden>
-        <div class="path__head">
-          <strong id="scales-pop-title"></strong>
-          <span id="scales-pop-goal"></span>
+        <button type="button" class="btn btn--ghost path__tipbtn" id="scales-tip-btn" aria-controls="scales-tip-card" aria-expanded="false" title="Show the tip for this level">Tip</button>
+        <div class="path__pop" id="scales-pop" hidden>
+          <div class="path__head">
+            <strong id="scales-pop-title"></strong>
+            <span id="scales-pop-goal"></span>
+          </div>
+          <div class="path__stats" id="scales-pop-stats"></div>
+          <span class="path__bossnote" id="scales-pop-boss"></span>
         </div>
-        <div class="path__stats" id="scales-pop-stats"></div>
-        <span class="path__bossnote" id="scales-pop-boss"></span>
-      </div>
-      <aside class="tipcard" id="scales-tip-card" role="region" aria-labelledby="scales-tip-head" hidden>
-        <div class="tipcard__text">
-          <span class="tipcard__tag" id="scales-tip-tag">Tip</span>
-          <h3 class="tipcard__head" id="scales-tip-head"></h3>
-          <p class="tipcard__line" id="scales-tip-line"></p>
-          <p class="tipcard__note" id="scales-tip-note"></p>
-          <button type="button" class="btn btn--small tipcard__got" id="scales-tip-got">Got it</button>
-        </div>
-      </aside>
-    </section>
+        <aside class="tipcard" id="scales-tip-card" role="region" aria-labelledby="scales-tip-head" hidden>
+          <div class="tipcard__text">
+            <span class="tipcard__tag" id="scales-tip-tag">Tip</span>
+            <h3 class="tipcard__head" id="scales-tip-head"></h3>
+            <p class="tipcard__line" id="scales-tip-line"></p>
+            <p class="tipcard__note" id="scales-tip-note"></p>
+            <button type="button" class="btn btn--small tipcard__got" id="scales-tip-got">Got it</button>
+          </div>
+        </aside>
+      </section>
 
-    <section class="prompt" id="prompt">
-      <div class="prompt__main" aria-live="polite">
-        <div class="prompt__left">
-          <div class="prompt__string" id="string-name">Press start</div>
-          <div class="prompt__note" id="note-name" data-state="idle"></div>
-        </div>
-        <div class="prompt__mid">
-          <div class="prompt__status" id="status">Pick a string, play the note it names, and the mic will confirm it.</div>
-          <div class="prompt__tip" id="tip" hidden></div>
-          <div class="boss-pips" id="boss-pips"></div>
-          <div class="sc-result" id="sc-result" hidden></div>
-        </div>
-      </div>
-      <div class="prompt__right">
-        <div class="pblock" id="time-block"><small>Time</small><b id="time-val">0:00</b></div>
-        <div class="sc-stats" id="sc-stats" hidden>
-          <div class="pblock"><small>Score</small><b id="sc-score">0</b></div>
-          <div class="pblock" id="sc-miss-block"><small>Mistakes</small><b id="sc-miss">0</b></div>
-        </div>
-        <div class="pblock pblock--found" id="found-block" hidden><small>Found</small><b id="found-val">0/0</b></div>
-        <div class="combo" id="combo" hidden>
-          <div class="pblock pblock--combo" id="combo-badge"><small>Combo</small><b id="combo-mult">×1</b></div>
-          <div class="pblock combo__score"><span class="combo__gain" id="combo-gain" aria-hidden="true"></span><small>Score</small><b id="combo-score">0</b><em id="combo-best"></em></div>
-          <div class="pblock"><small>Streak</small><b id="combo-n">0</b></div>
-        </div>
-      </div>
-      <div class="combo__shout" id="combo-shout" aria-hidden="true"></div>
-      <div class="combo__flag" id="combo-flag" role="status"></div>
-      <div class="chain-intro" id="chain-intro" hidden aria-hidden="true">
-        <div class="chain-intro__kicker" id="chain-kicker">Quick note chain round!</div>
-        <div class="chain-intro__big" id="chain-big">3 C notes!</div>
-        <div class="chain-intro__start" id="chain-start">Start with the A string —</div>
-      </div>
-      <div class="boss-end" id="boss-end" hidden role="dialog" aria-label="Boss round result">
-        <div class="boss-end__head">
-          <div class="boss-end__kicker" id="boss-end-kicker">Boss round cleared!</div>
-          <div class="boss-end__stars" id="boss-end-stars" aria-hidden="true">★★★</div>
-        </div>
-        <div class="boss-end__body">
-          <div class="boss-end__stats" id="boss-end-stats"></div>
-          <div class="boss-end__next" id="boss-end-next"></div>
-        </div>
-        <button type="button" class="btn btn--primary" id="boss-end-go">Keep going</button>
-      </div>
-      <div class="combo__bar" id="combo-bar" hidden aria-hidden="true"><i id="combo-fill"></i></div>
-    </section>
+      <div class="dock__note" id="dock-note" hidden></div>
 
-    <section class="board">
-      <div class="board__scroll" id="board-scroll">
-        <svg class="fretboard" id="fretboard"></svg>
-      </div>
-    </section>
-
-    <section class="controls">
-      <div class="controls__left">
-        <div class="meter" title="Microphone level">
-          <svg class="meter__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
-          <div class="meter__track"><div class="meter__fill" id="meter-fill"></div><div class="meter__gate" id="meter-gate"></div></div>
-        </div>
-        <div class="mic-note" id="mic-note" hidden></div>
-      </div>
-
-      <div class="controls__center">
+      <div class="dock__ctl">
         <button class="btn btn--ghost" id="hint-btn" disabled>Hint <kbd>H</kbd></button>
         <button class="btn btn--primary" id="start-btn">Start <kbd>Space</kbd></button>
         <button class="btn btn--ghost" id="skip-btn" disabled>Skip <kbd>N</kbd></button>
-      </div>
-
-      <div class="controls__right">
-        <div class="picker picker--inline" id="ear-picker" role="group" aria-label="Find it by ear" hidden>
-      <button type="button" class="chip" id="ear-toggle" aria-pressed="false" title="Say the note's name and play it, then find it by ear">Say + play the note</button>
-      <button type="button" class="chip" id="names-toggle" aria-pressed="true" title="Show the string names (E B G D A E) beside the fretboard">String names</button>
-      <button type="button" class="chip chip--plain" id="ear-replay" disabled title="Say and play the note again">Hear it again <kbd>R</kbd></button>
-        </div>
         <div class="ring" id="ring" title="Time until the hint appears">
           <svg viewBox="0 0 44 44" width="44" height="44">
             <circle class="ring__track" cx="22" cy="22" r="18"/>
@@ -228,16 +237,14 @@
           <span class="ring__label" id="ring-label">5s</span>
         </div>
       </div>
-    </section>
 
-    <section class="shapesbig" id="shapes-big" aria-label="Triad shapes" hidden>
-      <div class="shapesbig__head">
-        <strong id="shapes-title">Triad shapes</strong>
-        <small>Movable: slide any shape to any root. R = root.</small>
-        <button type="button" class="btn btn--ghost btn--small" id="shapes-close">Close ✕</button>
+      <div class="bossmeter" id="bossmeter" hidden>
+        <b class="bossmeter__title">★ Boss</b>
+        <div class="bossmeter__cells" id="bm-cells" role="img" aria-label="Boss progress"></div>
+        <b class="bossmeter__n" id="bm-n"></b>
+        <div class="bossmeter__crits" id="bm-crits"></div>
       </div>
-      <div class="shapesbig__body" id="shapes-body"></div>
-    </section>
+    </div>
 
     <section class="stats" id="stats">
       <div class="stat"><span class="stat__value" id="stat-count">0</span><span class="stat__label">notes</span></div>

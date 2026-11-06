@@ -14,6 +14,7 @@ import { landmarkHint } from './landmarks.js';
 import { levelTip } from './tips.js';
 import { createTriadsUI } from './triads-ui.js';
 import { createScalesUI } from './scales-ui.js';
+import * as hud from './hud.js';
 import { loadSettings, saveSettings, resetSettings, DEFAULTS } from './settings.js';
 
 const $ = (id) => document.getElementById(id);
@@ -34,7 +35,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '36';
+const BUILD = '37';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -181,7 +182,7 @@ const session = createSession({
 
 // ---------- elements ----------
 const ui = {
-  stage: $('stage'), timeVal: $('time-val'), foundBlock: $('found-block'), foundVal: $('found-val'), bossTitle: $('boss-title'), pathPop: $('path-strip'), timeBlock: $('time-block'),
+  stage: $('stage'), timeVal: $('time-val'), foundBlock: $('found-block'), foundVal: $('found-val'), bossTitle: $('boss-title'), pathPop: $('path-strip'), cleanBanner: $('hud-clean'), timeBlock: $('time-block'),
   stringName: $('string-name'), noteName: $('note-name'), status: $('status'), tip: $('tip'),
   boardScroll: $('board-scroll'),
   startBtn: $('start-btn'), skipBtn: $('skip-btn'), hintBtn: $('hint-btn'),
@@ -196,7 +197,7 @@ const ui = {
   picker: $('interval-picker'), chordPicker: $('chord-picker'), triadPicker: $('triad-picker'), groupPicker: $('group-picker'),
   combo: $('combo'), comboBadge: $('combo-badge'), comboN: $('combo-n'), comboMult: $('combo-mult'), comboScore: $('combo-score'), comboGain: $('combo-gain'), comboBest: $('combo-best'),
   tipBtn: $('tip-btn'), tipCard: $('tip-card'), tipTag: $('tip-tag'), tipHead: $('tip-head'), tipLine: $('tip-line'), tipNote: $('tip-note'), tipFig: $('tip-fig'), tipSwipe: $('tip-swipe'), tipGot: $('tip-got'),
-  chainIntro: $('chain-intro'), chainKicker: $('chain-kicker'), bossStrip: $('boss-strip'), bossPips: $('boss-pips'), bossTime: $('boss-time'), bossHp: $('boss-hp'), bossHpFill: $('boss-hp-fill'), bossHearts: $('boss-hearts'), bossCd: $('boss-cd'), bossCdFill: $('boss-cd-fill'), bossCdVal: $('boss-cd-val'),
+  chainIntro: $('chain-intro'), chainKicker: $('chain-kicker'), bossPips: $('boss-pips'), bossTime: $('boss-time'), bossHp: $('boss-hp'), bossHpFill: $('boss-hp-fill'), bossHearts: $('boss-hearts'), bossCd: $('boss-cd'), bossCdFill: $('boss-cd-fill'), bossCdVal: $('boss-cd-val'),
   bossEnd: $('boss-end'), bossEndKicker: $('boss-end-kicker'), bossEndStars: $('boss-end-stars'), bossEndStats: $('boss-end-stats'), bossEndNext: $('boss-end-next'), bossEndGo: $('boss-end-go'), chainBig: $('chain-big'), chainStart: $('chain-start'),
   comboBar: $('combo-bar'), comboFill: $('combo-fill'), comboShout: $('combo-shout'), comboFlag: $('combo-flag'),
   heatReset: $('heat-reset'), heatBody: $('heat-body'),
@@ -324,6 +325,7 @@ function handleSessionEvent(type, p) {
         weigher = null;
       }
       ui.noteName.dataset.state = 'correct';
+      if (session.mode === 'note' && p.firstTry && !p.hinted) fretboard.bling((p.played || p.target).string, (p.played || p.target).fret);
       const extra = session.mode === 'note' ? onNoteCorrect(p) : '';
       if (comboActive() && !bossFinale && p.firstTry && !p.hinted) comboHit(p.ms);
       if (chain && session.mode === 'note' && !boss) onChainCorrect(p);
@@ -537,6 +539,7 @@ function comboHit(ms) {
   saveComboBests();
   renderCombo();
   flash(ui.comboGain, `+${r.points}`, 1100);
+  flash(ui.cleanBanner, `Clean! +${r.points} ✦`, 1000);
   const lift = r.heat * 0.07 + 1.1;
   ui.prompt.style.setProperty('--pop', lift.toFixed(2));
   if (r.shout) { flash(ui.comboShout, r.shout, 1400); queueShout(r.shout); }
@@ -590,6 +593,7 @@ function onChainCorrect(p) {
   const bonus = CHAIN_BONUS * combo.multiplier;
   if (comboActive()) { combo.bonus(bonus); saveComboBests(); renderCombo(); flash(ui.comboGain, `+${bonus}`, 1400); }
   flash(ui.comboShout, 'Chain complete!', 1700);
+  hud.confetti();
   queueShout('Chain complete!');
 }
 
@@ -620,15 +624,16 @@ function renderBossStrip() {
   if (triads.active()) { triads.renderBossStrip(); return; }
   if (scales.active()) { scales.renderBossStrip(); return; }
   const on = !!(boss && boss.state === 'running');
-  ui.bossStrip.hidden = !on;
   ui.stage.classList.toggle('is-focus', on);
   ui.foundBlock.hidden = !on;
   ui.timeBlock.hidden = on;
   if (!on) { lastBossLives = BOSS_LIVES; return; }
   const c = boss.current();
   ui.bossHp.hidden = false;
-  ui.bossTitle.textContent = `★ Boss · L${boss.levelId} · ${c.phase === 'rapid' ? 'Rapid fire' : 'New notes'}`;
+  ui.bossTitle.textContent = `L${boss.levelId} · ${c.phase === 'rapid' ? 'Rapid fire' : 'New notes'}`;
+  $('boss-hearts-label').textContent = 'Lives';
   ui.bossHpFill.style.transform = `scaleX(${boss.hp / boss.maxHp})`;
+  ui.bossHp.querySelector('.bhp__name').textContent = `BOSS HP · ${Math.round(100 * boss.hp / boss.maxHp)}% LEFT`;
   ui.bossHp.setAttribute('aria-label', `Boss health ${Math.round(100 * boss.hp / boss.maxHp)} percent`);
   const broke = boss.lives < lastBossLives;
   ui.bossHearts.innerHTML = Array.from({ length: BOSS_LIVES }, (_, i) => {
@@ -702,6 +707,7 @@ function showBossEnd(f) {
   ui.bossEndGo.textContent = f.won ? 'Keep going' : 'Retry';
   ui.bossEnd.hidden = false;
   ui.bossEnd.classList.remove('is-on'); void ui.bossEnd.offsetWidth; ui.bossEnd.classList.add('is-on');
+  if (f.won) hud.confetti();
 }
 
 /** The fight is over (won or lost): record it, show the card, stop the session, then say the result. */
@@ -783,6 +789,8 @@ const tiles = LEVELS.map((l) => {
   b.title = `Level ${l.id} · ${levelTitle(l)}`;
   b.addEventListener('click', () => {
     if (l.id === path.current) { togglePathPop(); return; }
+    if (!path.isUnlocked(l.id)) { showLockedLevel(l); return; }
+    hud.hideLock();
     if (!path.select(l.id)) return;
     closePathPop();
     boss = null; notice = null;
@@ -794,6 +802,26 @@ const tiles = LEVELS.map((l) => {
   ui.pathMap.appendChild(li);
   return b;
 });
+
+/** A locked pip: say what unlocks it (the boss of the level before). */
+function showLockedLevel(l) {
+  const before = levelById(l.id - 1), isCurrent = before.id === path.current, pr = path.progress(before.id, fretRange());
+  closePathPop();
+  hud.showLock({
+    kicker: `Path · Level ${l.id}`, title: `${levelTitle(l)} is locked`,
+    text: `Beat the L${before.id} boss to open it${isCurrent ? `: answer ${WINDOW} times with a ${Math.round(FIRST_TRY_MIN * 100)}% clean-first-try rate and a ${AVG_MS_MAX / 1000} s average.` : ': finish the earlier levels first.'}`,
+    rows: isCurrent ? noteCrits(pr) : [],
+    backLabel: `Back to L${path.current}`, onBack: () => {},
+  });
+}
+function noteCrits(pr) {
+  return [
+    { text: `${pr.answered} / ${WINDOW} answers`, state: pr.met.count ? 'met' : 'open' },
+    hud.crit(`${pr.firstTryPct}% first try`, pr.firstTryPct, pr.met.firstTry, `≥ ${Math.round(FIRST_TRY_MIN * 100)}% 1st try`),
+    hud.crit(`avg ${pr.avgMs == null ? '' : (pr.avgMs / 1000).toFixed(1)} s`, pr.avgMs, pr.met.time, `avg ≤ ${AVG_MS_MAX / 1000} s`),
+    { text: `spots ${pr.spots}/${pr.spotsTotal}`, state: pr.met.spots ? 'met' : 'open' },
+  ];
+}
 
 function togglePathPop() { ui.pathPop.hidden = !ui.pathPop.hidden; }
 function closePathPop() { ui.pathPop.hidden = true; }
@@ -813,11 +841,12 @@ function renderPath() {
   ui.path.hidden = !show;
   syncBoardRange();
   renderTip();
+  if (isNoteMode() && !show) hud.setPath(null);
   if (!show) return;
   const range = fretRange();
   tiles.forEach((b, i) => {
     const id = i + 1, open = path.isUnlocked(id), done = path.isDone(id), now = id === path.current;
-    b.disabled = !open;
+    b.setAttribute('aria-disabled', String(!open));
     b.classList.toggle('is-locked', !open);
     b.classList.toggle('is-done', done);
     b.classList.toggle('is-current', now);
@@ -840,6 +869,13 @@ function renderPath() {
     + box('First try', pr.firstTryPct == null ? '—' : `${pr.firstTryPct}%`, `${Math.round(FIRST_TRY_MIN * 100)}% or more`, pr.met.firstTry)
     + box('Avg time', pr.avgMs == null ? '—' : `${(pr.avgMs / 1000).toFixed(1)} s`, `${AVG_MS_MAX / 1000} s or less`, pr.met.time)
     + box('Spots', `${pr.spots}/${pr.spotsTotal}`, 'every spot', pr.met.spots);
+  hud.setPath({
+    level: { n: lvl.id, sub: levelTitle(lvl) },
+    note: hud.opensNote(lvl.id, LEVELS.length, pr.done), locked: !pr.done && lvl.id < LEVELS.length,
+    meter: running
+      ? { n: boss.index, of: boss.items.length, label: `${boss.index}/${boss.items.length}`, crits: [{ text: `${boss.lives} ${boss.lives === 1 ? 'heart' : 'hearts'} left`, state: boss.lives < BOSS_LIVES ? 'bad' : 'met' }, { text: boss.index ? `avg ${(boss.totalMs / boss.index / 1000).toFixed(1)} s` : `avg ≤ ${AVG_MS_MAX / 1000} s`, state: 'open' }] }
+      : { n: Math.min(pr.answered, WINDOW), of: WINDOW, crits: noteCrits(pr).slice(1) },
+  });
   ui.bossBtn.disabled = !pr.bossUnlocked || !!running;
   ui.bossBtn.classList.toggle('is-ready', pr.bossUnlocked && !running);
   ui.bossBtn.innerHTML = running ? `Boss ${boss.index}/${boss.items.length}` : `${pr.bossUnlocked ? '★' : LOCK_SVG} ${pr.done ? 'Boss again' : 'Boss'}`;
@@ -863,7 +899,7 @@ function onNoteCorrect(p) {
   } else if (settings.noteMode === 'path') {
     const at = p.played || p.target;
     const r = path.record(path.current, { string: at.string, fret: at.fret, firstTry: p.firstTry && !p.hinted, ms: p.ms }, fretRange());
-    if (r.bossUnlocked) { extra = 'Boss round unlocked!'; popTile(path.current); }
+    if (r.bossUnlocked) { extra = 'Boss round unlocked!'; popTile(path.current); hud.confetti(); }
   }
   renderPath();
   return extra;
@@ -1333,22 +1369,8 @@ f.gain.addEventListener('input', () => commit({ gain: +f.gain.value }));
 
 f.reset.addEventListener('click', () => { settings = resetSettings(); applySettingsToUI(); });
 
-const TICKER = {
-  note: ['Press Start or Space and allow the mic', 'Play the note shown, on the string shown', 'Path: clear each level’s boss round to unlock the next', 'Custom: pick your own notes and strings', 'Stuck? H shows where it is, N skips', 'Turn on Say + play the note to find it by ear, R plays it again', 'Your fretboard, over time shows which notes need work'],
-  intervals: ['Play the root, then the interval above it', 'Practise one interval, or let it pick at random', 'H shows a tip first, then where both notes are', 'N skips to the next one'],
-  arpeggios: ['Play the chord one note per string, from the low string up', 'Pick a chord type, or let it pick at random', 'Each note counts as soon as you hit it', 'H shows a tip, then where the next note is', 'N skips to the next chord'],
-  scales: ['Play the scale in the outlined box, up and back down, starting on the note marked start', 'Each note counts as soon as it is heard, even while the last one still rings', 'Wrong notes are soft: a red mark, no voice', 'Path: steady, clean runs unlock the boss round', 'Drill loops one scale, root and box so you can just play', 'H shows the next note, N starts a fresh run'],
-  triads: ['Play the chord in all three shapes, in any order', 'Each shape: start on the thickest string shown, then go up', 'Path: answer fast and clean to unlock the boss round', 'Shapes shows all three and how far apart they sit', 'H shows a tip, then where the next note is', 'N skips to the next triad'],
-};
-
-function setTicker(mode) {
-  const text = TICKER[mode].join(' ★ ') + ' ★ ';
-  document.querySelectorAll('#ticker > span').forEach((s) => { s.textContent = text; });
-}
-
 function applySettingsToUI() {
   const mode = ['intervals', 'arpeggios', 'triads', 'scales'].includes(settings.mode) ? settings.mode : 'note';
-  setTicker(mode);
   document.body.dataset.mode = mode;
   $('play-notes').checked = settings.playNotes;
   document.querySelector(`input[name="mode"][value="${mode}"]`).checked = true;

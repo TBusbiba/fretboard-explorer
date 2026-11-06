@@ -11,6 +11,7 @@ import {
   SCALE_LEVELS, createScalePathStore, exerciseRun, exerciseKey, bossRuns, pickExercise, scaleStarsFor,
   WINDOW_RUNS, AVG_NOTE_MS_MAX, MAX_RUN_MISTAKES, STAR2_NOTE_MS, STAR3_NOTE_MS, STAR2_MISTAKES,
 } from './scale-path.js';
+import * as hud from './hud.js';
 import { spokenPrompt, scaleClipPhrases, liveScore, runScore, runStars, combineStats } from './scale-run.js';
 
 const KINDS = ['minorPentatonic', 'majorPentatonic', 'major'];
@@ -167,7 +168,7 @@ export function createScalesUI(ctx) {
     ui.status.hidden = true;
     ui.bossPips.innerHTML = '';
     el.result.hidden = false;
-    el.result.innerHTML = cells.map(([v, l, cls]) => `<div class="sc-res${cls ? ` ${cls}` : ''}"><b>${v}</b><span>${l}</span></div>`).join('');
+    el.result.innerHTML = `<div class="sc-result__head">${kicker}</div>` + cells.map(([v, l, cls]) => `<div class="sc-res${cls ? ` ${cls}` : ''}"><b>${v}</b><span>${l}</span></div>`).join('');
     ui.stringName.textContent = kicker;
   }
 
@@ -227,7 +228,7 @@ export function createScalesUI(ctx) {
       const lvl = level(), rec = store.record(lvl.id, { ms: st.avgMs, mistakes: st.mistakes, key: exerciseKey(run.ex) });
       newBest = store.saveBests(lvl.id, { score });
       kicker = rec.bossUnlocked ? 'Boss round unlocked!' : newBest ? 'New best score!' : 'Run done · next run starting';
-      if (rec.bossUnlocked) popTile(lvl.id);
+      if (rec.bossUnlocked) { popTile(lvl.id); hud.confetti(); }
       renderRow();
     } else {
       drill.runs += 1; drill.last = st.totalMs;
@@ -262,14 +263,14 @@ export function createScalesUI(ctx) {
 
   function renderBossStrip() {
     const on = !!(boss && active());
-    ui.bossStrip.hidden = !on;
     ui.stage.classList.toggle('is-focus', on);
     ui.foundBlock.hidden = true;
     ui.timeBlock.hidden = on;
     el.missBlock.hidden = on;
     if (!on) { ui.bossHp.hidden = false; return; }
     const cur = boss.runs[boss.index];
-    ui.bossTitle.textContent = `★ Boss · Level ${boss.levelId} · ${cur.label} · run ${boss.index + 1}/${boss.runs.length}`;
+    ui.bossTitle.textContent = `L${boss.levelId} · run ${boss.index + 1}/${boss.runs.length}`;
+    $('boss-hearts-label').textContent = 'Mistakes';
     ui.bossHp.hidden = true; ui.bossCd.hidden = true;
     ui.bossHearts.textContent = `${bossMistakes()} ✗`;
     ui.bossHearts.setAttribute('aria-label', `${bossMistakes()} mistakes`);
@@ -329,6 +330,7 @@ export function createScalesUI(ctx) {
     ui.bossEnd.classList.remove('is-lost');
     ui.bossEnd.hidden = false;
     ui.bossEnd.classList.remove('is-on'); void ui.bossEnd.offsetWidth; ui.bossEnd.classList.add('is-on');
+    hud.confetti();
     boss = null;
     popTile(lvl.id);
     if (ctx.getSettings().voice) voice.speak('Boss defeated!', ctx.voiceOpts());
@@ -417,6 +419,8 @@ export function createScalesUI(ctx) {
     b.innerHTML = `<b class="path__num">L${l.id}</b><span class="path__names">${l.short}</span><span class="path__mark"></span>`;
     b.addEventListener('click', () => {
       if (l.id === store.current) { el.pop.hidden = !el.pop.hidden; return; }
+      if (!store.isUnlocked(l.id)) { showLocked(l); return; }
+      hud.hideLock();
       if (!store.select(l.id)) return;
       el.pop.hidden = true;
       boss = null;
@@ -431,6 +435,24 @@ export function createScalesUI(ctx) {
   document.addEventListener('pointerdown', (e) => { if (!el.pop.hidden && !el.row.contains(e.target)) el.pop.hidden = true; });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') el.pop.hidden = true; });
 
+  const critsOf = (pr) => [
+    { text: `${pr.runs} / ${WINDOW_RUNS} runs`, state: pr.met.count ? 'met' : 'open' },
+    hud.crit(`${pr.avgMs == null ? '' : Math.round(pr.avgMs)} ms/note`, pr.avgMs, pr.met.time, `≤ ${AVG_NOTE_MS_MAX} ms/note`),
+    { text: `new boxes ${pr.coverage.done}/${pr.coverage.need}`, state: pr.met.covered ? 'met' : 'open' },
+    hud.crit(`worst run ${pr.worstMistakes} ✗`, pr.worstMistakes, pr.met.clean, `≤ ${MAX_RUN_MISTAKES} mistake`),
+  ];
+
+  function showLocked(l) {
+    const before = SCALE_LEVELS[l.id - 2], isCurrent = before.id === store.current;
+    el.pop.hidden = true;
+    hud.showLock({
+      kicker: `Path · Level ${l.id}`, title: `${l.title} is locked`,
+      text: `Beat the L${before.id} boss to open it${isCurrent ? `: ${WINDOW_RUNS} runs at ${AVG_NOTE_MS_MAX} ms per note or less, at most ${MAX_RUN_MISTAKES} mistake in any run.` : ': finish the earlier levels first.'}`,
+      rows: isCurrent ? critsOf(store.progress(before.id)) : [],
+      backLabel: `Back to L${store.current}`, onBack: () => {},
+    });
+  }
+
   function popTile(id) {
     const t = tiles[id - 1];
     t.classList.remove('is-pop'); void t.offsetWidth; t.classList.add('is-pop');
@@ -439,11 +461,11 @@ export function createScalesUI(ctx) {
   function renderRow() {
     const show = active() && isPath();
     el.row.hidden = !show;
-    if (!show) { el.tipCard.hidden = true; return; }
+    if (!show) { el.tipCard.hidden = true; if (active()) hud.setPath(null); return; }
     const lvl = level(), pr = store.progress(lvl.id), inBoss = !!boss;
     tiles.forEach((b, i) => {
       const l = SCALE_LEVELS[i], open = store.isUnlocked(l.id), done = store.isDone(l.id), now_ = l.id === lvl.id;
-      b.disabled = !open;
+      b.setAttribute('aria-disabled', String(!open));
       b.classList.toggle('is-locked', !open);
       b.classList.toggle('is-done', done);
       b.classList.toggle('is-current', now_);
@@ -460,6 +482,13 @@ export function createScalesUI(ctx) {
       + box('Per note', pr.avgMs == null ? '—' : `${Math.round(pr.avgMs)} ms`, `${AVG_NOTE_MS_MAX} ms or less`, pr.met.time)
       + box('New boxes', `${pr.coverage.done}/${pr.coverage.need}`, 'each played once', pr.met.covered)
       + box('Worst run', pr.worstMistakes == null ? '—' : `${pr.worstMistakes} ✗`, `${MAX_RUN_MISTAKES} or fewer`, pr.met.clean);
+    hud.setPath({
+      level: { n: lvl.id, sub: lvl.title },
+      note: hud.opensNote(lvl.id, SCALE_LEVELS.length, pr.done), locked: !pr.done && lvl.id < SCALE_LEVELS.length,
+      meter: inBoss
+        ? { n: boss.index, of: boss.runs.length, crits: [{ text: `${bossMistakes()} mistake${bossMistakes() === 1 ? '' : 's'}`, state: bossMistakes() ? 'bad' : 'met' }, { text: `run ${boss.index + 1}/${boss.runs.length}`, state: 'open' }] }
+        : { n: Math.min(pr.runs, WINDOW_RUNS), of: WINDOW_RUNS, crits: critsOf(pr).slice(1) },
+    });
     el.bossBtn.disabled = !pr.bossUnlocked || inBoss;
     el.bossBtn.classList.toggle('is-ready', pr.bossUnlocked && !inBoss);
     el.bossBtn.innerHTML = inBoss ? `Boss ${boss.index + 1}/${boss.runs.length}` : `${pr.bossUnlocked ? '★' : LOCK_SVG} ${pr.done ? 'Boss again' : 'Boss'}`;
