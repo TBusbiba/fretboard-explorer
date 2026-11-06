@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mockup</title>
+  <meta name="description" content="Flashcards for chord spelling: name the three notes of a chord, its key signature, then find them on the fretboard.">
+  <link rel="stylesheet" href="../../../../../shared/console.css">
+  <link rel="stylesheet" href="../../../../../practice/styles.css">
+  <link rel="stylesheet" href="../../../../../practice/chords.css">
+<style>
+.mk-seg{display:inline-flex;gap:0;border:2.5px solid var(--nb-ink);border-radius:8px;overflow:hidden;background:var(--nb-card)}
+.mk-seg button{font:700 12px var(--nb-sans);min-height:30px;padding:0 10px;border:0;background:var(--nb-card);color:var(--nb-ink)}
+.mk-seg button+button{border-left:2.5px solid var(--nb-ink)}
+.mk-seg button[aria-pressed=true]{background:var(--nb-green)}
+.mk-lab{font:700 9px var(--nb-sans);letter-spacing:.1em;text-transform:uppercase;color:var(--nb-ink-3);margin-right:2px}
+.mk-chips{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:4px 0 2px}
+.mk-chips span{min-width:44px;text-align:center;padding:3px 10px;font:700 16px/1.2 var(--nb-sans);background:var(--nb-card);color:var(--nb-ink);border:2.5px solid var(--nb-ink);border-radius:8px;opacity:.75}
+.mk-chips span.is-done{background:var(--nb-green);opacity:1}
+.mk-chips span.is-cur{background:var(--nb-yellow);opacity:1;box-shadow:3px 3px 0 var(--nb-ink);transform:translate(-1px,-1px)}
+.ghost .fb-note__dot{fill:transparent!important;stroke:#fff;stroke-width:2;stroke-dasharray:4 3}
+.ghost .fb-note__shadow,.ghost .fb-note__glow,.ghost text{display:none}
+.ghost{opacity:.5}
+.p-hud .prompt__note{font-size:46px!important}.p-hud .prompt__status{display:none}.mk-chips{margin:0}.mk-chips span{font-size:14px;padding:1px 9px;min-width:38px}
+.mk-chooser{display:flex;gap:10px;justify-content:center;margin-top:10px}
+.mk-chooser button{min-width:110px;min-height:42px;font:700 16px var(--nb-sans);background:var(--nb-card);color:var(--nb-ink);border:2.5px solid var(--nb-ink);border-radius:8px;box-shadow:3px 3px 0 var(--nb-ink)}
+.mk-chooser button.on{background:var(--nb-green)}
+.mk-roman{display:grid;grid-template-columns:repeat(6,minmax(52px,1fr));gap:10px;width:min(560px,100%);margin:8px 0 4px}
+.mk-roman button{min-height:64px;font:700 26px var(--nb-sans);background:var(--nb-card);color:var(--nb-ink);border:2.5px solid var(--nb-ink);border-radius:8px;box-shadow:3px 3px 0 var(--nb-ink)}
+.mk-roman button.on{background:var(--nb-green)}
+.cq .card__name.mk-key{font-size:44px}
+.mk-row{display:flex;gap:8px;margin-top:6px}
+.mk-row div{display:flex;flex-direction:column;align-items:center;min-width:52px;padding:5px 6px;border-radius:6px;background:var(--nb-card);border:2.5px solid var(--nb-ink)}
+.mk-row b{font:700 20px/1 var(--nb-sans);color:var(--nb-ink)}.mk-row span{font:700 12px var(--nb-sans);color:var(--nb-ink-2)}
+.mk-path{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:4px}
+.mk-path span{font:700 15px var(--nb-sans);padding:2px 10px;background:var(--nb-card);border:2.5px solid var(--nb-ink);border-radius:8px}
+.mk-path i{font-style:normal;font-weight:700}
+.mk-path .miss{background:#ffb8c6}
+@media(max-width:560px){.mk-roman{gap:6px}.mk-roman button{font-size:20px;min-height:52px}.mk-chooser button{min-width:90px}}
+</style></head>
+<body class="p-hud cq-page">
+  <header class="top">
+    <a class="top__back ns-brand" href="../index.html" aria-label="Fretboard Explorer home">
+      <span class="ns-brand__led" aria-hidden="true"></span><span class="ns-brand__word">fretboard</span><span class="ns-brand__model">FB-1</span>
+    </a>
+    <nav class="ns-nav" aria-label="Sections">
+      <a href="../index.html">Explorer</a>
+      <a href="index.html" aria-current="page">Practice</a>
+      <a href="../chordmap/index.html">Chord Map</a>
+    </nav>
+    <h1 class="top__title ns-sr">Fretboard Practice · Chords</h1>
+    <div class="top__right">
+      <button class="icon-btn" id="sound-toggle" aria-label="Sound" aria-pressed="true" title="Sound on/off">
+        <svg class="i-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>
+        <svg class="i-off" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4z"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="stage cq">
+    <div class="modebar">
+      <div class="mode" aria-label="Practice mode">
+        <a class="mode__link" href="index.html?mode=note" data-mode="note"><span>Find the note</span></a>
+        <a class="mode__link" href="index.html?mode=scales" data-mode="scales"><span>Scales</span></a>
+        <a class="mode__link" href="index.html?mode=triads" data-mode="triads"><span>Triads</span></a>
+        <a class="mode__link is-active" href="chords.html" aria-current="page"><span>Chords</span></a>
+        <span class="mode__soon" aria-disabled="true" title="Not finished yet">Intervals · Arpeggios · Vibrato: soon</span>
+      </div>
+      <div class="modebar__right cq-opts">
+        <div class="cq-deck" role="radiogroup" aria-label="Deck">
+          <label><input type="radio" name="deck" value="major"><span>Major</span></label>
+          <label><input type="radio" name="deck" value="minor"><span>Minor</span></label>
+          <label><input type="radio" name="deck" value="both"><span>Both</span></label>
+          <label><input type="radio" name="deck" value="keys" checked><span>Keys</span></label>
+        </div>
+        <label class="switch cq-natural" title="Only the seven chords without a sharp or flat: A B C D E F G">
+          <input type="checkbox" id="natural-toggle"><span>Natural chords</span>
+        </label>
+        <label class="switch cq-notes-only" title="Only name the three notes: skip the key signature and fretboard steps">
+          <input type="checkbox" id="notes-only-toggle"><span>Notes only</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="stagecard cq-card" id="stagecard">
+      <section class="cq-hud">
+        <div class="cq-hud__l">
+          <div class="pblock cq-stat cq-stat--streak"><small>Streak</small><b class="cq-stat__v" id="stat-streak">0</b></div>
+          <div class="pblock cq-stat"><small>Best</small><b class="cq-stat__v" id="stat-best">0</b></div>
+        </div>
+        <div class="cq-hud__c">
+          <div class="cq-table">
+            <div class="card" id="card">
+              <div class="card__inner">
+                <div class="card__face card__face--front">
+                  <div class="card__id">
+                    <div class="card__tag" id="card-tag">Keys · degree</div>
+                    <div class="card__name mk-key" id="card-name">C major</div>
+                  </div>
+                  <div class="card__qa">
+                    <div class="card__ask" id="card-ask">What is the V?</div>
+                    <div class="card__ask" style="font-weight:400">Root, then major or minor</div>
+                  </div>
+                </div>
+                <div class="card__face card__face--back" id="card-back"></div>
+              </div>
+            </div>
+          </div>
+          <div class="cq-feedback" id="feedback"></div>
+        </div>
+        <div class="cq-hud__r">
+          <div class="pblock cq-stat cq-stat--mastery"><small>Mastered</small><b><span id="stat-mastered">0</span>/<span id="stat-total">18</span></b><div class="cq-mastery"><div class="cq-mastery__fill" id="mastery-fill"></div></div></div>
+        </div>
+      </section>
+
+      <ol class="cq-steps" hidden aria-label="Steps">
+        <li class="cq-step" hidden data-step="notes"><span class="cq-step__n">1</span>Notes</li>
+        <li class="cq-step" data-step="key"><span class="cq-step__n">2</span>Key signature</li>
+        <li class="cq-step" data-step="fret"><span class="cq-step__n">3</span>Fretboard</li>
+      </ol>
+
+      <section class="cq-work">
+        <div class="cq-panel" id="panel-notes">
+          <div class="keypad" id="keypad"></div>
+<div class="mk-chooser"><button>Major</button><button class="on">Minor</button></div>
+        </div>
+
+        <div class="cq-panel" id="panel-key" hidden>
+          <p class="cq-q" id="key-question">How many sharps or flats in the key?</p>
+          <div class="keysig" id="keysig"></div>
+        </div>
+
+        <div class="cq-panel" id="panel-fret" hidden>
+          <div class="cq-found" id="found"></div>
+          <section class="board">
+            <div class="board__scroll"><svg class="fretboard" id="fretboard"></svg></div>
+          </section>
+        </div>
+      </section>
+    </div>
+
+    <div class="dock cq-dock">
+      <div class="dock__ctl cq-dock__notes">
+        <button class="btn btn--ghost btn--small btn-say" id="btn-say" aria-pressed="false" hidden>Say it <kbd>S</kbd></button>
+        <button class="btn btn--ghost btn--small" id="btn-reveal">Show answer</button>
+        <button class="btn btn--ghost btn--small" id="btn-clear">Clear <kbd>Esc</kbd></button>
+        <button class="btn btn--primary" id="btn-go" disabled>Go <kbd>Enter</kbd></button>
+      </div>
+      <div class="dock__ctl cq-dock__fret">
+        <button class="btn btn--ghost btn--small" id="btn-skip">Skip</button>
+        <button class="btn btn--primary" id="btn-next" disabled>Next card <kbd>Enter</kbd></button>
+      </div>
+    </div>
+  </main>
+
+  <div class="fx" id="fx" aria-hidden="true"></div>
+  <script>const CIRCLE=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
+const spot=i=>{const a=i/12*2*Math.PI;return[50+40*Math.sin(a),50-40*Math.cos(a)]};
+const acc=n=>n.replace('♯','<span class="acc">♯</span>').replace('♭','<span class="acc">♭</span>');
+document.getElementById('keypad').innerHTML='<svg class="keypad__shape" viewBox="0 0 100 100"><polygon/></svg><span class="keypad__mid">Pick the root</span>'+CIRCLE.map((n,i)=>{const[x,y]=spot(i);return`<button class="key key--${n.length>1?'sharp':'natural'}" style="--x:${x.toFixed(2)};--y:${y.toFixed(2)}">${acc(n)}</button>`}).join('');
+document.querySelectorAll('.key')[7].classList.add('is-picked');
+document.querySelector('.keypad__mid').textContent='G · minor?';
+document.getElementById('stat-streak').textContent='3';document.getElementById('stat-best').textContent='7';document.getElementById('stat-mastered').textContent='4';document.getElementById('mastery-fill').style.width='22%';
+document.getElementById('btn-go').disabled=false;
+</script></body></html>
