@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="chords.css">
 </head>
-<body>
+<body class="p-one cq-page">
   <header class="top">
     <a class="top__back ns-brand" href="../index.html" aria-label="Fretboard Explorer home">
       <span class="ns-brand__led" aria-hidden="true"></span><span class="ns-brand__word">fretboard</span><span class="ns-brand__model">FB-1</span>
@@ -25,16 +25,19 @@
       <svg class="i-off" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4z"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>
     </button>
   </header>
-  <div class="nb-ticker"><div class="nb-ticker__track"><span>Name the three notes of the chord on the card ★ Then pick its key signature, then find it on the fretboard ★ Choose Major, Minor or Both ★ Turn on Notes only to just name the notes ★ Natural chords leaves out the sharps and flats ★ Enter checks your answer, Esc clears it ★ Show answer if you're stuck ★ Build a streak and master all 14 chords ★ </span><span aria-hidden="true">Name the three notes of the chord on the card ★ Then pick its key signature, then find it on the fretboard ★ Choose Major, Minor or Both ★ Turn on Notes only to just name the notes ★ Natural chords leaves out the sharps and flats ★ Enter checks your answer, Esc clears it ★ Show answer if you're stuck ★ Build a streak and master all 14 chords ★ </span></div></div>
+  <div class="nb-ticker"><div class="nb-ticker__track" id="ticker"><span>Name the three notes of the chord on the card ★ Then pick its key signature, then find it on the fretboard ★ Choose Major, Minor or Both ★ Turn on Notes only to just name the notes ★ Natural chords leaves out the sharps and flats ★ Enter checks your answer, Esc clears it ★ Show answer if you're stuck ★ Build a streak and master all 14 chords ★ </span><span aria-hidden="true">Name the three notes of the chord on the card ★ Then pick its key signature, then find it on the fretboard ★ Choose Major, Minor or Both ★ Turn on Notes only to just name the notes ★ Natural chords leaves out the sharps and flats ★ Enter checks your answer, Esc clears it ★ Show answer if you're stuck ★ Build a streak and master all 14 chords ★ </span></div></div>
 
   <main class="stage cq">
-    <div class="mode segmented" aria-label="Practice mode">
-      <a class="mode__link" href="index.html"><span>Find the note</span></a>
-      <a class="mode__link" href="index.html"><span>Intervals</span></a>
-      <a class="mode__link" href="index.html"><span>Arpeggios</span></a>
-      <a class="mode__link" href="index.html"><span>Triads</span></a>
-      <a class="mode__link" href="vibrato.html"><span>Vibrato</span></a>
-      <a class="mode__link is-active" href="chords.html"><span>Chords</span></a>
+    <div class="modebar">
+      <div class="mode segmented" aria-label="Practice mode">
+        <a class="mode__link" href="index.html" data-mode="note"><span>Find the note</span></a>
+        <span class="mode__link is-soon" aria-disabled="true"><span>Intervals<small class="soon">Soon</small></span></span>
+        <span class="mode__link is-soon" aria-disabled="true"><span>Arpeggios<small class="soon">Soon</small></span></span>
+        <a class="mode__link" href="index.html" data-mode="triads"><span>Triads</span></a>
+        <a class="mode__link" href="index.html" data-mode="scales"><span>Scales</span></a>
+        <span class="mode__link is-soon" aria-disabled="true"><span>Vibrato<small class="soon">Soon</small></span></span>
+        <a class="mode__link is-active" href="chords.html" aria-current="page"><span>Chords</span></a>
+      </div>
     </div>
 
     <section class="cq-bar">
@@ -49,41 +52,44 @@
       <label class="switch cq-notes-only" title="Only name the three notes: skip the key signature and fretboard steps">
         <input type="checkbox" id="notes-only-toggle"><span>Notes only</span>
       </label>
-      <div class="cq-stats">
-        <div class="cq-stat cq-stat--streak"><span class="cq-stat__v" id="stat-streak">0</span><span class="cq-stat__l">streak</span></div>
-        <div class="cq-stat"><span class="cq-stat__v" id="stat-best">0</span><span class="cq-stat__l">best</span></div>
-        <div class="cq-stat cq-stat--mastery">
-          <div class="cq-mastery"><div class="cq-mastery__fill" id="mastery-fill"></div></div>
-          <span class="cq-stat__l"><b id="stat-mastered">0</b> / <span id="stat-total">14</span> mastered</span>
-        </div>
-      </div>
+      <ol class="cq-steps" aria-label="Steps">
+        <li class="cq-step" data-step="notes"><span class="cq-step__n">1</span>Notes</li>
+        <li class="cq-step" data-step="key"><span class="cq-step__n">2</span>Key signature</li>
+        <li class="cq-step" data-step="fret"><span class="cq-step__n">3</span>Fretboard</li>
+      </ol>
     </section>
 
-    <ol class="cq-steps" aria-label="Steps">
-      <li class="cq-step" data-step="notes"><span class="cq-step__n">1</span>Notes</li>
-      <li class="cq-step" data-step="key"><span class="cq-step__n">2</span>Key signature</li>
-      <li class="cq-step" data-step="fret"><span class="cq-step__n">3</span>Fretboard</li>
-    </ol>
-
-    <section class="cq-table">
-      <div class="card" id="card">
-        <div class="card__inner">
-          <div class="card__face card__face--front">
-            <div class="card__tag" id="card-tag">Major chord</div>
-            <div class="card__name" id="card-name">C</div>
-            <div class="card__ask" id="card-ask">Which three notes?</div>
-            <div class="slots" id="slots">
-              <button class="slot" data-i="0" aria-label="First note"></button>
-              <button class="slot" data-i="1" aria-label="Second note"></button>
-              <button class="slot" data-i="2" aria-label="Third note"></button>
+    <section class="prompt cq-prompt">
+      <div class="cq-main">
+        <div class="cq-table">
+          <div class="card" id="card">
+            <div class="card__inner">
+              <div class="card__face card__face--front">
+                <div class="card__id">
+                  <div class="card__tag" id="card-tag">Major chord</div>
+                  <div class="card__name" id="card-name">C</div>
+                </div>
+                <div class="card__qa">
+                  <div class="card__ask" id="card-ask">Which three notes?</div>
+                  <div class="slots" id="slots">
+                    <button class="slot" data-i="0" aria-label="First note"></button>
+                    <button class="slot" data-i="1" aria-label="Second note"></button>
+                    <button class="slot" data-i="2" aria-label="Third note"></button>
+                  </div>
+                </div>
+              </div>
+              <div class="card__face card__face--back" id="card-back"></div>
             </div>
           </div>
-          <div class="card__face card__face--back" id="card-back"></div>
         </div>
+        <div class="cq-feedback" id="feedback" aria-live="polite"></div>
+      </div>
+      <div class="prompt__right cq-stats">
+        <div class="pblock cq-stat cq-stat--streak"><small>Streak</small><b class="cq-stat__v" id="stat-streak">0</b></div>
+        <div class="pblock cq-stat"><small>Best</small><b class="cq-stat__v" id="stat-best">0</b></div>
+        <div class="pblock cq-stat cq-stat--mastery"><small>Mastered</small><b><span id="stat-mastered">0</span>/<span id="stat-total">14</span></b><div class="cq-mastery"><div class="cq-mastery__fill" id="mastery-fill"></div></div></div>
       </div>
     </section>
-
-    <div class="cq-feedback" id="feedback" aria-live="polite"></div>
 
     <section class="cq-work">
       <div class="cq-panel" id="panel-notes">
@@ -115,6 +121,16 @@
   </main>
 
   <div class="fx" id="fx" aria-hidden="true"></div>
+  <script>
+    document.querySelectorAll('.mode a[data-mode]').forEach(function (a) {
+      a.addEventListener('click', function () {
+        try {
+          var k = 'fretboard-practice.settings.v2', s = JSON.parse(localStorage.getItem(k) || '{}');
+          s.mode = a.dataset.mode; localStorage.setItem(k, JSON.stringify(s));
+        } catch (e) { /* ignore */ }
+      });
+    });
+  </script>
   <script type="module" src="js/chords/quiz.js"></script>
 </body>
 </html>
