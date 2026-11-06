@@ -20,7 +20,8 @@ export const DEFAULTS = Object.freeze({
   chordPick: 'random',
   triads: ['major', 'minor', 'dim', 'aug', 'dom7', 'min7'],
   triadPick: ['major', 'minor', 'dim', 'aug', 'dom7', 'min7'], // selected triad types; each question picks one at random
-  triadMode: 'path',      // triads: 'path' (the 11 levels) | 'custom' (pick qualities and string groups)
+  triadMode: 'path',      // triads: 'path' (the 11 levels) | 'custom' (pick qualities and string groups) | 'progressions'
+  progDisplay: 'names',   // triads, Progressions: chords shown as 'names' (G D Em C) or 'numbers' (I V vi IV)
   triadQualities: ['major', 'minor'], // triads, Custom: which qualities are asked
   triadGroups: ['654', '543', '432', '321'], // triads, Custom: which string groups are asked
   scalesMode: 'path',     // scales: 'path' (the 11 levels) | 'drill' (pick scale, root and box)
@@ -76,7 +77,8 @@ export function migrate(saved) {
   } else {
     saved.notes = ALL_NOTES.filter(n => saved.notes.includes(n));
   }
-  if (saved.triadMode !== 'path' && saved.triadMode !== 'custom') delete saved.triadMode;
+  if (!['path', 'custom', 'progressions'].includes(saved.triadMode)) delete saved.triadMode;
+  if (saved.progDisplay !== 'numbers' && saved.progDisplay !== 'names') delete saved.progDisplay;
   const keep = (key, valid) => {
     if (!Array.isArray(saved[key])) { delete saved[key]; return; }
     const ok = valid.filter(v => saved[key].includes(v));

@@ -11,3 +11,15 @@ test('saved settings with Play the notes on are switched off once', () => {
   const turnedOn = migrate({ ...first, playNotes: true });
   assert.equal(turnedOn.playNotes, true);
 });
+
+test('Progressions: names by default; triadMode progressions and progDisplay survive migrate', () => {
+  assert.equal(DEFAULTS.progDisplay, 'names');
+  assert.equal(migrate({ triadMode: 'progressions' }).triadMode, 'progressions');
+  assert.equal(migrate({ progDisplay: 'numbers' }).progDisplay, 'numbers');
+});
+
+test('Progressions: unknown triadMode or progDisplay fall back to the defaults', () => {
+  assert.equal('triadMode' in migrate({ triadMode: 'bogus' }), false);
+  assert.equal('progDisplay' in migrate({ progDisplay: 'roman' }), false);
+  assert.equal('progDisplay' in migrate({ progDisplay: 7 }), false);
+});
