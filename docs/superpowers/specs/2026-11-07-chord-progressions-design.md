@@ -87,3 +87,17 @@ Teach the diatonic chords of major keys two ways: by naming them (flashcards, no
 | 9 | Chain and Custom | The chain resets every question. Path only, no Custom picker, in this version. |
 
 Builder check verified the worked example against `voicingsFor` 0–14: G4 B3 e3 → D 2·3·2 → Em 4·5·3 → C 5·5·3 with no ties; from G7 B8 e7 every chord sits at fret 5 or higher.
+
+## Keys deck: teach on a miss (added 2026-11-07 after review)
+
+The Keys deck must explain, not just grade. On a wrong answer, on "Show answer", and on a first visit, a `Why` panel replaces the key-signature/fretboard steps:
+
+- Line 1, the scale with numbers: `C  D  E  F  G  A  B` over `1  2  3  4  5  6  7`, the asked degree highlighted.
+- Line 2, the rule, always the same words: `1, 4, 5 are major · 2, 3, 6 are minor · 7 is diminished (skipped)`.
+- Line 3, the worked answer for this card:
+  - degree card: `V of C major: count up C D E F G → G. 5 is always major → G.`
+  - reverse card: `Dm is the 2nd note of F major (F G A B♭ C D) → ii. 2 is always minor, so Dm fits.`
+- Line 4, the whole row as chips: `C  Dm  Em  F  G  Am` with `I ii iii IV V vi` under it.
+- Pure helper `explain(keyName, degreeOrChord)` in `keys.js` returns `{scale:[…], ruleText, workedText, row:[…]}` so the text is unit-tested; the UI only renders it.
+- First visit to the Keys deck (no keys card in `boxes` yet) opens the panel once with a generic example in C before the first card; dismiss with Go.
+- A wrong answer shows the panel and lets the user retry; the card still counts as unclean.
