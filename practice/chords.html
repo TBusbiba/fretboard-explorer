@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="chords.css">
 </head>
-<body class="p-one cq-page">
+<body class="p-hud cq-page">
   <header class="top">
     <a class="top__back ns-brand" href="../index.html" aria-label="Fretboard Explorer home">
       <span class="ns-brand__led" aria-hidden="true"></span><span class="ns-brand__word">fretboard</span><span class="ns-brand__model">FB-1</span>
@@ -20,104 +20,110 @@
       <a href="../chordmap/index.html">Chord Map</a>
     </nav>
     <h1 class="top__title ns-sr">Fretboard Practice · Chords</h1>
-    <button class="icon-btn" id="sound-toggle" aria-label="Sound" aria-pressed="true" title="Sound on/off">
-      <svg class="i-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>
-      <svg class="i-off" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4z"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>
-    </button>
+    <div class="top__right">
+      <button class="icon-btn" id="sound-toggle" aria-label="Sound" aria-pressed="true" title="Sound on/off">
+        <svg class="i-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>
+        <svg class="i-off" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4z"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>
+      </button>
+    </div>
   </header>
-  <div class="nb-ticker"><div class="nb-ticker__track" id="ticker"><span>Name the three notes of the chord on the card ★ Then pick its key signature, then find it on the fretboard ★ Choose Major, Minor or Both ★ Turn on Notes only to just name the notes ★ Natural chords leaves out the sharps and flats ★ Enter checks your answer, Esc clears it ★ Show answer if you're stuck ★ Build a streak and master all 14 chords ★ </span><span aria-hidden="true">Name the three notes of the chord on the card ★ Then pick its key signature, then find it on the fretboard ★ Choose Major, Minor or Both ★ Turn on Notes only to just name the notes ★ Natural chords leaves out the sharps and flats ★ Enter checks your answer, Esc clears it ★ Show answer if you're stuck ★ Build a streak and master all 14 chords ★ </span></div></div>
 
   <main class="stage cq">
     <div class="modebar">
-      <div class="mode segmented" aria-label="Practice mode">
+      <div class="mode" aria-label="Practice mode">
         <a class="mode__link" href="index.html" data-mode="note"><span>Find the note</span></a>
-        <span class="mode__link is-soon" aria-disabled="true"><span>Intervals<small class="soon">Soon</small></span></span>
-        <span class="mode__link is-soon" aria-disabled="true"><span>Arpeggios<small class="soon">Soon</small></span></span>
-        <a class="mode__link" href="index.html" data-mode="triads"><span>Triads</span></a>
         <a class="mode__link" href="index.html" data-mode="scales"><span>Scales</span></a>
-        <span class="mode__link is-soon" aria-disabled="true"><span>Vibrato<small class="soon">Soon</small></span></span>
+        <a class="mode__link" href="index.html" data-mode="triads"><span>Triads</span></a>
         <a class="mode__link is-active" href="chords.html" aria-current="page"><span>Chords</span></a>
+        <span class="mode__soon" aria-disabled="true" title="Not finished yet">Intervals · Arpeggios · Vibrato: soon</span>
+      </div>
+      <div class="modebar__right cq-opts">
+        <div class="cq-deck" role="radiogroup" aria-label="Deck">
+          <label><input type="radio" name="deck" value="major"><span>Major</span></label>
+          <label><input type="radio" name="deck" value="minor"><span>Minor</span></label>
+          <label><input type="radio" name="deck" value="both"><span>Both</span></label>
+        </div>
+        <label class="switch cq-natural" title="Only the seven chords without a sharp or flat: A B C D E F G">
+          <input type="checkbox" id="natural-toggle"><span>Natural chords</span>
+        </label>
+        <label class="switch cq-notes-only" title="Only name the three notes: skip the key signature and fretboard steps">
+          <input type="checkbox" id="notes-only-toggle"><span>Notes only</span>
+        </label>
       </div>
     </div>
 
-    <section class="cq-bar">
-      <div class="cq-deck" role="radiogroup" aria-label="Deck">
-        <label><input type="radio" name="deck" value="major"><span>Major</span></label>
-        <label><input type="radio" name="deck" value="minor"><span>Minor</span></label>
-        <label><input type="radio" name="deck" value="both"><span>Both</span></label>
-      </div>
-      <label class="switch cq-natural" title="Only the seven chords without a sharp or flat: A B C D E F G">
-        <input type="checkbox" id="natural-toggle"><span>Natural chords</span>
-      </label>
-      <label class="switch cq-notes-only" title="Only name the three notes: skip the key signature and fretboard steps">
-        <input type="checkbox" id="notes-only-toggle"><span>Notes only</span>
-      </label>
+    <div class="stagecard cq-card" id="stagecard">
+      <section class="cq-hud">
+        <div class="cq-hud__l">
+          <div class="pblock cq-stat cq-stat--streak"><small>Streak</small><b class="cq-stat__v" id="stat-streak">0</b></div>
+          <div class="pblock cq-stat"><small>Best</small><b class="cq-stat__v" id="stat-best">0</b></div>
+        </div>
+        <div class="cq-hud__c">
+          <div class="cq-table">
+            <div class="card" id="card">
+              <div class="card__inner">
+                <div class="card__face card__face--front">
+                  <div class="card__id">
+                    <div class="card__tag" id="card-tag">Major chord</div>
+                    <div class="card__name" id="card-name">C</div>
+                  </div>
+                  <div class="card__qa">
+                    <div class="card__ask" id="card-ask">Which three notes?</div>
+                    <div class="slots" id="slots">
+                      <button class="slot" data-i="0" aria-label="First note"></button>
+                      <button class="slot" data-i="1" aria-label="Second note"></button>
+                      <button class="slot" data-i="2" aria-label="Third note"></button>
+                    </div>
+                  </div>
+                </div>
+                <div class="card__face card__face--back" id="card-back"></div>
+              </div>
+            </div>
+          </div>
+          <div class="cq-feedback" id="feedback" aria-live="polite"></div>
+        </div>
+        <div class="cq-hud__r">
+          <div class="pblock cq-stat cq-stat--mastery"><small>Mastered</small><b><span id="stat-mastered">0</span>/<span id="stat-total">14</span></b><div class="cq-mastery"><div class="cq-mastery__fill" id="mastery-fill"></div></div></div>
+        </div>
+      </section>
+
       <ol class="cq-steps" aria-label="Steps">
         <li class="cq-step" data-step="notes"><span class="cq-step__n">1</span>Notes</li>
         <li class="cq-step" data-step="key"><span class="cq-step__n">2</span>Key signature</li>
         <li class="cq-step" data-step="fret"><span class="cq-step__n">3</span>Fretboard</li>
       </ol>
-    </section>
 
-    <section class="prompt cq-prompt">
-      <div class="cq-main">
-        <div class="cq-table">
-          <div class="card" id="card">
-            <div class="card__inner">
-              <div class="card__face card__face--front">
-                <div class="card__id">
-                  <div class="card__tag" id="card-tag">Major chord</div>
-                  <div class="card__name" id="card-name">C</div>
-                </div>
-                <div class="card__qa">
-                  <div class="card__ask" id="card-ask">Which three notes?</div>
-                  <div class="slots" id="slots">
-                    <button class="slot" data-i="0" aria-label="First note"></button>
-                    <button class="slot" data-i="1" aria-label="Second note"></button>
-                    <button class="slot" data-i="2" aria-label="Third note"></button>
-                  </div>
-                </div>
-              </div>
-              <div class="card__face card__face--back" id="card-back"></div>
-            </div>
-          </div>
+      <section class="cq-work">
+        <div class="cq-panel" id="panel-notes">
+          <div class="keypad" id="keypad" role="group" aria-label="Notes"></div>
         </div>
-        <div class="cq-feedback" id="feedback" aria-live="polite"></div>
-      </div>
-      <div class="prompt__right cq-stats">
-        <div class="pblock cq-stat cq-stat--streak"><small>Streak</small><b class="cq-stat__v" id="stat-streak">0</b></div>
-        <div class="pblock cq-stat"><small>Best</small><b class="cq-stat__v" id="stat-best">0</b></div>
-        <div class="pblock cq-stat cq-stat--mastery"><small>Mastered</small><b><span id="stat-mastered">0</span>/<span id="stat-total">14</span></b><div class="cq-mastery"><div class="cq-mastery__fill" id="mastery-fill"></div></div></div>
-      </div>
-    </section>
 
-    <section class="cq-work">
-      <div class="cq-panel" id="panel-notes">
-        <div class="keypad" id="keypad" role="group" aria-label="Notes"></div>
-        <div class="cq-actions">
-          <button class="btn btn--ghost btn--small btn-say" id="btn-say" aria-pressed="false" hidden>Say it <kbd>S</kbd></button>
-          <button class="btn btn--ghost btn--small" id="btn-reveal">Show answer</button>
-          <button class="btn btn--ghost btn--small" id="btn-clear">Clear <kbd>Esc</kbd></button>
-          <button class="btn btn--primary" id="btn-go" disabled>Go <kbd>Enter</kbd></button>
+        <div class="cq-panel" id="panel-key" hidden>
+          <p class="cq-q" id="key-question">How many sharps or flats in the key?</p>
+          <div class="keysig" id="keysig"></div>
         </div>
-      </div>
 
-      <div class="cq-panel" id="panel-key" hidden>
-        <p class="cq-q" id="key-question">How many sharps or flats in the key?</p>
-        <div class="keysig" id="keysig"></div>
-      </div>
-
-      <div class="cq-panel" id="panel-fret" hidden>
-        <div class="cq-found" id="found"></div>
-        <section class="board">
-          <div class="board__scroll"><svg class="fretboard" id="fretboard"></svg></div>
-        </section>
-        <div class="cq-actions">
-          <button class="btn btn--ghost btn--small" id="btn-skip">Skip</button>
-          <button class="btn btn--primary" id="btn-next" disabled>Next card <kbd>Enter</kbd></button>
+        <div class="cq-panel" id="panel-fret" hidden>
+          <div class="cq-found" id="found"></div>
+          <section class="board">
+            <div class="board__scroll"><svg class="fretboard" id="fretboard"></svg></div>
+          </section>
         </div>
+      </section>
+    </div>
+
+    <div class="dock cq-dock">
+      <div class="dock__ctl cq-dock__notes">
+        <button class="btn btn--ghost btn--small btn-say" id="btn-say" aria-pressed="false" hidden>Say it <kbd>S</kbd></button>
+        <button class="btn btn--ghost btn--small" id="btn-reveal">Show answer</button>
+        <button class="btn btn--ghost btn--small" id="btn-clear">Clear <kbd>Esc</kbd></button>
+        <button class="btn btn--primary" id="btn-go" disabled>Go <kbd>Enter</kbd></button>
       </div>
-    </section>
+      <div class="dock__ctl cq-dock__fret">
+        <button class="btn btn--ghost btn--small" id="btn-skip">Skip</button>
+        <button class="btn btn--primary" id="btn-next" disabled>Next card <kbd>Enter</kbd></button>
+      </div>
+    </div>
   </main>
 
   <div class="fx" id="fx" aria-hidden="true"></div>
