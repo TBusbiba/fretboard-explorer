@@ -22,7 +22,6 @@ const qualityLabel = (q) => (q === 'major' ? 'Major' : 'Minor');
 const BOSS_INTRO_MS = 1800;
 const CLOCK_HOLD_CAP_MS = 9000;   // never freeze a shape's clock longer than this while the prompt and cue play
 const HIT_MS = 450, MISS_MS = 220;
-const SHOUTS = ['Nice!', 'Great!', 'Good!'];
 const stringLabel = (group) => STRINGS[stringGroupById(group).strings[0]].label;
 const runClock = (ms) => { const t = Math.floor(ms / 100) / 10, m = Math.floor(t / 60); return `${m}:${(t - m * 60).toFixed(1).padStart(4, '0')}`; };
 const clock = (ms) => { const t = Math.round(ms / 100) / 10, m = Math.floor(t / 60); return m ? `${m}:${(t - m * 60).toFixed(1).padStart(4, '0')}` : `${t.toFixed(1)} s`; };
@@ -67,7 +66,6 @@ export function createTriadsUI(ctx) {
   let introTimer = 0;
   let shapesKey = '';
   let shapesWasOpen = false;
-  let shoutAt = 0;          // rotates the shape-complete shout
   let fxTimer = 0;
 
   const settings = () => ctx.getSettings();
@@ -238,7 +236,7 @@ export function createTriadsUI(ctx) {
     renderDots(0, p.shape);
     markShapesFound();
     flashStrip('hit');
-    if (settings().voice && settings().speakFeedback) ctx.voice.speak(SHOUTS[shoutAt++ % SHOUTS.length], { ...ctx.voiceOpts(), clipsOnly: true });
+    ctx.bling();
     renderBossStrip();
     ctx.setStatus(`Shape ${p.shape} ✓ ${(p.ms / 1000).toFixed(1)} s · ${p.total - p.found} to go${extra ? ` · ${extra}` : ''}`, 'ok');
     ctx.updateStats();

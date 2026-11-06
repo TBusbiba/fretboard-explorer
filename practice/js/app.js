@@ -1055,7 +1055,7 @@ const triads = createTriadsUI({
   getSettings: () => settings,
   commit: (patch) => commit(patch),
   announce: (...a) => announce(...a),
-  playCue: () => playCue(), buzz: () => sound.buzz(),
+  playCue: () => playCue(), buzz: () => sound.buzz(), bling: () => sound.bling(),
   voiceOpts: () => voiceOpts(),
   setPrompt: (...a) => setPrompt(...a), setStatus: (...a) => setStatus(...a), setTip: (t) => setTip(t),
   scrollBoardTo: (f) => scrollBoardTo(f), updateStats: () => updateStats(), renderHeatPanel: () => renderHeatPanel(),

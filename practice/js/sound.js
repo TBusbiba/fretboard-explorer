@@ -77,6 +77,21 @@ export function createSound({ onPlaying = () => {} } = {}) {
       } catch { /* no audio: the flash still shows */ }
     },
 
+    async bling({ volume = 0.06 } = {}) {
+      try {
+        const c = await context();
+        const t0 = c.currentTime;
+        [[1318.5, 0], [1760, 0.07]].forEach(([freq, at]) => {
+          const t = t0 + at, osc = c.createOscillator(), gain = c.createGain();
+          osc.type = 'triangle'; osc.frequency.value = freq;
+          gain.gain.setValueAtTime(volume, t);
+          gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+          osc.connect(gain).connect(c.destination);
+          osc.start(t); osc.stop(t + 0.13);
+        });
+      } catch { /* no audio: the flash still shows */ }
+    },
+
     get playing() { return playing > 0; },
   };
 }
