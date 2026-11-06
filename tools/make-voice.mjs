@@ -13,6 +13,7 @@ if (!KEY) { console.error('ELEVENLABS_API_KEY is not set'); process.exit(1); }
 
 const NOTES = ['C', 'C sharp', 'D', 'D sharp', 'E', 'F', 'F sharp', 'G', 'G sharp', 'A', 'A sharp', 'B'];
 const STRING_NAMES = ['low E', 'A', 'D', 'G', 'B', 'E', 'high E'];
+const PROMPT_STRINGS = ['low E', 'A', 'D', 'G', 'B', 'high E'];
 
 export const normalize = (t) => t.toLowerCase().replace(/♯/g, ' sharp').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
 
@@ -21,6 +22,11 @@ const phrases = [];
 const add = (text, style = 'plain', spoken = text) => phrases.push([text, style, spoken]);
 
 for (let n = 1; n <= 6; n++) for (const note of NOTES) add(`String ${n}, ${note}`, 'prompt', `[excited] String ${n}, ${note}!`);
+for (let n = 1; n <= 6; n++) add(`String ${n}!`, 'prompt', `[excited] String ${n}!`);
+for (const name of PROMPT_STRINGS) {
+  for (const note of NOTES) add(`${name} string, ${note}!`, 'prompt', `[excited] ${name} string, ${note}!`);
+  add(`${name} string!`, 'prompt', `[excited] ${name} string!`);
+}
 for (const note of NOTES) { add(note); add(`That was ${note}`); }
 ['Correct', 'Good', 'Octave too high', 'Octave too low'].forEach(t => add(t));
 ['Nice!', 'Great!', 'On fire!', 'Unstoppable!', 'Legendary!', 'Chain complete!', 'New best streak!'].forEach(t => add(t, 'hype'));

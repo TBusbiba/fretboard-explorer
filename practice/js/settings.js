@@ -12,6 +12,7 @@ export const DEFAULTS = Object.freeze({
   notes: [0, 2, 4, 5, 7, 9, 11], // note mode: pitch classes asked (0 = C ... 11 = B); default C D E F G A B
 
   showStringNames: true,  // note mode: string name labels on the drill fretboard
+  sayStringNames: false,  // note mode, Custom: prompts say "A string" instead of "String 5" (the Path does from level 6)
   playNote: false,        // note mode: also play the target note after saying it
   intervals: ['octaveUp', 'octaveDown', 'fifth', 'majorThird', 'minorThird'], // pool for 'random'
   intervalPick: 'random', // 'random' or one interval id

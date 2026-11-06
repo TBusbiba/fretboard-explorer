@@ -169,7 +169,7 @@ export const TIPS = {
   6: {
     headline: 'E–F are neighbours too',
     line: 'E and F are one fret apart, like B and C. Every other pair of naturals is two frets apart.',
-    note: 'That is all seven naturals. There is no E♯ or B♯.',
+    note: 'That is all seven naturals. There is no E♯ or B♯. From here the app says string names ("A string, C!") instead of numbers.',
     diagram: () => neckSvg({
       strings: [5], label: 'Natural notes along the low E string; E to F and B to C are one fret apart',
       marks: ruler(5, f => ([0, 1, 7, 8].includes(f) ? 'c' : 'w')),

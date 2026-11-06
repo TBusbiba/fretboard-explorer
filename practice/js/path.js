@@ -19,6 +19,7 @@ export const STAR2_MS = 3000;      // boss average per note for 2 stars
 export const STAR3_MS = 2000;      // ... and for 3 stars (with no mistakes)
 export const STAR2_MISTAKES = 2;   // most mistakes that still earn 2 stars
 export const MAX_FRET = 12;        // every level lives in frets 0-12
+export const NAMES_FROM_LEVEL = 6; // from this level on the Path says "A string" instead of "String 5"
 
 // The order notes join the path; level 1 starts with the first two.
 const ORDER = ['E', 'A', 'D', 'B', 'G', 'C', 'F', 'F♯', 'C♯', 'G♯', 'D♯', 'A♯'];
@@ -38,6 +39,15 @@ export const LEVELS = TITLES.map((title, i) => {
 export function levelById(id) { return LEVELS.find(l => l.id === id) || null; }
 
 export function levelTitle(level) { return level.title; }
+
+/**
+ * What a note prompt shows and says. `names`: string names ("A string, C!") instead of numbers ("String 5, C");
+ * `short`: inside a note chain after the first note, only the string ("A string!" / "String 5!").
+ */
+export function stringPrompt(string, noteName, { names = false, short = false } = {}) {
+  const label = names ? `${STRINGS[string].label} string` : `String ${STRINGS[string].number}`;
+  return { label, spoken: short ? `${label}!` : names ? `${label}, ${noteName}!` : `${label}, ${noteName}` };
+}
 
 /** The frets a level is asked in: the fret-range setting, kept inside 0-12. */
 export function levelRange(level, range) {

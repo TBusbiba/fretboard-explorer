@@ -29,3 +29,10 @@ test('a text with any phrase missing falls back (null)', () => {
   assert.equal(clipFiles('Correct! Legendary ×40!', manifest), null);
   assert.equal(clipFiles('', manifest), null);
 });
+
+test('the string-only and string-name prompts have recorded clips', async () => {
+  const { readFileSync } = await import('node:fs');
+  const manifest = JSON.parse(readFileSync(new URL('../audio/voice/manifest.json', import.meta.url), 'utf8'));
+  for (const t of ['String 3!', 'A string!', 'low E string!', 'high E string!', 'A string, C!', 'low E string, F sharp!', 'high E string, B!']) assert.ok(clipFiles(t, manifest), t);
+  assert.deepEqual(clipFiles('Quick note chain round! A string, C!', manifest).length, 2);
+});

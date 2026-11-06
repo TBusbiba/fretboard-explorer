@@ -380,3 +380,14 @@ test('bossFretLabel names the fret only when the string repeats the note in 0-12
   assert.equal(bossFretLabel(5, 5), '');
   assert.equal(bossFretLabel(5, 0, { from: 0, to: 11 }), '');
 });
+
+test('stringPrompt: numbers by default, names from level 6, only the string inside a chain', async () => {
+  const { stringPrompt, NAMES_FROM_LEVEL } = await import('../js/path.js');
+  assert.equal(NAMES_FROM_LEVEL, 6);
+  assert.deepEqual(stringPrompt(3, 'C'), { label: 'String 4', spoken: 'String 4, C' });
+  assert.deepEqual(stringPrompt(3, 'C', { short: true }), { label: 'String 4', spoken: 'String 4!' });
+  assert.deepEqual(stringPrompt(4, 'C', { names: true }), { label: 'A string', spoken: 'A string, C!' });
+  assert.equal(stringPrompt(5, 'F sharp', { names: true }).spoken, 'Low E string, F sharp!'.replace('Low', 'low'));
+  assert.equal(stringPrompt(0, 'B', { names: true }).spoken, 'high E string, B!');
+  assert.equal(stringPrompt(4, 'C', { names: true, short: true }).spoken, 'A string!');
+});

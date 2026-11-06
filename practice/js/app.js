@@ -8,7 +8,7 @@ import { createSession } from './session.js';
 import { pickChain, createChain, createChainSchedule, CHAIN_BONUS } from './chain.js';
 import { createCombo, createCustomBest, speedLeft, BADGE_FROM } from './combo.js';
 import { createHistory } from './history.js';
-import { LEVELS, WINDOW, FIRST_TRY_MIN, AVG_MS_MAX, STAR2_MS, STAR3_MS, levelById, levelTitle, createPath, createBoss, createSpotBag, levelRange, positionWeigher, bossFretLabel } from './path.js';
+import { LEVELS, WINDOW, FIRST_TRY_MIN, AVG_MS_MAX, STAR2_MS, STAR3_MS, levelById, levelTitle, createPath, createBoss, createSpotBag, levelRange, positionWeigher, bossFretLabel, stringPrompt, NAMES_FROM_LEVEL } from './path.js';
 import { landmarkHint } from './landmarks.js';
 import { levelTip } from './tips.js';
 import { shapeSvg } from './triad-shapes.js';
@@ -64,6 +64,7 @@ const path = createPath();
 const customBest = createCustomBest();
 const combo = createCombo();
 const isNoteMode = () => !['intervals', 'arpeggios', 'triads'].includes(settings.mode);
+const sayNames = () => (settings.noteMode === 'path' ? path.current >= NAMES_FROM_LEVEL : settings.sayStringNames);
 const fretRange = () => ({ from: settings.fretFrom, to: settings.fretTo });
 // The frets actually drilled: in the Path, the setting kept inside 0-12.
 const boardRange = () => (isNoteMode() && settings.noteMode === 'path' ? levelRange(path.currentLevel, fretRange()) : fretRange());
@@ -254,15 +255,16 @@ function handleSessionEvent(type, p) {
         scrollBoardTo(p.target.fret);
         const inBoss = boss && boss.state === 'running';
         const inChain = !inBoss && chain && chain.current && chain.current.string === p.target.string && chain.current.fret === p.target.fret;
+        const sp = stringPrompt(p.target.string, spokenName(p.note.name), { names: sayNames(), short: inChain && !!chain.previous });
         const prefix = inChain ? `Chain ${chain.index + 1} of ${chain.spots.length} · ` : '';
         let spokenIntro = '';
         if (inBoss) {
           const item = boss.current;
           const bossLabel = bossFretLabel(item.string, item.fret, boss.range);
           for (const f of boss.found) fretboard.showNote(f.string, f.fret, 'correct', p.note.name, true);
-          setPrompt(`Every ${p.note.name} · ${item.n} of ${item.of} · String ${STRINGS[item.string].number}${bossLabel ? ` · ${bossLabel}` : ''}`, p.note.name, 'listening');
+          setPrompt(`Every ${p.note.name} · ${item.n} of ${item.of} · ${stringPrompt(item.string, '', { names: sayNames() }).label}${bossLabel ? ` · ${bossLabel}` : ''}`, p.note.name, 'listening');
           if (boss.runStart) spokenIntro = `${showBossIntro(boss, p.note.name)} `;
-        } else setPrompt(`${prefix}String ${STRINGS[p.target.string].number}`, p.note.name, 'listening');
+        } else setPrompt(`${prefix}${sp.label}`, p.note.name, 'listening');
         if (notice) { setStatus(notice.text, notice.tone); notice = null; }
         else setStatus(inBoss ? `Next: ${stringLabel(p.target.string)} string${boss.mistakes ? ` · ${boss.mistakes} mistake${boss.mistakes > 1 ? 's' : ''}` : ''}` : 'Listening…');
         if (inChain) {
@@ -273,7 +275,7 @@ function handleSessionEvent(type, p) {
             setStatus(`${chain.hint} →`, 'chain');
           } else spokenIntro = `${showChainIntro(chain, p.note.name)} `;
         }
-        announce(`${spokenIntro}String ${STRINGS[p.target.string].number}, ${spokenName(p.note.name)}`, settings.playNote ? p.note.midi : null,
+        announce(`${spokenIntro}${sp.spoken}`, settings.playNote ? p.note.midi : null,
           { speak: settings.voice || settings.playNote, holdClock: true });
       }
       break;
@@ -482,6 +484,7 @@ ui.earToggle.addEventListener('click', () => {
   hearAgain(); // switching it on mid-question plays the current note straight away
 });
 ui.earReplay.addEventListener('click', hearAgain);
+$('say-names-toggle').addEventListener('click', () => commit({ sayStringNames: !settings.sayStringNames }));
 ui.namesToggle.addEventListener('click', () => commit({ showStringNames: !settings.showStringNames }));
 ui.shapesToggle.addEventListener('click', () => commit({ showShapes: !settings.showShapes }));
 ui.cueToggle.addEventListener('click', () => commit({ playNotes: !settings.playNotes }));
@@ -802,7 +805,7 @@ function onNoteCorrect(p) {
 function failBoss(reason, text) {
   boss = null;
   if (text) notice = { text, tone: 'bad' };
-  ui.stringName.textContent = `String ${STRINGS[session.target.string].number}`;
+  ui.stringName.textContent = stringPrompt(session.target.string, '', { names: sayNames() }).label;
   renderPath();
 }
 
@@ -1319,6 +1322,7 @@ function applySettingsToUI() {
   ui.customStrings.querySelectorAll('.chip').forEach((c) => c.setAttribute('aria-pressed', settings.strings.includes(+c.dataset.index)));
   ui.earToggle.setAttribute('aria-pressed', settings.playNote);
   ui.namesToggle.setAttribute('aria-pressed', settings.showStringNames);
+  $('say-names-toggle').setAttribute('aria-pressed', settings.sayStringNames);
   fretboard.setStringNames(settings.showStringNames);
   intervalList.querySelectorAll('input').forEach((i) => { i.checked = settings.intervals.includes(i.value); });
 
