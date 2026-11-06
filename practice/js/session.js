@@ -98,8 +98,8 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
     session.step = 0;
     session.rootNote = null; session.interval = null; session.chord = null; session.triad = null; session.matcher = null;
     if (mode === 'triads' && pickTriad) {
-      session.matcher = createTriadMatcher(target.voicings);
-      session.steps = voicingSteps(target.voicings[0]);
+      session.matcher = target.run || createTriadMatcher(target.voicings);
+      session.steps = voicingSteps(session.matcher.candidates[0]);
       session.hintStages = 2;
     } else if (mode === 'intervals') {
       session.rootNote = noteAt(target.root.string, target.root.fret);

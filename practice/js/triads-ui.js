@@ -11,6 +11,7 @@ import {
 import { WINDOW, FIRST_TRY_MIN, AVG_MS_MAX } from './path.js';
 import { createCustomBest } from './combo.js';
 import * as hud from './hud.js';
+import { createProgressionsUI } from './progressions-ui.js';
 
 const NATURAL_ROOTS = [0, 2, 4, 5, 7, 9, 11];
 const ALL_ROOTS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
@@ -70,7 +71,9 @@ export function createTriadsUI(ctx) {
 
   const settings = () => ctx.getSettings();
   const active = () => settings().mode === 'triads';
-  const isPath = () => settings().triadMode !== 'custom';
+  const isPath = () => settings().triadMode === 'path';
+  const isCustom = () => settings().triadMode === 'custom';
+  const isProg = () => active() && settings().triadMode === 'progressions';
   const level = () => store.currentLevel;
 
   // ---------- picking the next question ----------
@@ -93,6 +96,7 @@ export function createTriadsUI(ctx) {
 
   /** The session's pickTriad hook: every question is the chord in all its shapes. */
   function pick(opts, previous, rng) {
+    if (isProg()) return prog.pick();
     if (boss && boss.current) {
       const it = boss.current;
       return asTarget(it, it.voicings, 'boss', { item: it, levelId: boss.levelId });
@@ -107,7 +111,7 @@ export function createTriadsUI(ctx) {
 
   // ---------- the strip: prompt, shape dots, step dots, status ----------
 
-  const foundShapes = () => (session.matcher && session.state !== 'idle' ? session.matcher.found : []);
+  const foundShapes = () => (session.matcher && session.state !== 'idle' && !isProg() ? session.matcher.found : []);
 
   /** Shape dots (one per shape of the question, filled as found) then the 3 step dots of the shape in play. */
   function renderDots(steps = 0, fresh = 0) {
@@ -159,6 +163,8 @@ export function createTriadsUI(ctx) {
     clearTimeout(introTimer);
     introTimer = setTimeout(() => { ctx.hideChainIntro(); if (!session.held) session.restartClock(); }, ms);
   }
+
+  const prog = createProgressionsUI(ctx, { flashStrip, blingTop, showIntro });
 
   function onTarget(p) {
     const t = p.target, g = stringGroupById(t.group), name = chordName(t), said = `${spokenName(NOTE_NAMES[t.rootPc])} ${t.quality}!`;
@@ -278,6 +284,7 @@ export function createTriadsUI(ctx) {
 
   /** Session events while the Triads mode runs. Returns true when handled. */
   function onEvent(type, p) {
+    if (isProg()) return prog.onEvent(type, p);
     if (session.mode !== 'triads' || !session.matcher) return false;
     switch (type) {
       case 'target': onTarget(p); return true;
@@ -292,12 +299,14 @@ export function createTriadsUI(ctx) {
   }
 
   function onSkip() {
+    if (isProg()) { prog.onSkip(); return; }
     const t = session.target;
     if (t) history.recordTriad(t.quality, { skipped: true });
     if (boss && boss.state === 'running') failBoss('Boss round over: skipping ends it. Try again anytime');
   }
 
   function stopped() {
+    if (isProg()) { clearTimeout(introTimer); prog.stopped(); return; }
     clearTimeout(introTimer);
     boss = null; notice = null;
     renderAll();
@@ -342,6 +351,7 @@ export function createTriadsUI(ctx) {
   }
 
   function renderBossStrip() {
+    if (isProg()) { prog.renderBossStrip(); return; }
     const on = !!(boss && boss.state === 'running');
     ui.stage.classList.toggle('is-focus', on);
     ui.foundBlock.hidden = !on;
@@ -406,7 +416,7 @@ export function createTriadsUI(ctx) {
   function renderRow() {
     const show = active() && isPath();
     el.row.hidden = !show;
-    if (!show) { el.tipCard.hidden = true; if (active()) hud.setPath(null); return; }
+    if (!show) { el.tipCard.hidden = true; if (active() && !isProg()) hud.setPath(null); return; }
     const lvl = level(), pr = store.progress(lvl.id), running = !!(boss && boss.state === 'running');
     tiles.forEach((b, i) => {
       const l = TRIAD_LEVELS[i], open = store.isUnlocked(l.id), done = store.isDone(l.id), now = l.id === lvl.id;
@@ -492,10 +502,10 @@ export function createTriadsUI(ctx) {
   };
   for (const q of QUALITIES) chip(el.qualityPicker, qualityLabel(q), { id: q }, () => toggleIn('triadQualities', QUALITIES, q));
   for (const g of STRING_GROUPS) chip(el.groupPicker, `Strings ${g.label}`, { id: g.id }, () => toggleIn('triadGroups', STRING_GROUPS.map(x => x.id), g.id));
-  for (const m of [['path', 'Path', 'Work through the levels, a few chords at a time'], ['custom', 'Custom', 'Choose major or minor and the string groups yourself']]) {
+  for (const m of [['path', 'Path', 'Work through the levels, a few chords at a time'], ['custom', 'Custom', 'Choose major or minor and the string groups yourself'], ['progressions', 'Progressions', 'Play chord progressions in a key, staying close from chord to chord']]) {
     chip(el.modePicker, m[1], { id: m[0] }, () => {
       if (settings().triadMode === m[0]) return;
-      boss = null; notice = null;
+      boss = null; notice = null; prog.cancelBoss();
       ctx.commit({ triadMode: m[0] });
       if (session.state !== 'idle' && session.mode === 'triads') session.skip();
     });
@@ -530,7 +540,9 @@ export function createTriadsUI(ctx) {
   /** The quality and group the panel shows: the live question, else the level's (Path) or the first Custom picks. */
   function shapesSubject() {
     const t = session.state !== 'idle' && session.mode === 'triads' ? session.target : null;
+    if (t && t.run) { const c = t.chords[t.run.index] || t.chords[0]; return { quality: c.quality, group: t.group, name: c.name }; }
     if (t && t.group) return { quality: t.quality, group: t.group, name: chordName(t) };
+    if (isProg()) return { quality: 'major', group: prog.store.currentLevel.group, name: 'Major triads' };
     if (isPath()) {
       const lvl = level(), q = QUALITIES.find(x => lvl.pool.some(c => c.group === lvl.group && c.quality === x)) || 'major';
       return { quality: q, group: lvl.group, name: `${qualityLabel(q)} triads` };
@@ -577,7 +589,7 @@ export function createTriadsUI(ctx) {
   }
 
   function renderIdle() {
-    if (!active() || session.state !== 'idle') return;
+    if (!active() || session.state !== 'idle' || isProg()) return;
     const s = idleSubject();
     fretboard.focusStrings(stringGroupById(s.group).strings);
     ctx.setPrompt(`Strings ${digits(s.group, '·')}`, 'Triads', 'standby');
@@ -589,8 +601,8 @@ export function createTriadsUI(ctx) {
   function render() {
     const on = active();
     el.modePicker.hidden = !on;
-    el.modePicker.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', c.dataset.id === (settings().triadMode === 'custom' ? 'custom' : 'path')));
-    const custom = on && !isPath();
+    el.modePicker.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', c.dataset.id === settings().triadMode));
+    const custom = on && isCustom();
     el.qualityPicker.hidden = !custom;
     el.groupPicker.hidden = !custom;
     el.qualityPicker.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', settings().triadQualities.includes(c.dataset.id)));
@@ -600,18 +612,19 @@ export function createTriadsUI(ctx) {
     renderShapes();
     if (on && isPath() && session.state === 'idle' && !store.tipSeen(store.current)) openTip();
     renderIdle();
+    prog.render();
   }
 
   return {
     pick, onEvent, onSkip, stopped, render, renderBossStrip, startBoss,
-    get boss() { return boss; },
+    get boss() { return isProg() ? prog.boss : boss; },
     active,
     warm: () => ctx.voice.preload(TRIAD_CLIPS),
-    cancelBoss() { boss = null; notice = null; },
-    comboOn: () => active() && !boss,
-    comboKey: () => (!active() ? null : boss ? 'boss' : isPath() ? `triad:${store.current}` : 'triad:custom'),
-    bests: () => (isPath() ? store.bests(store.current) : customBest.get()),
-    saveBests(b) { if (isPath()) store.saveBests(store.current, b); else customBest.save(b); },
+    cancelBoss() { boss = null; notice = null; prog.cancelBoss(); },
+    comboOn: () => active() && !boss && !isProg(),
+    comboKey: () => (!active() ? null : boss || isProg() ? 'boss' : isPath() ? `triad:${store.current}` : 'triad:custom'),
+    bests: () => (isProg() ? {} : isPath() ? store.bests(store.current) : customBest.get()),
+    saveBests(b) { if (isProg()) return; if (isPath()) store.saveBests(store.current, b); else customBest.save(b); },
     resetPath() { store.reset(); boss = null; tipOpen = false; },
     store,
   };

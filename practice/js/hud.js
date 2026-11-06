@@ -69,3 +69,17 @@ export function confetti(count = 46) {
   host.appendChild(layer);
   setTimeout(() => layer.remove(), 1100);
 }
+
+/** The progression chord row: labels with the finished chords marked and the current one lit. null or empty hides it. */
+export function setProgChips(labels, cur, done) {
+  const row = $('prog-chips');
+  if (!labels || !labels.length) { row.hidden = true; row.replaceChildren(); return; }
+  row.hidden = false;
+  row.replaceChildren(...labels.map((l, i) => {
+    const c = document.createElement('span');
+    c.textContent = l;
+    if (i < done) c.classList.add('is-done');
+    if (i === cur) c.classList.add('is-cur');
+    return c;
+  }));
+}
