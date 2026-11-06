@@ -81,7 +81,7 @@ export function createSound({ onPlaying = () => {} } = {}) {
       try {
         const c = await context();
         const t0 = c.currentTime;
-        [[1318.5, 0], [1760, 0.07]].forEach(([freq, at]) => {
+        [[2093, 0], [2637, 0.07]].forEach(([freq, at]) => {
           const t = t0 + at, osc = c.createOscillator(), gain = c.createGain();
           osc.type = 'triangle'; osc.frequency.value = freq;
           gain.gain.setValueAtTime(volume, t);
