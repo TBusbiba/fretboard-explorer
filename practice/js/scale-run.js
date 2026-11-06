@@ -18,8 +18,6 @@ export function scaleClipPhrases() {
   const out = new Set();
   const add = (text) => text.split(/(?<=!)\s*/).filter(Boolean).forEach(s => out.add(s));
   for (const l of SCALE_LEVELS) for (const e of l.pool) add(spokenPrompt(e));
-  for (const l of SCALE_LEVELS) for (let b = 1; b <= 5; b++) add(spokenPrompt({ scale: l.scale, rootPc: l.rootPc, boxes: [b] }));
-  for (const b of [1, 2, 3, 4, 5]) { add(spokenPrompt({ scale: 'major', rootPc: 0, boxes: [b] })); }
   return [...out];
 }
 

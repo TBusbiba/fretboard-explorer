@@ -8,7 +8,7 @@ import { STRINGS, NOTE_NAMES } from './notes.js';
 import { SCALES } from './scales.js';
 import { createScaleListener } from './scale-listen.js';
 import {
-  SCALE_LEVELS, createScalePathStore, exerciseRun, exerciseLabel, bossRuns, scaleStarsFor,
+  SCALE_LEVELS, createScalePathStore, exerciseRun, exerciseKey, bossRuns, pickExercise, scaleStarsFor,
   WINDOW_RUNS, AVG_NOTE_MS_MAX, MAX_RUN_MISTAKES, STAR2_NOTE_MS, STAR3_NOTE_MS, STAR2_MISTAKES,
 } from './scale-path.js';
 import { spokenPrompt, scaleClipPhrases, liveScore, runScore, runStars, combineStats } from './scale-run.js';
@@ -34,11 +34,10 @@ export const SCALE_CLIPS = [...scaleClipPhrases(), 'Boss round!', 'Boss defeated
 
 function levelTip(level) {
   const id = level.id;
-  if (id === 1) return { head: 'Five boxes, one scale', line: 'A minor pentatonic is five notes repeated all over the neck. A box is one handful of them, two per string. Box 1 starts on the low E string, on the root.', note: 'The first note is marked "start". Play up to the top, then back down.' };
-  if (id <= 5) return { head: `Box ${id}: the next handful`, line: 'Each box starts near where the last one ended and shares a note or two with it. Box 5 leads back to box 1, an octave up.', note: 'The outlined shape on the board is the box. Notes light up as you play them.' };
-  if (id === 6) return { head: 'Box to box', line: 'Play box 1 and box 2 as one long run: the same notes, with a single change of position on the way up.', note: 'Stay relaxed at the change: the run only counts the notes you play.' };
-  if (id === 7) return { head: 'Same shapes, new root', line: 'The boxes are movable. The fret where the root sits on the low E string tells you where box 1 starts.', note: 'E minor pentatonic: the root is at fret 0, so box 1 uses open strings.' };
-  if (id === 8) return { head: 'Major pentatonic', line: 'G major pentatonic is the relative of E minor pentatonic: the same five boxes, only the root changes.', note: 'The boxes sit in the same places as the minor ones.' };
+  if (id === 1) return { head: 'A box, any root', line: 'A minor pentatonic is five notes repeated all over the neck. A box is one handful of them, two per string. Box 1 starts on the low E string, on the root, and slides to any root.', note: 'The root changes every question; the first note is marked "start". Play up to the top, then back down.' };
+  if (id <= 5) return { head: `Box ${id} joins the pool`, line: 'Each box starts near where the last one ended and shares a note or two with it. Box 5 leads back to box 1, an octave up. Questions mix every box you have so far, in random roots.', note: 'The outlined shape on the board is the box. Notes light up as you play them.' };
+  if (id === 6) return { head: 'Joined boxes', line: 'Two neighbouring boxes as one long run (1 + 2, 2 + 3, ...): the same notes, with a single change of position on the way up.', note: 'Stay relaxed at the change: the run only counts the notes you play.' };
+  if (id <= 8) return { head: 'Major pentatonic', line: 'Major pentatonic is the relative of the minor one: the same five boxes, with the root three frets higher. Roots are C, G, D, A and F.', note: 'Everything from the earlier levels keeps coming up too.' };
   return { head: 'The major scale', line: 'Seven notes, so some strings give three. The shapes are a little wider than the pentatonic boxes: five positions up the neck.', note: 'Positions work like boxes: each starts near where the last one ended.' };
 }
 
@@ -76,14 +75,7 @@ export function createScalesUI(ctx) {
 
   const drillExercise = () => ({ scale: kindOf(), rootPc: settings().scaleRoot, boxes: [settings().scaleBox] });
 
-  /** Path: mostly what the level adds, the rest from everything unlocked so far; never the same twice in a row. */
-  function pathExercise(previous) {
-    const lvl = level();
-    const pool = Math.random() < 0.6 ? lvl.added : lvl.pool;
-    const fresh = pool.filter(e => exerciseLabel(e) !== previous);
-    const from = fresh.length ? fresh : pool;
-    return from[Math.floor(Math.random() * from.length)];
-  }
+  const pathExercise = (previous) => pickExercise(level(), previous, store.covered(level().id));
 
   // ---------- the board ----------
 
@@ -232,7 +224,7 @@ export function createScalesUI(ctx) {
     let newBest = false;
     let kicker;
     if (isPath()) {
-      const lvl = level(), rec = store.record(lvl.id, { ms: st.avgMs, mistakes: st.mistakes });
+      const lvl = level(), rec = store.record(lvl.id, { ms: st.avgMs, mistakes: st.mistakes, key: exerciseKey(run.ex) });
       newBest = store.saveBests(lvl.id, { score });
       kicker = rec.bossUnlocked ? 'Boss round unlocked!' : newBest ? 'New best score!' : 'Run done · next run starting';
       if (rec.bossUnlocked) popTile(lvl.id);
@@ -277,7 +269,7 @@ export function createScalesUI(ctx) {
     el.missBlock.hidden = on;
     if (!on) { ui.bossHp.hidden = false; return; }
     const cur = boss.runs[boss.index];
-    ui.bossTitle.textContent = `★ Boss · Level ${boss.levelId} · ${cur.label.split(' · ')[1] || ''} · run ${boss.index + 1}/${boss.runs.length}`;
+    ui.bossTitle.textContent = `★ Boss · Level ${boss.levelId} · ${cur.label} · run ${boss.index + 1}/${boss.runs.length}`;
     ui.bossHp.hidden = true; ui.bossCd.hidden = true;
     ui.bossHearts.textContent = `${bossMistakes()} ✗`;
     ui.bossHearts.setAttribute('aria-label', `${bossMistakes()} mistakes`);
@@ -290,7 +282,7 @@ export function createScalesUI(ctx) {
     bossFinale = null; ctx.hideBossEnd();
     el.pop.hidden = true;
     renderRow();
-    showIntro('Boss round!', `${lvl.title}`, `${boss.runs.length} boxes up the neck · ${boss.runs[0].label.split(' · ')[1]} first —`);
+    showIntro('Boss round!', `${lvl.title}`, `${boss.runs.length} runs back to back · ${boss.runs[0].label} first —`);
     if (!running) ctx.toggleStart(); else beginBossRun();
   }
 
@@ -461,11 +453,12 @@ export function createScalesUI(ctx) {
       b.setAttribute('aria-label', `Level ${l.id}, ${l.title}${!open ? ', locked' : done ? `, done, ${store.stars(l.id)} of 3 stars` : now_ ? ', current' : ''}`);
     });
     el.popTitle.textContent = `Level ${lvl.id} · ${lvl.title}`;
-    el.popGoal.textContent = pr.bossUnlocked ? 'Boss round open: all five boxes of the scale, up the neck, back to back.'
-      : `Unlock the boss: your last ${WINDOW_RUNS} runs average ${AVG_NOTE_MS_MAX} ms per note or less, with at most ${MAX_RUN_MISTAKES} mistake in any run.`;
+    el.popGoal.textContent = pr.bossUnlocked ? 'Boss round open: five runs from this level and the ones before, random roots, back to back.'
+      : `Unlock the boss: play each new box once, then your last ${WINDOW_RUNS} runs average ${AVG_NOTE_MS_MAX} ms per note or less, with at most ${MAX_RUN_MISTAKES} mistake in any run.`;
     const box = (label, value, goal, met) => `<div class="pstat${met ? ' is-met' : ''}"><span class="pstat__label">${label}</span><span class="pstat__value">${value}${met ? ' ✓' : ''}</span><span class="pstat__goal">${goal}</span></div>`;
     el.popStats.innerHTML = box('Runs', `${pr.runs}/${WINDOW_RUNS}`, `last ${WINDOW_RUNS}`, pr.met.count)
       + box('Per note', pr.avgMs == null ? '—' : `${Math.round(pr.avgMs)} ms`, `${AVG_NOTE_MS_MAX} ms or less`, pr.met.time)
+      + box('New boxes', `${pr.coverage.done}/${pr.coverage.need}`, 'each played once', pr.met.covered)
       + box('Worst run', pr.worstMistakes == null ? '—' : `${pr.worstMistakes} ✗`, `${MAX_RUN_MISTAKES} or fewer`, pr.met.clean);
     el.bossBtn.disabled = !pr.bossUnlocked || inBoss;
     el.bossBtn.classList.toggle('is-ready', pr.bossUnlocked && !inBoss);

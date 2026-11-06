@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spokenPrompt, scaleClipPhrases, notePoints, liveScore, runScore, runStars, combineStats } from '../js/scale-run.js';
+import { SCALE_LEVELS } from '../js/scale-path.js';
 import { clipFiles } from '../js/clips.js';
 
 test('spoken prompts split into a scale clip and a box clip', () => {
@@ -15,7 +16,8 @@ test('every phrase of the clip list is one segment and every Path prompt is cove
   assert.ok(list.every(p => /!$/.test(p) && p.split('!').filter(Boolean).length === 1));
   const manifest = Object.fromEntries(list.map(p => [p.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim(), 'x.mp3']));
   assert.deepEqual(clipFiles('A minor pentatonic! Box 4!', manifest), ['x.mp3', 'x.mp3']);
-  assert.deepEqual(clipFiles('C major! Positions 1 and 2!', manifest), ['x.mp3', 'x.mp3']);
+  assert.deepEqual(clipFiles('D minor pentatonic! Boxes 2 and 3!', manifest), ['x.mp3', 'x.mp3']);
+  for (const l of SCALE_LEVELS) for (const e of l.pool) assert.equal(clipFiles(spokenPrompt(e), manifest).length, 2, spokenPrompt(e));
 });
 
 test('quicker notes score more, mistakes cost, steadiness adds a bonus', () => {
