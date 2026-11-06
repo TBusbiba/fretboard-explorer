@@ -180,6 +180,9 @@ kbd {
 .fb-string { stroke: var(--nb-ink); stroke-linecap: round; transition: stroke var(--t-med); }
 .fb-string.is-target { stroke: var(--nb-ink) !important; stroke-width: 9px; }
 .fb-glint { stroke-linecap: round; opacity: 0; pointer-events: none; }
+.fb-string-g.is-faded, .fb-label.is-faded { opacity: 0.22; }
+.fb-string-g, .fb-label { transition: opacity var(--t-med); }
+.fb-string.is-focus { stroke-width: 4px; }
 .fb-glint.is-target { opacity: 1; stroke: var(--nb-salmon); stroke-width: 5px; }
 
 /* a played string vibrates: fast, decaying */
@@ -1044,3 +1047,62 @@ input[type="range"]::-moz-range-thumb {
   .p-one .prompt:has(.boss-end:not([hidden])) { padding: 0; }
   .p-one .boss-end { position: relative; inset: auto; grid-column: 1 / -1; border-radius: 7px; padding: 18px 12px; }
 }
+
+
+/* ================= Triads ================= */
+.btn[hidden] { display: none; }
+.p-one .prompt.is-away { display: none; }
+#triad-path .tdots { display: inline-flex; gap: 3px; }
+#triad-path .tdots:empty { display: none; }
+#triad-path .tdots i { width: 9px; height: 9px; border: 2px solid var(--nb-ink); border-radius: 50%; background: var(--nb-card); }
+#triad-path .tdots i.is-on { background: var(--nb-salmon); }
+
+/* Show shapes: the big panel that takes the prompt strip's place */
+.shapesbig {
+  display: flex; flex-direction: column; min-width: 0;
+  background: var(--nb-card); border: var(--nb-border); border-radius: var(--nb-radius); box-shadow: 6px 6px 0 var(--nb-ink);
+}
+.shapesbig[hidden] { display: none; }
+.shapesbig__head {
+  display: flex; align-items: center; gap: 14px; min-height: 30px; padding: 0 10px 0 14px;
+  background: var(--nb-cyan); border-bottom: var(--nb-border); border-radius: 7px 7px 0 0;
+}
+.shapesbig__head strong { font: 700 17px/1.2 var(--nb-sans); white-space: nowrap; }
+.shapesbig__head small { font: 500 14px/1.2 var(--nb-sans); min-width: 0; }
+.shapesbig__head .btn { margin-left: auto; flex: none; min-height: 24px; box-shadow: 2px 2px 0 var(--nb-ink); padding: 0 12px; }
+.shapesbig__body { display: flex; align-items: center; justify-content: space-around; gap: 6px; padding: 1px 12px 0; overflow-x: auto; }
+.tri-fig { margin: 0; flex: 0 1 300px; min-width: 240px; display: flex; flex-direction: column; align-items: stretch; }
+.tri-fig figcaption { font: 500 13px/1.1 var(--nb-sans); white-space: nowrap; }
+.tri-fig figcaption b { font-weight: 700; }
+.tri-svg { display: block; width: 100%; height: auto; }
+.tri-arrow { flex: none; display: flex; flex-direction: column; align-items: center; gap: 0; font: 700 14px/1.15 var(--nb-sans); text-align: center; }
+.tri-arrow span { font-size: 26px; line-height: 1; }
+.tri-arrow--loop { max-width: 120px; padding: 4px 8px; border: 2.5px dashed var(--nb-ink-3); border-radius: var(--nb-radius-sm); }
+.tri-arrow--loop span { font-size: 13px; font-weight: 700; }
+.tri-board { fill: #fff; stroke: var(--nb-ink); stroke-width: 2.5; }
+.tri-fret { stroke: var(--nb-ink-3); stroke-width: 1.5; }
+.tri-string { stroke: var(--nb-ink); }
+.tri-snum { font: 700 12px var(--nb-sans); fill: var(--nb-ink-2); text-anchor: middle; }
+.tri-num { font: 700 11px var(--nb-sans); fill: var(--nb-ink-2); text-anchor: middle; }
+.tri-sh { fill: var(--nb-ink); }
+.tri-dot { fill: var(--nb-cyan); stroke: var(--nb-ink); stroke-width: 2.5; }
+.tri-disc--root .tri-dot { fill: var(--nb-salmon); }
+.tri-disc text { font: 700 12px var(--nb-sans); fill: var(--nb-ink); text-anchor: middle; }
+
+@media (max-width: 760px) {
+  .shapesbig__head { flex-wrap: wrap; padding: 6px 10px; gap: 4px 10px; }
+  .shapesbig__head small { flex-basis: 100%; order: 3; }
+  .shapesbig__body { justify-content: flex-start; padding: 8px 10px; }
+  .p-one .controls__center { flex-wrap: wrap; justify-content: center; }
+}
+
+@media (max-width: 560px) {
+  .p-one .prompt__note.is-long { font-size: 34px; }
+  .p-one .prompt__left { flex-wrap: wrap; gap: 4px 8px; }
+}
+@media (max-width: 560px) {
+  .p-one .prompt__left { flex-direction: column; align-items: flex-start; flex-wrap: nowrap; gap: 2px; }
+}
+.triad-custom { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 22px; }
+.triad-custom:not(:has(.picker:not([hidden]))) { display: none; }
+.stage.is-focus > .triad-custom { display: none; }

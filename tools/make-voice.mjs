@@ -34,6 +34,10 @@ add('Quick note chain round!', 'hype');
 for (const count of [3, 4, 5]) for (const note of NOTES) add(`${['Three', 'Four', 'Five'][count - 3]} ${note} notes!`, 'hype');
 for (const s of STRING_NAMES) add(`Start with the ${s} string!`, 'hype');
 add('Boss round!', 'hype');
+for (const q of ['major', 'minor']) for (const note of NOTES) add(`${note} ${q}!`, 'prompt', `[excited] ${note} ${q}!`);
+for (const g of ['6 5 4', '5 4 3', '4 3 2', '3 2 1']) add(`Strings ${g}!`, 'prompt', `[excited] Strings ${g}!`);
+add('Climb the neck!', 'hype');
+add('Find every shape!', 'hype');
 for (const note of NOTES) { add(`Find every ${note}!`, 'hype'); add(`Next: every ${note}!`, 'hype'); }
 
 const slug = (t) => normalize(t).replace(/ /g, '-');

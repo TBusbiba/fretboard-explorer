@@ -50,12 +50,14 @@
       <button type="button" class="chip" data-id="path" aria-pressed="true" title="Work through the levels, a few notes at a time">Path</button>
       <button type="button" class="chip" data-id="custom" aria-pressed="false" title="Choose the notes and strings yourself">Custom</button>
     </div>
+    <div class="picker picker--mode" id="triad-mode-picker" role="group" aria-label="Triads: path or custom" hidden></div>
     </div>
     <div class="picker" id="interval-picker" role="group" aria-label="Which interval" hidden></div>
     <div class="picker" id="chord-picker" role="group" aria-label="Which chord" hidden></div>
-    <div class="picker" id="triad-picker" role="group" aria-label="Which triad" hidden></div>
-    <div class="picker" id="inversion-picker" role="group" aria-label="Which inversion" hidden></div>
+    <div class="triad-custom">
+    <div class="picker" id="triad-picker" role="group" aria-label="Triads: major and minor" hidden></div>
     <div class="picker picker--groups" id="group-picker" role="group" aria-label="String groups" hidden></div>
+    </div>
     <div class="picker picker--custom" id="custom-picker" role="group" aria-label="Notes and strings to ask" hidden>
       <div class="picker__group" id="custom-notes" role="group" aria-label="Notes"><span class="picker__label">Notes</span></div>
       <div class="picker__group" id="custom-strings" role="group" aria-label="Strings"><span class="picker__label">Strings</span></div>
@@ -89,10 +91,32 @@
       </aside>
     </section>
 
-    <section class="prompt" id="prompt">
-      <div class="prompt__tools" id="prompt-tools" hidden>
-        <button type="button" class="shape-toggle" id="shapes-toggle" aria-pressed="false" title="Show the triad shapes (R · 3 · 5) next to the prompt"><span class="shape-toggle__track" aria-hidden="true"></span>Show shapes</button>
+    <section class="path" id="triad-path" aria-label="Triad level path" hidden>
+      <div class="path__row">
+        <ol class="path__map" id="triad-map"></ol>
+        <button type="button" class="chip chip--boss" id="triad-boss-btn" disabled>Boss</button>
+        <button type="button" class="chip path__tipbtn" id="triad-tip-btn" aria-controls="triad-tip-card" aria-expanded="false" title="Show the tip for this level">Tip</button>
       </div>
+      <div class="path__pop" id="triad-pop" hidden>
+        <div class="path__head">
+          <strong id="triad-pop-title"></strong>
+          <span id="triad-pop-goal"></span>
+        </div>
+        <div class="path__stats" id="triad-pop-stats"></div>
+        <span class="path__bossnote" id="triad-pop-boss"></span>
+      </div>
+      <aside class="tipcard" id="triad-tip-card" role="region" aria-labelledby="triad-tip-head" hidden>
+        <div class="tipcard__text">
+          <span class="tipcard__tag" id="triad-tip-tag">Tip</span>
+          <h3 class="tipcard__head" id="triad-tip-head"></h3>
+          <p class="tipcard__line" id="triad-tip-line"></p>
+          <p class="tipcard__note" id="triad-tip-note"></p>
+          <button type="button" class="btn btn--small tipcard__got" id="triad-tip-got">Got it</button>
+        </div>
+      </aside>
+    </section>
+
+    <section class="prompt" id="prompt">
       <div class="prompt__main" aria-live="polite">
         <div class="prompt__left">
           <div class="prompt__string" id="string-name">Press start</div>
@@ -132,14 +156,15 @@
         <button type="button" class="btn btn--primary" id="boss-end-go">Keep going</button>
       </div>
       <div class="combo__bar" id="combo-bar" hidden aria-hidden="true"><i id="combo-fill"></i></div>
-      <aside class="shapes" id="shapes" aria-label="Triad shapes" hidden>
-        <div class="shapes__head">
-          <h2>Triad shapes</h2>
-          <div class="shapes__tabs" id="shapes-tabs" role="group" aria-label="Triad type"></div>
-        </div>
-        <div class="shapes__list" id="shapes-list"></div>
-        <p class="shapes__note">Movable: slide a shape to any root. R = root.</p>
-      </aside>
+    </section>
+
+    <section class="shapesbig" id="shapes-big" aria-label="Triad shapes" hidden>
+      <div class="shapesbig__head">
+        <strong id="shapes-title">Triad shapes</strong>
+        <small>Movable: slide any shape to any root. R = root.</small>
+        <button type="button" class="btn btn--ghost btn--small" id="shapes-close">Close ✕</button>
+      </div>
+      <div class="shapesbig__body" id="shapes-body"></div>
     </section>
 
     <section class="board">
@@ -158,6 +183,7 @@
       </div>
 
       <div class="controls__center">
+        <button type="button" class="btn btn--ghost" id="shapes-toggle" aria-pressed="false" hidden title="Show the three shapes of this chord and how far apart they sit">Shapes ▾</button>
         <button class="btn btn--ghost" id="hint-btn" disabled>Hint <kbd>H</kbd></button>
         <button class="btn btn--primary" id="start-btn">Start <kbd>Space</kbd></button>
         <button class="btn btn--ghost" id="skip-btn" disabled>Skip <kbd>N</kbd></button>
@@ -168,9 +194,6 @@
       <button type="button" class="chip" id="ear-toggle" aria-pressed="false" title="Say the note's name and play it, then find it by ear">Say + play the note</button>
       <button type="button" class="chip" id="names-toggle" aria-pressed="true" title="Show the string names (E B G D A E) beside the fretboard">String names</button>
       <button type="button" class="chip chip--plain" id="ear-replay" disabled title="Say and play the note again">Hear it again <kbd>R</kbd></button>
-        </div>
-        <div class="picker picker--inline" id="cue-picker" role="group" aria-label="Play the notes" hidden>
-      <button type="button" class="chip" id="cue-toggle" aria-pressed="true" title="Play the prompt's notes after naming it. Off: the prompt is only spoken">Play the notes</button>
         </div>
         <div class="ring" id="ring" title="Time until the hint appears">
           <svg viewBox="0 0 44 44" width="44" height="44">
@@ -280,7 +303,7 @@
       <fieldset class="group">
         <legend>Sound</legend>
         <label class="switch"><input type="checkbox" id="play-note"><span>Say and play the note <small>find-the-note mode, to find it by ear</small></span></label>
-        <p class="note">Intervals, Arpeggios and Triads play their notes after naming them; turn off Play the notes in those modes to only hear them said.</p>
+        <label class="switch"><input type="checkbox" id="play-notes"><span>Play the notes <small>Intervals, Arpeggios and Triads play the question's notes after naming it; off = only said</small></span></label>
         <button type="button" class="btn btn--ghost btn--small" id="sound-test">Test sound</button>
       </fieldset>
 
@@ -301,7 +324,7 @@
 
       <fieldset class="group">
         <legend>Triads</legend>
-        <p class="note">Close-voiced triads on three adjacent strings, in all three inversions, played low to high. Pick the string groups and triad type above the prompt.</p>
+        <p class="note">Major and minor triads on three adjacent strings, played low to high: any of the three close shapes counts. Custom picks major or minor and the string groups; Path works through the levels.</p>
       </fieldset>
 
       <fieldset class="group">
@@ -324,6 +347,8 @@
         <legend>Level path</legend>
         <p class="note">Find the note, Path: progress through the levels is kept in this browser.</p>
         <button type="button" class="btn btn--ghost btn--small" id="path-reset">Reset path</button>
+        <p class="note">Triads, Path: progress is kept in this browser too.</p>
+        <button type="button" class="btn btn--ghost btn--small" id="triad-path-reset">Reset Triads path</button>
       </fieldset>
 
       <button type="button" class="btn btn--ghost btn--small" id="settings-reset">Reset to defaults</button>
