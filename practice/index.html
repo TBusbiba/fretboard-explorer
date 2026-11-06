@@ -41,6 +41,11 @@
         <span class="mode__soon" aria-disabled="true" title="Not finished yet">Intervals · Arpeggios · Vibrato: soon</span>
       </div>
       <div class="modebar__right">
+        <span class="mk-lab" id="prog-display-lab" hidden>Show as</span>
+        <div class="mk-seg" id="prog-display" role="group" aria-label="Show as" hidden>
+          <button type="button" data-id="numbers" aria-pressed="false">Numbers</button>
+          <button type="button" data-id="names" aria-pressed="true">Names</button>
+        </div>
         <div class="picker picker--inline" id="ear-picker" role="group" aria-label="Find it by ear" hidden>
           <button type="button" class="chip" id="ear-toggle" aria-pressed="false" title="Say the note's name and play it, then find it by ear">Say + play the note</button>
           <button type="button" class="chip" id="names-toggle" aria-pressed="true" title="Show the string names (E B G D A E) beside the fretboard">String names</button>
@@ -51,7 +56,7 @@
           <button type="button" class="chip" data-id="path" aria-pressed="true" title="Work through the levels, a few notes at a time">Path</button>
           <button type="button" class="chip" data-id="custom" aria-pressed="false" title="Choose the notes and strings yourself">Custom</button>
         </div>
-        <div class="picker picker--mode" id="triad-mode-picker" role="group" aria-label="Triads: path or custom" hidden></div>
+        <div class="picker picker--mode" id="triad-mode-picker" role="group" aria-label="Triads: path, custom or progressions" hidden></div>
         <div class="picker picker--mode" id="scales-mode-picker" role="group" aria-label="Scales: path or drill" hidden></div>
       </div>
     </div>
@@ -85,6 +90,7 @@
             <div class="prompt__string" id="string-name">Press start</div>
             <div class="prompt__note" id="note-name" data-state="idle"></div>
             <div class="boss-pips" id="boss-pips"></div>
+            <div class="mk-chips" id="prog-chips" hidden></div>
             <div class="prompt__status" id="status">Pick a string, play the note it names, and the mic will confirm it.</div>
             <div class="prompt__tip" id="tip" hidden></div>
           </div>
@@ -198,6 +204,19 @@
             <button type="button" class="btn btn--small tipcard__got" id="triad-tip-got">Got it</button>
           </div>
         </aside>
+      </section>
+
+      <section class="path" id="prog-path" aria-label="Progression level path" hidden>
+        <ol class="path__map" id="prog-map"></ol>
+        <button type="button" class="chip chip--boss" id="prog-boss-btn" disabled>Boss</button>
+        <div class="path__pop" id="prog-pop" hidden>
+          <div class="path__head">
+            <strong id="prog-pop-title"></strong>
+            <span id="prog-pop-goal"></span>
+          </div>
+          <div class="path__stats" id="prog-pop-stats"></div>
+          <span class="path__bossnote" id="prog-pop-boss"></span>
+        </div>
       </section>
 
       <section class="path" id="scales-path" aria-label="Scales level path" hidden>

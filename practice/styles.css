@@ -784,6 +784,25 @@ input[type="range"]::-moz-range-thumb {
   .boss-end.is-on .boss-end__stars span:nth-child(3) { animation-delay: 0.5s; }
 }
 
+/* ---------- Progressions: Show-as toggle, chord chips, result chain, previous-shape outline ---------- */
+.mk-seg { display: inline-flex; border: 2.5px solid var(--nb-ink); border-radius: 8px; overflow: hidden; background: var(--nb-card); }
+.mk-seg button { font: 700 12px var(--nb-sans); min-height: 30px; padding: 0 10px; border: 0; background: var(--nb-card); color: var(--nb-ink); cursor: pointer; }
+.mk-seg button + button { border-left: 2.5px solid var(--nb-ink); }
+.mk-seg button[aria-pressed="true"] { background: var(--nb-green); }
+.mk-lab { font: 700 9px var(--nb-sans); letter-spacing: 0.1em; text-transform: uppercase; color: var(--nb-ink-3); margin-right: 2px; }
+.mk-chips { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin: 4px 0 2px; }
+.mk-chips span { min-width: 44px; text-align: center; padding: 3px 10px; font: 700 16px/1.2 var(--nb-sans); background: var(--nb-card); color: var(--nb-ink); border: 2.5px solid var(--nb-ink); border-radius: 8px; opacity: 0.75; }
+.mk-chips span.is-done { background: var(--nb-green); opacity: 1; }
+.mk-chips span.is-cur { background: var(--nb-yellow); opacity: 1; box-shadow: 3px 3px 0 var(--nb-ink); transform: translate(-1px, -1px); }
+.mk-seg[hidden], .mk-lab[hidden], .mk-chips[hidden] { display: none; }
+.mk-path { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
+.mk-path span { font: 700 15px var(--nb-sans); padding: 2px 10px; background: var(--nb-card); color: var(--nb-ink); border: 2.5px solid var(--nb-ink); border-radius: 8px; }
+.mk-path i { font-style: normal; font-weight: 700; }
+.mk-path .miss { background: #ffb8c6; }
+.ghost .fb-note__dot { fill: transparent !important; stroke: #fff; stroke-width: 2; stroke-dasharray: 4 3; }
+.ghost .fb-note__shadow, .ghost .fb-note__glow, .ghost text { display: none; }
+.ghost { opacity: 0.5; }
+
 
 /* ================= one screen: header, tabs, level chips, prompt strip, controls under the board (Practice only) ================= */
 .p-one .top { padding: 4px 20px; }
@@ -1131,6 +1150,10 @@ body[data-mode="scales"] .prompt__status[hidden] { display: none; }
 .p-hud { --hud-h: 124px; }
 .p-hud[data-mode="triads"] { --hud-h: 120px; }
 .p-hud[data-mode="scales"] { --hud-h: 108px; }
+.p-hud[data-mode="triads"][data-prog] { --hud-h: 150px; }
+.p-hud[data-prog] .prompt__note { font-size: 44px; }
+.p-hud[data-prog] .mk-chips { margin: 0; }
+.p-hud[data-prog] .mk-chips span { font-size: 14px; padding: 1px 9px; min-width: 38px; }
 .p-hud[data-mode="note"]:has(.stage.is-focus) { --hud-h: 150px; }
 
 /* header: logo, sections, mic meter and settings */
