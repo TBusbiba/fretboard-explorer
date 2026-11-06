@@ -205,6 +205,44 @@
 .cq .fb-note--hint .fb-note__dot { fill: var(--nb-board-empty); stroke-dasharray: 4 3; }
 .cq .fb-note--hint .fb-note__shadow { opacity: 0.3; }
 
+/* ---- Keys deck: major/minor chooser, numeral chips, diatonic row ---- */
+.mk-chooser { display: flex; gap: 10px; justify-content: center; margin-top: 4px; }
+.mk-chooser button {
+  min-width: 110px; min-height: 44px; font: 700 16px var(--nb-sans);
+  background: var(--nb-card); color: var(--nb-ink);
+  border: 2.5px solid var(--nb-ink); border-radius: var(--nb-radius-sm); box-shadow: 3px 3px 0 var(--nb-ink);
+  transition: transform var(--nb-fast) var(--ease), background-color var(--nb-fast);
+}
+.mk-chooser button:hover, .mk-roman button:hover { background: var(--nb-yellow); }
+.mk-chooser button:active, .mk-roman button:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--nb-ink); }
+.mk-chooser button.on, .mk-roman button.on { background: var(--nb-green); }
+.mk-roman { display: grid; grid-template-columns: repeat(6, minmax(52px, 1fr)); gap: 10px; width: min(560px, 100%); margin: 8px 0 4px; }
+.mk-roman button {
+  min-height: 64px; font: 700 26px var(--nb-sans);
+  background: var(--nb-card); color: var(--nb-ink);
+  border: 2.5px solid var(--nb-ink); border-radius: var(--nb-radius-sm); box-shadow: 3px 3px 0 var(--nb-ink);
+  transition: transform var(--nb-fast) var(--ease), background-color var(--nb-fast);
+}
+.mk-roman button.is-bad { background: var(--nb-rose); animation: shake 420ms var(--ease); }
+.mk-chooser[hidden], .mk-roman[hidden], .cq-opts [hidden], .keypad[hidden], .slots[hidden] { display: none; }
+.cq .card__name.mk-key { font-size: 44px; }
+.cq .card__name.mk-key--ask { font-size: 34px; line-height: 1.1; max-width: 340px; }
+.card__ask small { display: block; margin-top: 2px; font: 400 13px/1.3 var(--nb-sans); color: var(--nb-board-num); }
+.mk-row { display: flex; gap: 8px; margin-top: 6px; }
+.mk-row div { display: flex; flex-direction: column; align-items: center; min-width: 52px; padding: 5px 6px; border-radius: 6px; background: var(--nb-card); border: 2.5px solid var(--nb-ink); }
+.mk-row b { font: 700 20px/1 var(--nb-sans); color: var(--nb-ink); }
+.mk-row span { font: 700 12px var(--nb-sans); color: var(--nb-ink-2); }
+.mk-row .acc { font-size: 0.6em; vertical-align: 0.55em; }
+@media (max-width: 560px) {
+  .mk-roman { gap: 6px; }
+  .mk-roman button { font-size: 20px; min-height: 52px; }
+  .mk-chooser button { min-width: 90px; }
+  .mk-row { gap: 4px; }
+  .mk-row div { min-width: 0; flex: 1; padding: 4px 2px; }
+  .cq .card__name.mk-key { font-size: 36px; }
+  .cq .card__name.mk-key--ask { font-size: 28px; max-width: 100%; }
+}
+
 /* ---- effects layer ---- */
 .fx { position: fixed; inset: 0; pointer-events: none; z-index: 50; overflow: hidden; }
 .ghost {

@@ -42,6 +42,7 @@
           <label><input type="radio" name="deck" value="major"><span>Major</span></label>
           <label><input type="radio" name="deck" value="minor"><span>Minor</span></label>
           <label><input type="radio" name="deck" value="both"><span>Both</span></label>
+          <label><input type="radio" name="deck" value="keys"><span>Keys</span></label>
         </div>
         <label class="switch cq-natural" title="Only the seven chords without a sharp or flat: A B C D E F G">
           <input type="checkbox" id="natural-toggle"><span>Natural chords</span>
@@ -96,6 +97,11 @@
       <section class="cq-work">
         <div class="cq-panel" id="panel-notes">
           <div class="keypad" id="keypad" role="group" aria-label="Notes"></div>
+          <div class="mk-chooser" id="keys-chooser" role="group" aria-label="Major or minor" hidden>
+            <button type="button" data-quality="major" aria-pressed="false">Major</button>
+            <button type="button" data-quality="minor" aria-pressed="false">Minor</button>
+          </div>
+          <div class="mk-roman" id="keys-roman" role="group" aria-label="Numeral" hidden></div>
         </div>
 
         <div class="cq-panel" id="panel-key" hidden>

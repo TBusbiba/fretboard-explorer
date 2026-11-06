@@ -4,7 +4,9 @@
 import {
   cardsFor, checkNotes, noteForPitch, chordMidis, pitchClass, pickCard, promote,
   signatureLabel, MASTERED_BOX, ORDER_OF_SHARPS, ORDER_OF_FLATS, loadPrefs,
+  keysPool, keysSeen, checkKeysAnswer,
 } from './deck.js';
+import { DEGREES, explain } from '../keys.js';
 import { bestParse } from './speech.js';
 import { createFretboard } from '../fretboard.js';
 import { createSound } from '../sound.js';
@@ -29,12 +31,14 @@ if (!saved.defaultsV2) save();
 
 let card = null;
 let picked = [];          // spelled names, in slot order (null = empty slot)
-let step = 'notes';       // 'notes' | 'key' | 'fret' | 'done'
+let step = 'notes';       // 'notes' | 'key' | 'fret' | 'done' | 'intro' (Keys deck first visit)
 let clean = true;         // no mistakes on notes or key signature this card
 let found = new Set();    // pitch classes found on the fretboard
 let tapped = new Set();   // 'string:fret' spots already marked correct
 let streak = 0;
 let busy = false;         // an animation is resolving; ignore input
+let keysPick = { pc: null, name: null, quality: null, degree: null };   // Keys deck answer in progress
+let introShown = false;   // the Keys intro runs once per page session
 
 const sound = createSound();
 const board = createFretboard($('fretboard'));
@@ -75,6 +79,7 @@ $('keypad').addEventListener('click', (ev) => {
   const b = ev.target.closest('[data-note]');
   if (!b || step !== 'notes' || busy) return;
   const name = b.dataset.note;
+  if (isKeys()) { pickKeysRoot(name, b); return; }
   const at = pickedAt(name);
   if (at >= 0) { removePick(at); return; }
   const free = picked.indexOf(null) >= 0 ? picked.indexOf(null) : picked.length;
@@ -104,7 +109,7 @@ const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 let listening = null;
 
 function listen() {
-  if (!Recognition || step !== 'notes' || busy) return;
+  if (!Recognition || step !== 'notes' || busy || (isKeys() && card?.kind !== 'degree')) return;
   if (listening) { listening.stop(); return; }
   const rec = new Recognition();
   rec.lang = 'en-US';
@@ -115,6 +120,14 @@ function listen() {
     const heard = bestParse([...res].map(a => a.transcript));
     if (!res.isFinal) { say(`Heard: “${heard.text.trim()}”`); return; }
     if (!heard.notes.length) { say(`Heard “${heard.text.trim()}” but no notes in it. Try again.`, 'bad'); return; }
+    if (isKeys()) {
+      keysPick.pc = heard.notes[0];
+      keysPick.name = CIRCLE[heard.notes[0]];
+      renderKeysPick();
+      say(`Heard “${heard.text.trim()}”: ${keysPick.name}. Now major or minor?`);
+      if (keysPick.quality) checkKeys();
+      return;
+    }
     picked = heard.notes.slice(0, 3).map(pc => CIRCLE[pc]);
     renderSlots();
     renderKeypad();
@@ -138,6 +151,7 @@ $('btn-say').addEventListener('click', listen);
 function filledCount() { return picked.filter(Boolean).length; }
 
 function renderKeypad() {
+  if (isKeys()) { renderKeysPick(); return; }
   for (const k of $('keypad').querySelectorAll('.key')) {
     const on = pickedAt(k.dataset.note) >= 0;
     k.classList.toggle('is-picked', on);
@@ -205,6 +219,7 @@ async function go() {
 async function reveal() {
   if (step !== 'notes' || busy) return;
   clean = false;
+  if (isKeys()) { revealKeys(); return; }
   picked = [...card.notes];
   renderSlots();
   renderKeypad();
@@ -219,6 +234,148 @@ async function reveal() {
   say(`${card.name} is ${card.notes.join(' – ')}.`);
   setStep('fret');
 }
+
+// ---- Keys deck: name the chord of a degree, or the degree of a chord ---------------
+
+const isKeys = () => prefs.deck === 'keys';
+const activeCards = () => (isKeys() ? keysPool(prefs.boxes) : cardsFor(prefs.deck, { natural: prefs.natural }));
+const keysChord = (c) => (c.kind === 'degree' ? c.answer : c.row.find(x => x.degree === c.degree));
+const keysMidis = (c) => { const r = 48 + c.pc; return [r, r + (c.quality === 'minor' ? 3 : 4), r + 7]; };
+const rowNames = (c) => c.row.map(x => x.name).join('  ');
+
+function buildKeysRoman() {
+  $('keys-roman').innerHTML = DEGREES.map(d => `<button type="button" data-degree="${d}" aria-pressed="false">${d}</button>`).join('');
+}
+
+/** Show only the controls this deck and card need. */
+function syncKeysUi() {
+  const keys = isKeys();
+  const kind = keys ? card?.kind : null;
+  document.querySelector('.cq-natural').hidden = keys;
+  document.querySelector('.cq-notes-only').hidden = keys;
+  document.querySelector('.cq-steps').hidden = keys || prefs.notesOnly;
+  $('slots').hidden = keys;
+  $('keypad').hidden = keys && kind !== 'degree';
+  $('keys-chooser').hidden = kind !== 'degree';
+  $('keys-roman').hidden = kind !== 'roman';
+  $('btn-say').hidden = !Recognition || (keys && kind !== 'degree');
+  const intro = step === 'intro';
+  $('btn-reveal').hidden = intro;
+  $('btn-clear').hidden = intro;
+  if (!keys) { hideWhy(); $('card-ask').parentElement.hidden = false; }
+}
+
+function renderKeysCard() {
+  cardEl.dataset.quality = 'maj';
+  const degree = card.kind === 'degree';
+  $('card-tag').textContent = degree ? 'Keys · degree' : 'Keys · numeral';
+  $('card-name').className = `card__name mk-key${degree ? '' : ' mk-key--ask'}`;
+  $('card-name').innerHTML = degree ? acc(`${card.keyName} major`) : acc(`In ${card.keyName} major, ${card.chordName} is…?`);
+  $('card-ask').innerHTML = degree ? `What is the ${card.degree}?<small>Root, then major or minor</small>` : '';
+  $('card-ask').parentElement.hidden = !degree;
+  $('card-back').innerHTML = `
+    <div class="card__tag">${acc(card.keyName)} major</div>
+    <div class="mk-row">${card.row.map(c => `<div><b>${acc(c.name)}</b><span>${c.degree}</span></div>`).join('')}</div>`;
+}
+
+function resetKeysPick() {
+  keysPick = { pc: null, name: null, quality: null, degree: null };
+  renderKeysPick();
+}
+
+function renderKeysPick() {
+  const { pc, name, quality, degree } = keysPick;
+  for (const k of $('keypad').querySelectorAll('.key')) {
+    const on = pc !== null && pitchClass(k.dataset.note) === pc;
+    k.classList.toggle('is-picked', on);
+    k.setAttribute('aria-pressed', String(on));
+  }
+  $('keypad').querySelector('polygon').setAttribute('points', '');
+  $('keypad').querySelector('.keypad__mid').textContent = pc === null && !quality ? 'Pick the root'
+    : `${name || '?'} · ${quality || '?'}`;
+  for (const b of $('keys-chooser').querySelectorAll('[data-quality]')) {
+    const on = b.dataset.quality === quality;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', String(on));
+  }
+  for (const b of $('keys-roman').querySelectorAll('[data-degree]')) {
+    const on = b.dataset.degree === degree;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', String(on));
+  }
+  $('btn-go').disabled = !(step === 'done' || step === 'intro');
+}
+
+function pickKeysRoot(name, btn) {
+  if (card?.kind !== 'degree') return;
+  if (keysPick.pc === pitchClass(name)) { keysPick.pc = null; keysPick.name = null; renderKeysPick(); return; }
+  keysPick.pc = pitchClass(name);
+  keysPick.name = name;
+  playNote(60 + keysPick.pc, 0.35);
+  bounce(btn);
+  renderKeysPick();
+  if (keysPick.quality) checkKeys();
+}
+
+$('keys-chooser').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-quality]');
+  if (!b || step !== 'notes' || busy) return;
+  keysPick.quality = keysPick.quality === b.dataset.quality ? null : b.dataset.quality;
+  renderKeysPick();
+  if (keysPick.pc !== null && keysPick.quality) checkKeys();
+});
+
+$('keys-roman').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-degree]');
+  if (!b || step !== 'notes' || busy) return;
+  keysPick.degree = b.dataset.degree;
+  renderKeysPick();
+  checkKeys();
+});
+
+async function checkKeys() {
+  if (step !== 'notes' || busy || !card) return;
+  busy = true;
+  const roman = card.kind === 'roman';
+  const { correct } = checkKeysAnswer(card, roman ? { degree: keysPick.degree } : { pc: keysPick.pc, quality: keysPick.quality });
+  if (correct) {
+    say(`Right! ${rowNames(card)}`, 'ok');
+    strum(keysMidis(keysChord(card)));
+    glow(cardEl);
+    burst(cardEl, 'var(--accent)');
+    await wait(900);
+    busy = false;
+    nextCard();
+    return;
+  }
+  clean = false;
+  const chip = roman ? $('keys-roman').querySelector(`[data-degree="${keysPick.degree}"]`) : null;
+  chip?.classList.add('is-bad');
+  say(roman ? `Not quite: ${card.chordName} isn't the ${keysPick.degree}.` : 'Not quite. Check the Why below, then try again.', 'bad');
+  shake(cardEl);
+  showWhy(card);
+  await wait(900);
+  chip?.classList.remove('is-bad');
+  busy = false;
+  resetKeysPick();
+}
+
+function revealKeys() {
+  const chord = keysChord(card);
+  if (card.kind === 'degree') Object.assign(keysPick, { pc: chord.pc, name: CIRCLE[chord.pc], quality: chord.quality });
+  else keysPick.degree = card.degree;
+  strum(keysMidis(chord));
+  flip(true);
+  showWhy(card);
+  step = 'done';
+  renderSteps();
+  renderKeysPick();
+  say(`${card.kind === 'degree' ? `The ${card.degree} of ${card.keyName} is ${chord.name}` : `${card.chordName} is the ${card.degree}`}. Press Enter for the next card.`);
+}
+
+// Task 7 fills these in.
+function showWhy() {}
+function hideWhy() {}
 
 // ---- step 2: key signature -----------------------------------------------------
 
@@ -364,11 +521,14 @@ async function nextCard({ first = false } = {}) {
     cardEl.classList.add('is-leaving');
     await wait(REDUCED ? 0 : 380);
   }
-  const cards = cardsFor(prefs.deck, { natural: prefs.natural });
-  card = pickCard(cards, prefs.boxes, card?.id);
+  card = pickCard(activeCards(), prefs.boxes, card?.id);
   picked = [];
+  keysPick = { pc: null, name: null, quality: null, degree: null };
   clean = true;
+  hideWhy();
   flip(false, true);
+  step = 'notes';
+  syncKeysUi();
   renderCard();
   renderSlots();
   renderKeypad();
@@ -382,6 +542,9 @@ async function nextCard({ first = false } = {}) {
 }
 
 function renderCard() {
+  if (card.kind) { renderKeysCard(); return; }
+  $('card-name').className = 'card__name';
+  $('card-ask').parentElement.hidden = false;
   cardEl.dataset.quality = card.quality;
   $('card-tag').textContent = card.quality === 'min' ? 'Minor chord' : 'Major chord';
   $('card-name').innerHTML = acc(card.name);
@@ -405,7 +568,7 @@ function flip(on, instant = false) {
 }
 
 function renderStats(pop = false) {
-  const cards = cardsFor(prefs.deck, { natural: prefs.natural });
+  const cards = activeCards();
   const mastered = cards.filter(c => (prefs.boxes[c.id] ?? 0) >= MASTERED_BOX).length;
   $('stat-streak').textContent = streak;
   $('stat-best').textContent = prefs.best;
@@ -474,9 +637,15 @@ function burst(el, color, count = 22) {
 
 // ---- controls -------------------------------------------------------------------
 
-$('btn-go').addEventListener('click', () => (step === 'done' ? nextCard() : go()));
+function onGo() {
+  if (step === 'done') nextCard();
+  else if (step === 'intro') dismissIntro();
+  else if (!isKeys()) go();
+}
+$('btn-go').addEventListener('click', onGo);
 $('btn-reveal').addEventListener('click', reveal);
-$('btn-clear').addEventListener('click', () => { if (step === 'notes' && !busy) { picked = []; renderSlots(); renderKeypad(); } });
+function clearPicks() { picked = []; keysPick = { pc: null, name: null, quality: null, degree: null }; renderSlots(); renderKeypad(); }
+$('btn-clear').addEventListener('click', () => { if (step === 'notes' && !busy) clearPicks(); });
 $('btn-next').addEventListener('click', () => nextCard());
 $('btn-skip').addEventListener('click', () => { if (step === 'fret') { clean = false; nextCard(); } });
 
@@ -484,15 +653,14 @@ document.addEventListener('keydown', (ev) => {
   if (ev.target.closest('input')) return;
   if (ev.key === 'Enter') {
     ev.preventDefault();
-    if (step === 'notes') go();
-    else if (step === 'done') nextCard();
-  } else if (ev.key === 'Backspace' && step === 'notes' && !busy && picked.length) {
+    onGo();
+  } else if (ev.key === 'Backspace' && step === 'notes' && !busy && !isKeys() && picked.length) {
     ev.preventDefault();
     removePick(picked.length - 1);
   } else if (ev.key.toLowerCase() === 's' && !ev.metaKey && !ev.ctrlKey) {
     listen();
   } else if (ev.key === 'Escape' && step === 'notes' && !busy) {
-    picked = []; renderSlots(); renderKeypad();
+    clearPicks();
   }
 });
 
@@ -501,9 +669,7 @@ document.querySelectorAll('input[name="deck"]').forEach((r) => {
   r.addEventListener('change', () => {
     prefs.deck = r.value; save();
     streak = 0;
-    renderStats();
-    card = null;
-    nextCard({ first: true });
+    startDeck();
   });
 });
 
@@ -511,14 +677,12 @@ $('natural-toggle').checked = prefs.natural;
 $('natural-toggle').addEventListener('change', (ev) => {
   prefs.natural = ev.target.checked; save();
   streak = 0;
-  renderStats();
-  card = null;
-  nextCard({ first: true });
+  startDeck();
 });
 
 function syncNotesOnly() {
   $('notes-only-toggle').checked = prefs.notesOnly;
-  document.querySelector('.cq-steps').hidden = prefs.notesOnly;
+  document.querySelector('.cq-steps').hidden = prefs.notesOnly || isKeys();
 }
 $('notes-only-toggle').addEventListener('change', (ev) => {
   prefs.notesOnly = ev.target.checked; save();
@@ -534,9 +698,39 @@ $('sound-toggle').addEventListener('click', () => { prefs.sound = !prefs.sound; 
 
 // ---- start ------------------------------------------------------------------------
 
+/** Deal the first card of the current deck (the Keys deck opens with its intro the first time). */
+function startDeck() {
+  renderStats();
+  card = null;
+  busy = false;
+  syncNotesOnly();
+  if (isKeys() && !keysSeen(prefs.boxes) && !introShown) showIntro();
+  else nextCard({ first: true });
+}
+
+function showIntro() {
+  introShown = true;
+  step = 'intro';
+  flip(false, true);
+  $('card-tag').textContent = 'Keys deck';
+  $('card-name').className = 'card__name mk-key mk-key--ask';
+  $('card-name').textContent = 'How it works';
+  $('card-ask').parentElement.hidden = true;
+  syncKeysUi();
+  renderSteps();
+  say('');
+  showWhy(null, { heading: 'How the Keys deck works' });
+  $('btn-go').disabled = false;
+}
+
+function dismissIntro() {
+  if (step !== 'intro') return;
+  hideWhy();
+  nextCard({ first: true });
+}
+
 buildKeypad();
 buildKeysig();
+buildKeysRoman();
 syncSound();
-syncNotesOnly();
-renderStats();
-nextCard({ first: true });
+startDeck();
