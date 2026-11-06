@@ -31,9 +31,9 @@
   <main class="stage cq">
     <div class="modebar">
       <div class="mode" aria-label="Practice mode">
-        <a class="mode__link" href="index.html" data-mode="note"><span>Find the note</span></a>
-        <a class="mode__link" href="index.html" data-mode="scales"><span>Scales</span></a>
-        <a class="mode__link" href="index.html" data-mode="triads"><span>Triads</span></a>
+        <a class="mode__link" href="index.html?mode=note" data-mode="note"><span>Find the note</span></a>
+        <a class="mode__link" href="index.html?mode=scales" data-mode="scales"><span>Scales</span></a>
+        <a class="mode__link" href="index.html?mode=triads" data-mode="triads"><span>Triads</span></a>
         <a class="mode__link is-active" href="chords.html" aria-current="page"><span>Chords</span></a>
         <span class="mode__soon" aria-disabled="true" title="Not finished yet">Intervals · Arpeggios · Vibrato: soon</span>
       </div>
@@ -127,16 +127,6 @@
   </main>
 
   <div class="fx" id="fx" aria-hidden="true"></div>
-  <script>
-    document.querySelectorAll('.mode a[data-mode]').forEach(function (a) {
-      a.addEventListener('click', function () {
-        try {
-          var k = 'fretboard-practice.settings.v2', s = JSON.parse(localStorage.getItem(k) || '{}');
-          s.mode = a.dataset.mode; localStorage.setItem(k, JSON.stringify(s));
-        } catch (e) { /* ignore */ }
-      });
-    });
-  </script>
   <script type="module" src="js/chords/quiz.js"></script>
 </body>
 </html>

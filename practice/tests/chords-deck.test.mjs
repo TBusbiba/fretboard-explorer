@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   DECKS, cardsFor, spell, pitchClass, checkNotes, noteForPitch, chordMidis,
-  promote, pickCard, signatureLabel,
+  promote, pickCard, signatureLabel, loadPrefs,
 } from '../js/chords/deck.js';
 
 const card = (id) => cardsFor('both').find(c => c.id === id);
@@ -72,4 +72,12 @@ test('scheduling favours cards you keep missing', () => {
   for (let i = 0; i < 2000; i++) counts[pickCard(cards, known, null, rng).id]++;
   assert.ok(counts.G > counts.C * 5);
   assert.equal(pickCard(cards, {}, 'C').id, 'G');      // never the same card twice in a row
+});
+
+test('prefs: Natural chords and Notes only start on; saved prefs migrate once, then keep a later choice', () => {
+  assert.deepEqual([loadPrefs().natural, loadPrefs().notesOnly], [true, true]);
+  const old = loadPrefs({ deck: 'minor', natural: false, notesOnly: false });
+  assert.deepEqual([old.deck, old.natural, old.notesOnly, old.defaultsV2], ['minor', true, true, true]);
+  const later = loadPrefs({ ...old, natural: false });
+  assert.deepEqual([later.natural, later.notesOnly], [false, true]);
 });

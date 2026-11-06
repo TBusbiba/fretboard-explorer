@@ -35,7 +35,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '37';
+const BUILD = '38';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -47,6 +47,16 @@ const WRONG_MARKER_MS = 1200;
 
 let settings = loadSettings();
 if (['intervals', 'arpeggios'].includes(settings.mode)) settings = { ...settings, mode: 'note' };   // tabs not finished yet: greyed out
+// Tab links from other pages (Chords) say which mode to open: ?mode= overrides and saves the setting, then leaves the URL.
+{
+  const url = new URL(location.href), asked = url.searchParams.get('mode');
+  if (asked !== null) {
+    if (['note', 'scales', 'triads'].includes(asked)) { settings = { ...settings, mode: asked }; saveSettings(settings); }
+    url.searchParams.delete('mode');
+    window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+  }
+}
+window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });   // back/forward cache: never show a stale mode
 
 // What the session actually drills: a single picked interval, or the random pool.
 function sessionSettings() {
@@ -148,7 +158,11 @@ const pitch = createPitchDetector({
   onDebug: DEBUG ? (d) => debugPanel.add(d) : null,
   isMuted: (now) => micGate.isMuted(now),
   onNote: (midi) => { if (!micGate.isMuted()) session.noteDetected(midi); },
-  onStable: (midi, info) => { if (scales.running && !micGate.isMuted()) scales.feed(midi, info); },   // Scales: every steady reading, not one per note
+  onStable: (midi, info) => {
+    if (micGate.isMuted()) return;
+    if (scales.running) scales.feed(midi, info);
+    else if (session.matcher) session.stableDetected(midi, info);   // Triads: the only place a wrong note is counted
+  },   // Scales: every steady reading, not one per note
   onLevel: updateMeter,
   onState: updateMicState,
 });

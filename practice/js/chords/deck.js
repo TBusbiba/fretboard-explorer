@@ -116,3 +116,10 @@ export function pickCard(cards, boxes, previousId, rng = Math.random) {
   for (let i = 0; i < pool.length; i++) { r -= weights[i]; if (r < 0) return pool[i]; }
   return pool[pool.length - 1];
 }
+
+/** Saved Chords prefs with the defaults applied: Natural chords and Notes only start ON, and are switched on once for prefs saved before that (`defaultsV2`). */
+export function loadPrefs(saved = {}) {
+  const prefs = { deck: 'major', boxes: {}, best: 0, sound: true, notesOnly: true, natural: true, ...saved };
+  if (!prefs.defaultsV2) { prefs.notesOnly = true; prefs.natural = true; prefs.defaultsV2 = true; }
+  return prefs;
+}

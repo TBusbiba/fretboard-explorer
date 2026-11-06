@@ -3,7 +3,7 @@
 
 import {
   cardsFor, checkNotes, noteForPitch, chordMidis, pitchClass, pickCard, promote,
-  signatureLabel, MASTERED_BOX, ORDER_OF_SHARPS, ORDER_OF_FLATS,
+  signatureLabel, MASTERED_BOX, ORDER_OF_SHARPS, ORDER_OF_FLATS, loadPrefs,
 } from './deck.js';
 import { bestParse } from './speech.js';
 import { createFretboard } from '../fretboard.js';
@@ -21,8 +21,9 @@ const acc = (name) => name.replace(/([♯♭]+)/g, '<span class="acc">$1</span>'
 
 const KEY = 'practice.chords';
 const saved = (() => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } })();
-const prefs = { deck: 'major', boxes: {}, best: 0, sound: true, notesOnly: false, natural: false, ...saved };
+const prefs = loadPrefs(saved);
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(prefs)); } catch { /* private mode */ } };
+if (!saved.defaultsV2) save();
 
 // ---- round state -------------------------------------------------------------
 

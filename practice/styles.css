@@ -1234,7 +1234,7 @@ body[data-mode="scales"] .prompt__status[hidden] { display: none; }
   border: 2.5px solid var(--nb-ink); border-radius: 20px; font: 700 13px/1.3 var(--nb-sans); letter-spacing: 0; text-transform: none; max-width: 100%;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.p-hud .prompt__string.is-live::before { content: '🔊 '; color: inherit; }
+.p-hud .prompt__string.is-live::before { content: none; }
 .p-hud .prompt__string:empty { display: none; }
 .p-hud .prompt__note { margin: 0; font: 700 60px/0.95 var(--nb-sans); letter-spacing: -0.02em; color: #fff; min-width: 0; }
 .p-hud .prompt__note.is-long { font-size: 40px; line-height: 1; margin: 0; white-space: nowrap; }

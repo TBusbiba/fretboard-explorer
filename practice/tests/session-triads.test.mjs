@@ -14,6 +14,7 @@ function make(voicings) {
   session.start();
   return { session, events, advance: (ms) => { t += ms; } };
 }
+const HELD = { fresh: true, heldMs: 300 };
 const types = (events) => events.map(e => e[0]);
 
 test('triads: all three shapes, any order; shape events then correct, state resolved only at the end', () => {
@@ -37,7 +38,7 @@ test('triads: the clock, first try and hints count per shape', () => {
   advance(5000);
   vs[0].notes.forEach(n => session.noteDetected(n.midi));
   advance(2000);
-  session.noteDetected(30);
+  session.stableDetected(30, HELD);
   vs[1].notes.forEach(n => session.noteDetected(n.midi));
   advance(3000);
   vs[2].notes.forEach(n => session.noteDetected(n.midi));
@@ -60,7 +61,53 @@ test('triads: a repeated shape is ignored (dup), not a mistake', () => {
 test('triads: a note that is not the lowest note of a shape is a wrong start, counted once', () => {
   const vs = voicingsFor(0, 'major', '321');
   const { session, events } = make(vs);
-  session.noteDetected(30); session.noteDetected(30);
+  session.stableDetected(30, HELD); session.stableDetected(30, HELD);
   assert.equal(events.filter(e => e[0] === 'wrong').length, 1);
   assert.equal(session.step, 0);
+});
+
+const wrongs = (events) => events.filter(e => e[0] === 'wrong').length;
+
+test('triads: the last note of the finished shape ringing into the next shape is no mistake', () => {
+  const vs = voicingsFor(0, 'major', '321');
+  const { session, events, advance } = make(vs);
+  vs[0].notes.forEach(n => session.noteDetected(n.midi));
+  advance(400);
+  for (const n of vs[0].notes) session.stableDetected(n.midi, HELD);
+  advance(900);   // still inside the ring window
+  session.stableDetected(vs[0].notes[2].midi, HELD);
+  assert.equal(wrongs(events), 0);
+  advance(1000);  // past the window: a ringing pitch still needs fresh + hold,
+  session.stableDetected(vs[0].notes[2].midi, { fresh: false, heldMs: 400 });
+  assert.equal(wrongs(events), 0);
+});
+
+test('triads: a held previous-string note during the same shape is no mistake', () => {
+  const vs = voicingsFor(0, 'major', '321');
+  const { session, events } = make(vs);
+  const [a, b] = vs[0].notes;
+  session.noteDetected(a.midi);
+  session.noteDetected(b.midi);
+  session.stableDetected(a.midi, HELD);
+  session.stableDetected(a.midi + 12, HELD);
+  assert.equal(wrongs(events), 0);
+});
+
+test('triads: a freshly attacked wrong note held 300 ms is one mistake; a short or unattacked one is none', () => {
+  const vs = voicingsFor(0, 'major', '321');
+  const { session, events } = make(vs);
+  session.stableDetected(30, { fresh: true, heldMs: 100 });
+  session.stableDetected(30, { fresh: false, heldMs: 400 });
+  assert.equal(wrongs(events), 0);
+  session.stableDetected(30, HELD); session.stableDetected(30, HELD);
+  assert.equal(wrongs(events), 1);
+});
+
+test('triads: an octave slip of the expected note is accepted, not a mistake', () => {
+  const vs = voicingsFor(0, 'major', '321');
+  const { session, events } = make(vs);
+  const first = vs[0].notes[0].midi;
+  session.noteDetected(first + 12);
+  assert.equal(session.step, 1);
+  assert.equal(wrongs(events), 0);
 });

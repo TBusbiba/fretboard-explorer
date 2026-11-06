@@ -19,6 +19,9 @@
 //   error   {message}
 
 import { createTriadMatcher } from './triad-match.js';
+import { MISTAKE_HOLD_MS } from './scale-listen.js';
+
+const RING_MS = 1500;   // the shape just finished keeps ringing into the next one
 import {
   noteAt, pickTarget, pickIntervalTarget, pickArpeggioTarget, pickTriadTarget, fretForMidi, midiToNoteName,
   midiToOctave, STRINGS, intervalById, chordById, triadById,
@@ -60,6 +63,7 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
     wrongSeen: new Set(),
     hadWrong: false,
     resolvedAt: 0,
+    ring: { current: [], finished: [], finishedAt: -Infinity },   // triads: pitches still ringing
   };
 
   function emit(type, payload = {}) { onEvent(type, payload); }
@@ -127,6 +131,7 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
     session.shapeHinted = false;
     session.wrongSeen = new Set();
     session.hadWrong = false;
+    session.ring = { current: [], finished: [], finishedAt: -Infinity };
     session.state = 'listening';
     emit('target', { target, note: session.note, mode });
     return true;
@@ -187,21 +192,16 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
 
   // Triads with host-picked voicings: the chord in every shape, each shape low to high from the
   // thickest string. The clock, first try and hint count per shape (session.startedAt restarts).
+  const nearMidis = (list) => list.flatMap(m => [m, m + 12, m - 12]);
+  const slipOf = (midi) => { const exp = session.matcher.expected(); return [12, -12].map(d => midi + d).find(m => exp.includes(m)); };
+
   function triadDetected(midi) {
-    const r = session.matcher.feed(midi);
+    let r = session.matcher.feed(midi);
+    if (r.status === 'wrong') { const fix = slipOf(midi); if (fix != null) r = session.matcher.feed(fix); }
+    if (r.status === 'wrong') return;   // a wrong note counts only from stableDetected (fresh attack + stable hold)
     if (r.status === 'dup') { emit('dup', { shape: r.shape }); return; }
-    if (r.status === 'wrong') {
-      if (session.wrongSeen.has(midi)) return;
-      session.wrongSeen.add(midi);
-      session.hadWrong = true;
-      stats.wrong += 1;
-      const near = session.matcher.expected()
-        .reduce((a, b) => (Math.abs(b - midi) < Math.abs(a - midi) ? b : a));
-      const diff = midi - near;
-      emit('wrong', { midi, name: midiToNoteName(midi), fret: -1, octaveOff: diff % 12 === 0 ? Math.round(diff / 12) : 0 });
-      return;
-    }
     if (r.status === 'step') {
+      session.ring.current.push(r.voicing.notes[r.step - 1].midi);
       session.steps = voicingSteps(r.voicing);
       session.step = r.step;
       session.note = session.steps[r.step];
@@ -219,6 +219,7 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
     stats.times.push(ms);
     const info = { target: session.target, voicing: r.voicing, shape: r.shape, found: r.found, total: r.total, voicings: session.matcher.found, ms, firstTry, hinted };
     session.shapeHinted = false; session.hadWrong = false; session.wrongSeen = new Set();
+    session.ring = { current: [], finished: r.voicing.notes.map(n => n.midi), finishedAt: t };
     if (r.status === 'shape') {
       session.step = 0;
       session.steps = voicingSteps(session.matcher.candidates[0]);
@@ -232,6 +233,25 @@ export function createSession({ getSettings, now = () => performance.now(), rng 
     session.played = { voicing: r.voicing, voicings: session.matcher.found };
     emit('correct', { ...info, played: session.played });
   }
+
+  /**
+   * Triads, every steady pitch (not one per note): the only place a wrong note is counted.
+   * Pitches still ringing are ignored (this shape's played notes; the last finished shape's for
+   * RING_MS); anything else counts once per pitch per step, after a fresh attack held MISTAKE_HOLD_MS.
+   */
+  session.stableDetected = (midi, info = {}) => {
+    if (session.state !== 'listening' || !session.matcher) return;
+    if (session.matcher.expected().includes(midi) || slipOf(midi) != null) return;
+    if (nearMidis(session.ring.current).includes(midi)) return;
+    if (now() - session.ring.finishedAt < RING_MS && nearMidis(session.ring.finished).includes(midi)) return;
+    if (!info.fresh || !(info.heldMs >= MISTAKE_HOLD_MS) || session.wrongSeen.has(midi)) return;
+    session.wrongSeen.add(midi);
+    session.hadWrong = true;
+    stats.wrong += 1;
+    const near = session.matcher.expected().reduce((a, b) => (Math.abs(b - midi) < Math.abs(a - midi) ? b : a));
+    const diff = midi - near;
+    emit('wrong', { midi, name: midiToNoteName(midi), fret: -1, octaveOff: diff % 12 === 0 ? Math.round(diff / 12) : 0 });
+  };
 
   session.noteDetected = (midi) => {
     if (session.state !== 'listening') return;
