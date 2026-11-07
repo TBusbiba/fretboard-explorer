@@ -93,6 +93,7 @@ export function createFretboard(svg) {
     t.textContent = n;
   }
 
+  const windowLayer = el('g', { class: 'fb-window' }, svg);
   const heat = el('g', { class: 'fb-heat' }, svg);
   const arrows = el('g', { class: 'fb-arrows' }, svg);
   const box = el('g', { class: 'fb-box' }, svg);
@@ -206,6 +207,16 @@ export function createFretboard(svg) {
     },
 
     clearBox() { box.innerHTML = ''; },
+
+    /** Shade frets from..to (inclusive) across the given string indices; replaces any previous window. */
+    showWindow(strings, from, to) {
+      windowLayer.innerHTML = '';
+      const x = from === 0 ? NUT_X - 56 : fretX(from - 1);
+      const y = stringY(Math.min(...strings)) - 22;
+      el('rect', { class: 'fb-window__rect', x, y, width: fretX(to) - x, height: stringY(Math.max(...strings)) + 22 - y, rx: 6 }, windowLayer);
+    },
+
+    clearWindow() { windowLayer.innerHTML = ''; },
 
     clearNotes() {
       arrows.innerHTML = '';
