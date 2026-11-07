@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { voicingsFor, questionVoicings, createTriadMatcher, shapeLayout } from '../js/triad-match.js';
+import { voicingsFor, questionVoicings, createTriadMatcher, shapeLayout, windowFor } from '../js/triad-match.js';
+import { NOTE_NAMES } from '../js/notes.js';
 
 const C = 0, A = 9;
 const GROUPS = ['321', '432', '543', '654'];
@@ -137,4 +138,33 @@ test('shapeLayout major on 3·2·1 agrees with the real C major shapes', () => {
 test('shapeLayout: bad input is null', () => {
   assert.equal(shapeLayout('dim', '321'), null);
   assert.equal(shapeLayout('major', 'x'), null);
+});
+
+const syn = (...frets) => ({ notes: frets.map(fret => ({ fret })) });
+const NOTE = (n) => NOTE_NAMES.indexOf(n);
+
+test('windowFor: G major on 3·2·1 (shapes at 3-4, 7-8, 10-12) gives 0-6, 5-9, 9-12', () => {
+  const vs = questionVoicings(NOTE('G'), 'major', '321');
+  assert.deepEqual(vs.map((_, i) => windowFor(vs, i)), [{ from: 0, to: 6 }, { from: 5, to: 9 }, { from: 9, to: 12 }]);
+  assert.deepEqual(windowFor(vs, 2, { maxFret: 15 }), { from: 9, to: 15 });
+});
+test('windowFor: E minor on 3·2·1 has an open shape (window starts at 0) and a copy at 12', () => {
+  const vs = questionVoicings(NOTE('E'), 'minor', '321');
+  assert.equal(vs.length, 4);
+  assert.deepEqual(vs.map((_, i) => windowFor(vs, i)),
+    [{ from: 0, to: 2 }, { from: 1, to: 6 }, { from: 6, to: 11 }, { from: 10, to: 12 }]);
+});
+test('windowFor: a shape at the top ends at maxFret (default follows the highest fret)', () => {
+  const vs = [syn(2, 3, 3), syn(14, 14, 12)];
+  assert.deepEqual(windowFor(vs, 1), { from: 4, to: 14 });
+  assert.deepEqual(windowFor([syn(2, 3, 3), syn(9, 9, 8)], 1), { from: 4, to: 12 });
+});
+test('windowFor: two adjacent shapes with one free fret between them share that fret', () => {
+  const vs = [syn(2, 3, 3), syn(5, 6, 5)];
+  assert.deepEqual(windowFor(vs, 0), { from: 0, to: 4 });
+  assert.deepEqual(windowFor(vs, 1), { from: 4, to: 12 });
+});
+test('windowFor: a lone shape spans the whole board; touching shapes get no extra room', () => {
+  assert.deepEqual(windowFor([syn(3, 4, 3)], 0), { from: 0, to: 12 });
+  assert.deepEqual(windowFor([syn(2, 3, 3), syn(4, 5, 5)], 0), { from: 0, to: 3 });
 });

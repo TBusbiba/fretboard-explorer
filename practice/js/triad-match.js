@@ -52,7 +52,23 @@ export function questionVoicings(rootPc, quality, groupId, to = FULL_RANGE.to) {
 }
 
 /**
- * Matches a whole question: the chord in every shape of `voicings`, each played low to high from
+ * The stretch of frets shaded for one placed shape: from its own span, grow down and up until the
+ * next fret would fall inside another voicing's span, or the board edge (0 and `maxFret`).
+ * `maxFret` defaults to the highest fret of the list, at least 12. Returns `{ from, to }` inclusive.
+ */
+export function windowFor(voicings, index, { maxFret } = {}) {
+  const span = (v) => { const f = v.notes.map(n => n.fret); return [Math.min(...f), Math.max(...f)]; };
+  const top = maxFret ?? Math.max(12, ...voicings.flatMap(v => v.notes.map(n => n.fret)));
+  const others = voicings.filter((_, i) => i !== index).map(span);
+  const inside = (f) => others.some(([lo, hi]) => f >= lo && f <= hi);
+  let [from, to] = span(voicings[index]);
+  while (from > 0 && !inside(from - 1)) from--;
+  while (to < top && !inside(to + 1)) to++;
+  return { from, to };
+}
+
+/**
+ * Matches a whole question (all shapes of a chord, or one placed shape for a Path question): the chord in every shape of `voicings`, each played low to high from
  * the thickest string of the group, in any order. A first note must be the lowest note of a
  * voicing whose shape is still open; it fixes the voicing, later notes must continue it (exact
  * MIDI). A wrong note changes nothing; a first note of a shape already done is `dup`.
