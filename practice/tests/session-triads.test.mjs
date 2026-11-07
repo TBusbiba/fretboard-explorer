@@ -141,3 +141,25 @@ test('triads window: playing the one shape resolves the question (correct, total
   assert.equal(events.filter(e => e[0] === 'shape').length, 0);
   assert.equal(session.state, 'resolved');
 });
+
+test('triads: a window question hints in two stages, one delay apart (first note, then all three)', () => {
+  const vs = voicingsFor(0, 'major', '321');
+  const events = [];
+  let t = 1000;
+  const session = createSession({
+    getSettings: () => ({ mode: 'triads', pauseMs: 900, hintDelayMs: 5000 }),
+    now: () => t, onEvent: (type, p) => events.push([type, p]),
+    pickTriad: () => ({ rootPc: 0, quality: 'major', group: '321', kind: 'normal', voicings: [vs[0]], window: { from: 0, to: 4 } }),
+  });
+  session.start();
+  const hints = () => events.filter(e => e[0] === 'hint').map(e => e[1].stage);
+  t += 4900; session.tick();
+  assert.deepEqual(hints(), []);
+  t += 200; session.tick();
+  assert.deepEqual(hints(), [1]);
+  t += 4900; session.tick();
+  assert.deepEqual(hints(), [1]);
+  t += 200; session.tick();
+  assert.deepEqual(hints(), [1, 2]);
+  assert.equal(events.find(e => e[0] === 'hint')[1].stages, 2);
+});

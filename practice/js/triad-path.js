@@ -114,6 +114,13 @@ export function createTriadShapeBag(rng = Math.random, voicingsOf = (c) => quest
   };
 }
 
+// ---------- hint stages ----------
+
+/** The notes a window question's hint lights: stage 1 only the first (thickest string), stage 2 all three. */
+export function hintNotesFor(voicing, stage) {
+  return stage >= 2 ? voicing.notes : voicing.notes.slice(0, 1);
+}
+
 // ---------- boss round ----------
 
 /**

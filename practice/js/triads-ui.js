@@ -8,6 +8,7 @@ import { STRINGS, NOTE_NAMES, STRING_GROUPS, DEGREE_LABELS, stringGroupById, spo
 import { questionVoicings, shapeLayout, windowFor, QUALITIES } from './triad-match.js';
 import {
   TRIAD_LEVELS, createTriadPathStore, createTriadShapeBag, createTriadBoss, chordKey, STAR2_MS, STAR3_MS,
+  hintNotesFor,
 } from './triad-path.js';
 import { WINDOW, FIRST_TRY_MIN, AVG_MS_MAX } from './path.js';
 import { createCustomBest } from './combo.js';
@@ -77,7 +78,7 @@ export function createTriadsUI(ctx) {
   const isProg = () => active() && settings().triadMode === 'progressions';
   const level = () => store.currentLevel;
   const windowed = (t) => !!(t && t.window);
-  let hintDots = false;     // the hint has lit all three dots of a window question
+  let hintLevel = 0;        // the furthest hint stage shown for the window question in play (1: first note, 2: all three)
 
   // ---------- picking the next question ----------
 
@@ -130,8 +131,8 @@ export function createTriadsUI(ctx) {
   /** The board: every shape found so far, plus the notes of the shape in play. */
   function paintBoard(pop = null) {
     fretboard.clearNotes();
-    if (hintDots && windowed(session.target)) {
-      for (const n of session.target.voicings[0].notes) fretboard.showNote(n.string, n.fret, 'hint', DEGREE_LABELS[n.degree], true);
+    if (hintLevel && windowed(session.target)) {
+      for (const n of hintNotesFor(session.target.voicings[0], hintLevel)) fretboard.showNote(n.string, n.fret, 'hint', DEGREE_LABELS[n.degree], true);
     }
     for (const v of foundShapes()) {
       for (const n of v.notes) {
@@ -180,7 +181,7 @@ export function createTriadsUI(ctx) {
     clearTimeout(introTimer);
     ctx.hideChainIntro(); ctx.hideBossEnd();
     ctx.renderCombo();
-    hintDots = false;
+    hintLevel = 0;
     fretboard.clearWindow();
     fretboard.clearNotes();
     pitch.reset();
@@ -233,9 +234,11 @@ export function createTriadsUI(ctx) {
     const wt = windowed(session.target);
     if (wt && p.stage === 1) {
       const t = session.target;
+      hintLevel = Math.max(hintLevel, 1);
+      paintBoard();
       ctx.setTip(`${t.quality === 'major' ? 'Major: root, 3rd, 5th.' : 'Minor: root, ♭3rd, 5th.'} Play it low to high.`);
     } else if (wt) {
-      hintDots = true;
+      hintLevel = 2;
       paintBoard();
       ctx.setStatus('Here is the shape');
       ui.ring.classList.add('is-done');
@@ -331,7 +334,7 @@ export function createTriadsUI(ctx) {
   }
 
   function stopped() {
-    fretboard.clearWindow(); hintDots = false;
+    fretboard.clearWindow(); hintLevel = 0;
     if (isProg()) { clearTimeout(introTimer); prog.stopped(); return; }
     clearTimeout(introTimer);
     boss = null; notice = null;
@@ -634,7 +637,7 @@ export function createTriadsUI(ctx) {
     el.qualityPicker.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', settings().triadQualities.includes(c.dataset.id)));
     el.groupPicker.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', settings().triadGroups.includes(c.dataset.id)));
     if (!on) fretboard.focusStrings(null);
-    if (!(on && isPath())) { fretboard.clearWindow(); hintDots = false; }
+    if (!(on && isPath())) { fretboard.clearWindow(); hintLevel = 0; }
     renderAll();
     renderShapes();
     if (on && isPath() && session.state === 'idle' && !store.tipSeen(store.current)) openTip();

@@ -5,6 +5,7 @@ import { WINDOW } from '../js/path.js';
 import { questionVoicings } from '../js/triad-match.js';
 import {
   TRIAD_LEVELS, evaluate, blankEntry, chordKey, createTriadShapeBag, shapeKey, createTriadBoss, createTriadPathStore, starsFor, STAR2_MS, STAR3_MS, AVG_MS_MAX,
+  hintNotesFor,
 } from '../js/triad-path.js';
 
 const pc = (n) => NOTE_NAMES.indexOf(n);
@@ -192,4 +193,12 @@ test('shape bag: a refill never repeats the same (chord, shape) back to back; a 
 });
 test('shape bag: an empty pool returns null', () => {
   assert.equal(createTriadShapeBag().next({ id: 99, group: '321', pool: [] }), null);
+});
+
+test('hint stages: stage 1 lights only the first (thickest-string) note, stage 2 all three', () => {
+  const v = questionVoicings(pc('C'), 'major', '321')[0];
+  assert.equal(hintNotesFor(v, 1).length, 1);
+  assert.equal(hintNotesFor(v, 1)[0], v.notes[0]);
+  assert.ok(hintNotesFor(v, 1)[0].string > v.notes[1].string, 'first note is on the thickest string');
+  assert.equal(hintNotesFor(v, 2).length, 3);
 });
