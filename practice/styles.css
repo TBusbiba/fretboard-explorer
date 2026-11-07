@@ -1098,7 +1098,7 @@ input[type="range"]::-moz-range-thumb {
 
 /* ================= Scales ================= */
 /* the box on the board: a dashed frame, light rings for its notes, a "start" tag on the first */
-.fb-window__rect { fill: color-mix(in srgb, var(--nb-yellow) 30%, transparent); stroke: var(--nb-yellow); stroke-width: 2; pointer-events: none; }
+.fb-window__rect { fill: color-mix(in srgb, var(--nb-cyan) 14%, transparent); stroke: var(--nb-cyan); stroke-width: 2; pointer-events: none; }
 .fb-window { pointer-events: none; }
 .fb-box__frame { fill: none; stroke: var(--nb-ink-3); stroke-width: 2.5; stroke-dasharray: 9 6; }
 .fb-box__note circle { fill: rgba(255, 255, 255, 0.78); stroke: var(--nb-ink-3); stroke-width: 2.5; }
@@ -1384,7 +1384,7 @@ body[data-mode="scales"] .prompt__status[hidden] { display: none; }
 .p-hud .fb-num--mark { fill: #fff; }
 .p-hud .fb-note__shadow { opacity: 0.5; }
 .p-hud .fb-note__dot { stroke: var(--nb-card); }
-.p-hud .fb-window__rect { fill: color-mix(in srgb, var(--nb-yellow) 30%, transparent); stroke: var(--nb-yellow); }
+.p-hud .fb-window__rect { fill: color-mix(in srgb, var(--nb-cyan) 14%, transparent); stroke: var(--nb-cyan); }
 .p-hud .fb-box__frame { stroke: #f1f1f4; stroke-width: 2.2; }
 .p-hud .fb-box__note circle { fill: var(--nb-board-empty); stroke: var(--nb-board-empty-stroke); }
 .p-hud .fb-box__note.is-root circle { fill: color-mix(in srgb, var(--nb-salmon) 40%, var(--nb-board-empty)); stroke: var(--nb-salmon); }
