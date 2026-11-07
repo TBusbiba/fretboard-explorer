@@ -14,7 +14,7 @@ Today a Triads Path question asks for all three shapes of one chord, with the ta
 
 ## Window rule (pure, tested)
 
-`windowFor(voicings, index, {maxFret=15})` in `practice/js/triad-match.js` (or a new `triad-window.js`, builder's call):
+`windowFor(voicings, index, {maxFret})` (`maxFret` defaults to max(12, highest fret in the list)) in `practice/js/triad-match.js` (or a new `triad-window.js`, builder's call):
 - `lo` = the shape's lowest fret, `hi` = its highest fret.
 - Extend `lo` down and `hi` up until the next fret in that direction is used by any other shape of the same chord on the same group, or the board edge (0 and `maxFret`).
 - Returns `{from, to}` inclusive. Example G major 3·2·1: shapes at 3–4, 7–8, 10–12 → windows 0–6, 5–9, 9–15 (a fret shared by nobody can belong to two windows; that's fine, the asked shape is the only one fully inside its window).

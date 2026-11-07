@@ -36,12 +36,12 @@ export const TRIAD_CLIPS = [
 ];
 
 function levelTip(level) {
-  const g = digits(level.group, '·'), low = stringLabel(level.group);
-  if (level.id === 1) return { head: 'Three notes, three shapes', line: `Every chord comes in three close shapes. A shaded stretch of the neck on strings ${g} marks where one of them lives: start on the ${low} string, then the next two, low to high.`, note: 'Hint (H) lights the notes; Shapes (top right) draws all three.' };
+  const g = digits(level.group, '·');
+  if (level.id === 1) return { head: 'Three notes, three shapes', line: `Every chord comes in three close shapes. A shaded stretch of the neck marks where one of them lives: thickest string first, then the next two, low to high.`, note: 'Hint (H) lights the notes; Shapes (top right) draws all three.' };
   if (level.id === 2) return { head: 'Minor = flat 3rd', line: 'A minor triad lowers the 3rd by one fret. The shape is the major one with that single note moved down.', note: 'Shapes switches to the minor shapes when a minor chord is asked.' };
   if (level.id === 11) return { head: 'Sharps and flats', line: 'The shapes are movable: learn them once, then slide them to any root, black keys included.', note: 'Shapes shows how far each shape sits above the last.' };
-  if (level.group !== '321' && /^Strings/.test(level.title)) return { head: `New strings: ${g}`, line: `The same three shapes, one string set lower. Start on the ${low} string. Their finger patterns change a little because the strings tune differently.`, note: 'Shapes draws the shapes for the strings in play.' };
-  return { head: level.title, line: `Keep every shape in reach: each new level asks the chords again on strings ${g}, from any position.`, note: 'The boss opens when your last 20 shapes are quick and clean.' };
+  if (level.group !== '321' && /^Strings/.test(level.title)) return { head: `New strings: ${g}`, line: `The same three shapes, one string set lower. Thickest string first. Their finger patterns change a little because the strings tune differently.`, note: 'Shapes draws the shapes for the strings in play.' };
+  return { head: level.title, line: `Keep every shape in reach: each new level asks the chords again, from any position.`, note: 'The boss opens when your last 20 shapes are quick and clean.' };
 }
 
 export function createTriadsUI(ctx) {
@@ -618,7 +618,7 @@ export function createTriadsUI(ctx) {
     if (!active() || session.state !== 'idle' || isProg()) return;
     const s = idleSubject();
     fretboard.focusStrings(stringGroupById(s.group).strings);
-    ctx.setPrompt(`Strings ${digits(s.group, '·')}`, 'Triads', 'standby');
+    ctx.setPrompt(isPath() ? '' : `Strings ${digits(s.group, '·')}`, 'Triads', 'standby');
     renderDots(0);
     ctx.setStatus(isPath() ? 'Press Start, then play the shape in the shaded area, low to high' : 'Press Start, then play all 3 shapes of the chord, each low to high');
   }

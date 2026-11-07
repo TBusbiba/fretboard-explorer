@@ -107,6 +107,7 @@ export function createTriadShapeBag(rng = Math.random, voicingsOf = (c) => quest
         bag = [...shuffle(all.filter(newest)), ...shuffle(all.filter(q => !newest(q)))];
         if (bag.length > 1 && last && shapeKey(bag[0]) === shapeKey(last)) bag.push(bag.shift());
       }
+      if (!bag.length) return null;
       last = bag.shift();
       return { ...last };
     },
