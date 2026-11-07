@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import { createSession } from '../js/session.js';
 import { voicingsFor } from '../js/triad-match.js';
 
-function make(voicings) {
+function make(voicings, extra = {}) {
   const events = [];
   let t = 1000;
   const session = createSession({
     getSettings: () => ({ mode: 'triads', pauseMs: 900 }),
     now: () => t, onEvent: (type, p) => events.push([type, p]),
-    pickTriad: () => ({ rootPc: 0, quality: 'major', group: '321', kind: 'normal', voicings }),
+    pickTriad: () => ({ rootPc: 0, quality: 'major', group: '321', kind: 'normal', voicings, ...extra }),
   });
   session.start();
   return { session, events, advance: (ms) => { t += ms; } };
@@ -110,4 +110,34 @@ test('triads: an octave slip of the expected note is accepted, not a mistake', (
   session.noteDetected(first + 12);
   assert.equal(session.step, 1);
   assert.equal(wrongs(events), 0);
+});
+
+const WIN = { from: 0, to: 6 };
+test('triads window: the same shape 12 frets up is wrong, not an octave slip', () => {
+  const vs = voicingsFor(7, 'major', '321');
+  const { session, events } = make([vs[0]], { window: WIN });
+  const up = vs[0].notes[0].midi + 12;
+  session.noteDetected(up);
+  assert.equal(session.step, 0);
+  assert.equal(events.filter(e => e[0] === 'step').length, 0);
+  session.stableDetected(up, HELD);
+  assert.equal(wrongs(events), 1);
+});
+test('triads window: the first note of another shape of the chord is wrong, not a step', () => {
+  const vs = voicingsFor(7, 'major', '321');
+  const { session, events } = make([vs[0]], { window: WIN });
+  session.noteDetected(vs[1].notes[0].midi);
+  assert.equal(session.step, 0);
+  session.stableDetected(vs[1].notes[0].midi, HELD);
+  assert.equal(wrongs(events), 1);
+});
+test('triads window: playing the one shape resolves the question (correct, total 1, no shape event)', () => {
+  const vs = voicingsFor(7, 'major', '321');
+  const { session, events } = make([vs[0]], { window: WIN });
+  vs[0].notes.forEach(n => session.noteDetected(n.midi));
+  const last = events[events.length - 1];
+  assert.equal(last[0], 'correct');
+  assert.equal(last[1].total, 1);
+  assert.equal(events.filter(e => e[0] === 'shape').length, 0);
+  assert.equal(session.state, 'resolved');
 });

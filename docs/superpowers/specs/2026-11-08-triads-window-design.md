@@ -39,4 +39,5 @@ Today a Triads Path question asks for all three shapes of one chord, with the ta
 
 - Node tests for `windowFor` and the bag; the existing triad tests stay green.
 - Headless: Path question with the window and no dots, after a hint, after a wrong note outside the window, boss intro; 1270×625 and 390×844. Build bump 39 → 40.
+- Deviation: no octave slips on window questions.
 - Not verifiable here: the feel on a real guitar.
