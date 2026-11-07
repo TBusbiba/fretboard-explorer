@@ -4,7 +4,7 @@ import { NOTE_NAMES } from '../js/notes.js';
 import { WINDOW } from '../js/path.js';
 import { questionVoicings } from '../js/triad-match.js';
 import {
-  TRIAD_LEVELS, evaluate, blankEntry, chordKey, createTriadBag, createTriadBoss, createTriadPathStore, starsFor, STAR2_MS, STAR3_MS, AVG_MS_MAX,
+  TRIAD_LEVELS, evaluate, blankEntry, chordKey, createTriadBag, createTriadShapeBag, shapeKey, createTriadBoss, createTriadPathStore, starsFor, STAR2_MS, STAR3_MS, AVG_MS_MAX,
 } from '../js/triad-path.js';
 
 const pc = (n) => NOTE_NAMES.indexOf(n);
@@ -170,4 +170,35 @@ test('regression: one hinted/slow shape per question (a clock that includes the 
   assert.equal(p.met.firstTry, false);
   assert.equal(p.bossUnlocked, false);
   assert.equal(p.met.count, true);
+});
+
+const total = (level, group) => level.pool.filter(c => !group || c.group === group)
+  .reduce((n, c) => n + questionVoicings(c.root, c.quality, c.group).length, 0);
+
+test('shape bag: every (chord, placed shape) once before repeats, newest group first', () => {
+  const bag = createTriadShapeBag(seq(0.3, 0.7, 0.1));
+  const l5 = TRIAD_LEVELS[4], n = total(l5);
+  const asked = Array.from({ length: n }, () => bag.next(l5));
+  assert.equal(new Set(asked.map(shapeKey)).size, n);
+  assert.ok(asked.slice(0, total(l5, '432')).every(q => q.group === '432'), 'newest group first');
+  assert.ok(asked.every(q => Number.isInteger(q.shapeIndex) && q.shapeIndex >= 0));
+  assert.equal(createTriadShapeBag(() => 0.5).next(TRIAD_LEVELS[0]).group, '321');
+});
+test('shape bag: a chord with four placed shapes (E minor 3·2·1) is dealt four times, indexes 0-3', () => {
+  const bag = createTriadShapeBag(seq(0.4, 0.8, 0.2));
+  const l2 = TRIAD_LEVELS[1];
+  const em = Array.from({ length: total(l2) }, () => bag.next(l2)).filter(q => q.root === pc('E') && q.quality === 'minor');
+  assert.deepEqual(em.map(q => q.shapeIndex).sort(), [0, 1, 2, 3]);
+});
+test('shape bag: a refill never repeats the same (chord, shape) back to back; a level change restarts the bag', () => {
+  const bag = createTriadShapeBag(() => 0.5);
+  const l1 = TRIAD_LEVELS[0], n = total(l1);
+  const keys = Array.from({ length: n * 3 }, () => shapeKey(bag.next(l1)));
+  keys.slice(1).forEach((k, i) => assert.notEqual(k, keys[i]));
+  const l2 = TRIAD_LEVELS[1];
+  const next = Array.from({ length: total(l2) }, () => bag.next(l2));
+  assert.equal(new Set(next.map(shapeKey)).size, total(l2));
+});
+test('shape bag: an empty pool returns null', () => {
+  assert.equal(createTriadShapeBag().next({ id: 99, group: '321', pool: [] }), null);
 });

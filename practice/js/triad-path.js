@@ -1,6 +1,6 @@
 // The level path for Triads: eleven cumulative levels of major and minor triads on three
-// adjacent strings. Every question is the chord in all three shapes (any order), each shape a
-// timed answer; a level's boss round asks each new chord that way. Pure rules plus a small
+// adjacent strings. Path questions are one placed shape of a chord, a timed answer; the boss
+// round asks every shape of a new chord (any order). Pure rules plus a small
 // localStorage store; `storage` is injectable for tests. Mirrors path.js (Find the note).
 
 import { NOTE_NAMES } from './notes.js';
@@ -99,6 +99,35 @@ export function createTriadBag(rng = Math.random) {
         const newest = (c) => c.group === level.group;
         bag = [...shuffle(level.pool.filter(newest)), ...shuffle(level.pool.filter(c => !newest(c)))];
         if (bag.length > 1 && last && chordKey(bag[0]) === chordKey(last)) bag.push(bag.shift());
+      }
+      last = bag.shift();
+      return { ...last };
+    },
+  };
+}
+
+export const shapeKey = (q) => `${chordKey(q)}#${q.shapeIndex}`;
+
+/**
+ * Path questions come from a shuffled bag of the level's (chord, placed shape) pairs: every pair is
+ * dealt once before any repeats, newest string group first. `shapeIndex` is the position in
+ * `voicingsOf(chord)` (default `questionVoicings`).
+ */
+export function createTriadShapeBag(rng = Math.random, voicingsOf = (c) => questionVoicings(c.root, c.quality, c.group)) {
+  let bag = [], key = '', last = null;
+  const shuffle = (a) => {
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  };
+  return {
+    next(level) {
+      if (!level.pool.length) return null;
+      if (key !== String(level.id)) { key = String(level.id); bag = []; last = null; }
+      if (!bag.length) {
+        const all = level.pool.flatMap(c => voicingsOf(c).map((_, shapeIndex) => ({ root: c.root, quality: c.quality, group: c.group, shapeIndex })));
+        const newest = (q) => q.group === level.group;
+        bag = [...shuffle(all.filter(newest)), ...shuffle(all.filter(q => !newest(q)))];
+        if (bag.length > 1 && last && shapeKey(bag[0]) === shapeKey(last)) bag.push(bag.shift());
       }
       last = bag.shift();
       return { ...last };
