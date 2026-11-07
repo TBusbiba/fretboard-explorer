@@ -4,7 +4,7 @@ import { NOTE_NAMES } from '../js/notes.js';
 import { WINDOW } from '../js/path.js';
 import { questionVoicings } from '../js/triad-match.js';
 import {
-  TRIAD_LEVELS, evaluate, blankEntry, chordKey, createTriadBag, createTriadShapeBag, shapeKey, createTriadBoss, createTriadPathStore, starsFor, STAR2_MS, STAR3_MS, AVG_MS_MAX,
+  TRIAD_LEVELS, evaluate, blankEntry, chordKey, createTriadShapeBag, shapeKey, createTriadBoss, createTriadPathStore, starsFor, STAR2_MS, STAR3_MS, AVG_MS_MAX,
 } from '../js/triad-path.js';
 
 const pc = (n) => NOTE_NAMES.indexOf(n);
@@ -54,15 +54,6 @@ test('evaluate: last 20 shape answers, first-try share and average time per shap
   assert.equal(evaluate({ ...full, recent: [...good(15, true), ...good(5, false)] }).unlocked, true);
   assert.equal(evaluate({ ...full, recent: [...good(14, true), ...good(6, false)] }).unlocked, false);
   assert.equal(evaluate(blankEntry()).firstTryPct, null);
-});
-
-test('bag: every chord once before repeats, newest group first', () => {
-  const bag = createTriadBag(seq(0.3, 0.7, 0.1));
-  const l5 = TRIAD_LEVELS[4];
-  const asked = Array.from({ length: l5.pool.length }, () => bag.next(l5));
-  assert.equal(new Set(asked.map(chordKey)).size, l5.pool.length);
-  assert.ok(asked.slice(0, 6).every(c => c.group === '432'), 'newest group first');
-  assert.equal(createTriadBag(() => 0.5).next(TRIAD_LEVELS[0]).group, '321');
 });
 
 test('boss: one question per new chord, each with every shape', () => {

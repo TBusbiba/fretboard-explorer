@@ -84,28 +84,6 @@ export function evaluate(entry) {
 
 // ---------- question bag ----------
 
-/** Questions come from a shuffled bag of the level's chord pool: every chord is asked once before any repeats. */
-export function createTriadBag(rng = Math.random) {
-  let bag = [], key = '', last = null;
-  const shuffle = (a) => {
-    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
-    return a;
-  };
-  return {
-    next(level) {
-      if (!level.pool.length) return null;
-      if (key !== String(level.id)) { key = String(level.id); bag = []; }
-      if (!bag.length) {
-        const newest = (c) => c.group === level.group;
-        bag = [...shuffle(level.pool.filter(newest)), ...shuffle(level.pool.filter(c => !newest(c)))];
-        if (bag.length > 1 && last && chordKey(bag[0]) === chordKey(last)) bag.push(bag.shift());
-      }
-      last = bag.shift();
-      return { ...last };
-    },
-  };
-}
-
 export const shapeKey = (q) => `${chordKey(q)}#${q.shapeIndex}`;
 
 /**

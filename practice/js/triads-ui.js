@@ -1,12 +1,13 @@
-// The Triads screen: Path | Custom, every question the chord in all three shapes (each timed on
-// its own), shape dots, boss round and the big Show-shapes panel. Everything DOM-side for the Triads mode lives here; app.js only
+// The Triads screen: Path | Custom. Path asks one placed shape of a chord inside a shaded fret
+// window (no dots until a hint); Custom and the boss ask the chord in all three shapes (each timed
+// on its own, with shape dots), plus the big Show-shapes panel. Everything DOM-side for the Triads mode lives here; app.js only
 // forwards session events and a few render calls (see the "triads" hooks there). The rules are
 // pure and tested in triad-match.js / triad-path.js.
 
 import { STRINGS, NOTE_NAMES, STRING_GROUPS, DEGREE_LABELS, stringGroupById, spokenName } from './notes.js';
-import { questionVoicings, shapeLayout, QUALITIES } from './triad-match.js';
+import { questionVoicings, shapeLayout, windowFor, QUALITIES } from './triad-match.js';
 import {
-  TRIAD_LEVELS, createTriadPathStore, createTriadBag, createTriadBoss, chordKey, STAR2_MS, STAR3_MS,
+  TRIAD_LEVELS, createTriadPathStore, createTriadShapeBag, createTriadBoss, chordKey, STAR2_MS, STAR3_MS,
 } from './triad-path.js';
 import { WINDOW, FIRST_TRY_MIN, AVG_MS_MAX } from './path.js';
 import { createCustomBest } from './combo.js';
@@ -36,7 +37,7 @@ export const TRIAD_CLIPS = [
 
 function levelTip(level) {
   const g = digits(level.group, '·'), low = stringLabel(level.group);
-  if (level.id === 1) return { head: 'Three notes, three shapes', line: `Every chord comes in three close shapes. Play each one on strings ${g}: start on the ${low} string, then the next two, low to high. Any order.`, note: 'Shapes (top right) draws all three, and how far apart they sit.' };
+  if (level.id === 1) return { head: 'Three notes, three shapes', line: `Every chord comes in three close shapes. A shaded stretch of the neck on strings ${g} marks where one of them lives: start on the ${low} string, then the next two, low to high.`, note: 'Hint (H) lights the notes; Shapes (top right) draws all three.' };
   if (level.id === 2) return { head: 'Minor = flat 3rd', line: 'A minor triad lowers the 3rd by one fret. The shape is the major one with that single note moved down.', note: 'Shapes switches to the minor shapes when a minor chord is asked.' };
   if (level.id === 11) return { head: 'Sharps and flats', line: 'The shapes are movable: learn them once, then slide them to any root, black keys included.', note: 'Shapes shows how far each shape sits above the last.' };
   if (level.group !== '321' && /^Strings/.test(level.title)) return { head: `New strings: ${g}`, line: `The same three shapes, one string set lower. Start on the ${low} string. Their finger patterns change a little because the strings tune differently.`, note: 'Shapes draws the shapes for the strings in play.' };
@@ -46,7 +47,7 @@ function levelTip(level) {
 export function createTriadsUI(ctx) {
   const { ui, session, fretboard, history, pitch, combo } = ctx;
   const store = createTriadPathStore();
-  const bag = createTriadBag();
+  const bag = createTriadShapeBag();
   const customBest = createCustomBest({
     getItem: () => localStorage.getItem('fretboard-practice.triad-custom-best.v1'),
     setItem: (k, v) => localStorage.setItem('fretboard-practice.triad-custom-best.v1', v),
@@ -75,6 +76,8 @@ export function createTriadsUI(ctx) {
   const isCustom = () => settings().triadMode === 'custom';
   const isProg = () => active() && settings().triadMode === 'progressions';
   const level = () => store.currentLevel;
+  const windowed = (t) => !!(t && t.window);
+  let hintDots = false;     // the hint has lit all three dots of a window question
 
   // ---------- picking the next question ----------
 
@@ -102,8 +105,10 @@ export function createTriadsUI(ctx) {
       return asTarget(it, it.voicings, 'boss', { item: it, levelId: boss.levelId });
     }
     if (isPath()) {
-      const chord = bag.next(level());
-      return chord ? asTarget(chord, allVoicings(chord), 'normal') : null;
+      const q = bag.next(level());
+      if (!q) return null;
+      const all = allVoicings(q);
+      return asTarget(q, [all[q.shapeIndex]], 'normal', { window: windowFor(all, q.shapeIndex), shapeIndex: q.shapeIndex });
     }
     const chord = customChord(previous, rng);
     return chord ? asTarget(chord, allVoicings(chord), 'normal') : null;
@@ -117,14 +122,17 @@ export function createTriadsUI(ctx) {
   function renderDots(steps = 0, fresh = 0) {
     const total = session.matcher && session.state !== 'idle' ? session.matcher.total : 3;
     const got = new Set(foundShapes().map(v => v.shape));
-    const shapes = Array.from({ length: total }, (_, i) => `<i class="sh${got.has(i + 1) ? ' is-found' : ''}${fresh === i + 1 ? ' is-new' : ''}" title="Shape ${i + 1}"></i>`).join('');
+    const shapes = windowed(session.target) && session.state !== 'idle' ? '' : Array.from({ length: total }, (_, i) => `<i class="sh${got.has(i + 1) ? ' is-found' : ''}${fresh === i + 1 ? ' is-new' : ''}" title="Shape ${i + 1}"></i>`).join('');
     const pips = [0, 1, 2].map(i => `<i class="${i < steps ? 'is-done' : i === steps ? 'is-now' : ''}"></i>`).join('');
-    ui.bossPips.innerHTML = `<span class="sdots" role="img" aria-label="${got.size} of ${total} shapes found">${shapes}</span><span class="pips">${pips}</span>`;
+    ui.bossPips.innerHTML = `${shapes ? `<span class="sdots" role="img" aria-label="${got.size} of ${total} shapes found">${shapes}</span>` : ''}<span class="pips">${pips}</span>`;
   }
 
   /** The board: every shape found so far, plus the notes of the shape in play. */
   function paintBoard(pop = null) {
     fretboard.clearNotes();
+    if (hintDots && windowed(session.target)) {
+      for (const n of session.target.voicings[0].notes) fretboard.showNote(n.string, n.fret, 'hint', DEGREE_LABELS[n.degree], true);
+    }
     for (const v of foundShapes()) {
       for (const n of v.notes) {
         const g = fretboard.showNote(n.string, n.fret, 'correct', DEGREE_LABELS[n.degree], true);
@@ -172,23 +180,31 @@ export function createTriadsUI(ctx) {
     clearTimeout(introTimer);
     ctx.hideChainIntro(); ctx.hideBossEnd();
     ctx.renderCombo();
+    hintDots = false;
+    fretboard.clearWindow();
     fretboard.clearNotes();
     pitch.reset();
     ui.ring.classList.remove('is-done');
     ctx.setTip('');
     fretboard.highlightString(g.strings[0]);
     fretboard.focusStrings(g.strings);
-    ctx.scrollBoardTo(5);
-    ctx.setPrompt(`Start on the ${stringLabel(t.group)} string`, name, 'listening');
+    if (windowed(t)) {
+      fretboard.showWindow(g.strings, t.window.from, t.window.to);
+      ctx.scrollBoardTo((t.window.from + t.window.to) / 2);
+      ctx.setPrompt('', name, 'listening');
+    } else {
+      ctx.scrollBoardTo(5);
+      ctx.setPrompt(`Start on the ${stringLabel(t.group)} string`, name, 'listening');
+    }
     renderDots(0);
     renderShapes();
-    let text = said, status = 'Play all 3 shapes, any order · each one low to high';
+    let text = said, status = windowed(t) ? 'Play the shape in the shaded area, low to high' : 'Play all 3 shapes, any order · each one low to high';
     if (t.kind === 'boss') {
       const it = t.item;
       ui.foundVal.textContent = `0/${it.shapes}`;
       status = `Find every shape · chord ${it.n} of ${it.of}${boss.mistakes ? ` · ${boss.mistakes} mistake${boss.mistakes > 1 ? 's' : ''}` : ''}`;
       const first = it.run === 0, prev = first ? '' : shortChord(boss.items[it.run - 1]);
-      showIntro(first ? 'Boss round!' : `${prev} done · chord ${it.n} of ${it.of}`, `${name}!`, `all ${it.shapes} shapes · start on the ${stringLabel(t.group)} string —`, BOSS_INTRO_MS, false);
+      showIntro(first ? 'Boss round!' : `${prev} done · chord ${it.n} of ${it.of}`, `${name}!`, `${it.shapes === 3 ? 'All three shapes' : `all ${it.shapes} shapes`} · start on the ${stringLabel(t.group)} string —`, BOSS_INTRO_MS, false);
       text = `${first ? 'Boss round! ' : ''}${said} Find every shape!`;
     }
     if (notice) { ctx.setStatus(notice.text, notice.tone); notice = null; } else ctx.setStatus(status);
@@ -205,7 +221,7 @@ export function createTriadsUI(ctx) {
     paintBoard();
     renderDots(p.step);
     const next = session.note;
-    ctx.setStatus(`${p.step} of 3 ✓ — now string ${STRINGS[next.string].number}`, 'ok');
+    ctx.setStatus(windowed(session.target) ? `${p.step} of 3 ✓` : `${p.step} of 3 ✓ — now string ${STRINGS[next.string].number}`, 'ok');
   }
 
   function onDup(p) {
@@ -214,7 +230,16 @@ export function createTriadsUI(ctx) {
 
   function onHint(p) {
     if (ctx.comboActive()) ctx.comboMiss();
-    if (p.stage === 1) {
+    const wt = windowed(session.target);
+    if (wt && p.stage === 1) {
+      const t = session.target;
+      ctx.setTip(`${t.quality === 'major' ? 'Major: root, 3rd, 5th.' : 'Minor: root, ♭3rd, 5th.'} Play it low to high.`);
+    } else if (wt) {
+      hintDots = true;
+      paintBoard();
+      ctx.setStatus('Here is the shape');
+      ui.ring.classList.add('is-done');
+    } else if (p.stage === 1) {
       const t = session.target, lab = stringLabel(t.group);
       ctx.setTip(`Start on the ${lab} string, the lowest note of a shape, then go up. ${t.quality === 'major' ? 'Major: root, 3rd, 5th.' : 'Minor: root, ♭3rd, 5th.'}`);
     } else {
@@ -265,7 +290,7 @@ export function createTriadsUI(ctx) {
     flashStrip('hit');
     markShapesFound();
     if (t.kind === 'boss' && boss && boss.chordDone() === 'passed') finishBoss();
-    ctx.setStatus(`All ${p.total} shapes ✓ · last ${(p.ms / 1000).toFixed(1)} s${extra ? ` · ${extra}` : ''}`, 'ok');
+    ctx.setStatus(windowed(t) ? `Shape ✓ · ${(p.ms / 1000).toFixed(1)} s${extra ? ` · ${extra}` : ''}` : `All ${p.total} shapes ✓ · last ${(p.ms / 1000).toFixed(1)} s${extra ? ` · ${extra}` : ''}`, 'ok');
     if (settings().voice && settings().speakFeedback) ctx.speakCorrect();
     ctx.updateStats();
     ctx.renderHeatPanel();
@@ -306,6 +331,7 @@ export function createTriadsUI(ctx) {
   }
 
   function stopped() {
+    fretboard.clearWindow(); hintDots = false;
     if (isProg()) { clearTimeout(introTimer); prog.stopped(); return; }
     clearTimeout(introTimer);
     boss = null; notice = null;
@@ -594,7 +620,7 @@ export function createTriadsUI(ctx) {
     fretboard.focusStrings(stringGroupById(s.group).strings);
     ctx.setPrompt(`Strings ${digits(s.group, '·')}`, 'Triads', 'standby');
     renderDots(0);
-    ctx.setStatus('Press Start, then play all 3 shapes of the chord, each low to high');
+    ctx.setStatus(isPath() ? 'Press Start, then play the shape in the shaded area, low to high' : 'Press Start, then play all 3 shapes of the chord, each low to high');
   }
 
   /** Called from applySettingsToUI. */
@@ -608,6 +634,7 @@ export function createTriadsUI(ctx) {
     el.qualityPicker.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', settings().triadQualities.includes(c.dataset.id)));
     el.groupPicker.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', settings().triadGroups.includes(c.dataset.id)));
     if (!on) fretboard.focusStrings(null);
+    if (!(on && isPath())) { fretboard.clearWindow(); hintDots = false; }
     renderAll();
     renderShapes();
     if (on && isPath() && session.state === 'idle' && !store.tipSeen(store.current)) openTip();
