@@ -8,7 +8,7 @@ import { STRINGS, NOTE_NAMES, STRING_GROUPS, DEGREE_LABELS, stringGroupById, spo
 import { questionVoicings, shapeLayout, windowFor, QUALITIES } from './triad-match.js';
 import {
   TRIAD_LEVELS, createTriadPathStore, createTriadShapeBag, createTriadBoss, chordKey, STAR2_MS, STAR3_MS,
-  hintNotesFor,
+  hintNotesFor, createShapeChainSchedule, pickShapeChainChord, createShapeChain, CHAIN_BONUS,
 } from './triad-path.js';
 import { WINDOW, FIRST_TRY_MIN, AVG_MS_MAX } from './path.js';
 import { createCustomBest } from './combo.js';
@@ -24,6 +24,7 @@ const chordName = (c) => `${NOTE_NAMES[c.rootPc ?? c.root]} ${c.quality}`;
 const shortChord = (c) => `${NOTE_NAMES[c.root]}${c.quality === 'minor' ? 'm' : ''}`;
 const qualityLabel = (q) => (q === 'major' ? 'Major' : 'Minor');
 const BOSS_INTRO_MS = 1800;
+const CHAIN_INTRO_MS = 1500;
 const CLOCK_HOLD_CAP_MS = 9000;   // never freeze a shape's clock longer than this while the prompt and cue play
 const HIT_MS = 450, MISS_MS = 220;
 const stringLabel = (group) => STRINGS[stringGroupById(group).strings[0]].label;
@@ -79,6 +80,9 @@ export function createTriadsUI(ctx) {
   const level = () => store.currentLevel;
   const windowed = (t) => !!(t && t.window);
   let hintLevel = 0;        // the furthest hint stage shown for the window question in play (1: first note, 2: all three)
+  let chain = null;         // the shape chain in progress (Path only), else null
+  let lastChainKey = '';
+  const chainSchedule = createShapeChainSchedule();
 
   // ---------- picking the next question ----------
 
@@ -106,6 +110,15 @@ export function createTriadsUI(ctx) {
       return asTarget(it, it.voicings, 'boss', { item: it, levelId: boss.levelId });
     }
     if (isPath()) {
+      if (chain && chain.levelId !== level().id) chain = null;
+      if (!chain && chainSchedule.due()) {
+        const c = pickShapeChainChord(level(), rng, allVoicings, lastChainKey);
+        if (c) { chain = createShapeChain(c, allVoicings(c).length, level().id); lastChainKey = chordKey(c); }
+      }
+      if (chain) {
+        const all = allVoicings(chain.chord), i = chain.index;
+        return asTarget(chain.chord, [all[i]], 'normal', { window: windowFor(all, i), shapeIndex: i, chain: { index: i, count: chain.count } });
+      }
       const q = bag.next(level());
       if (!q) return null;
       const all = allVoicings(q);
@@ -192,7 +205,7 @@ export function createTriadsUI(ctx) {
     if (windowed(t)) {
       fretboard.showWindow(g.strings, t.window.from, t.window.to);
       ctx.scrollBoardTo((t.window.from + t.window.to) / 2);
-      ctx.setPrompt('', name, 'listening');
+      ctx.setPrompt(t.chain ? `Chain ${t.chain.index + 1} of ${t.chain.count}` : '', name, 'listening');
     } else {
       ctx.scrollBoardTo(5);
       ctx.setPrompt(`Start on the ${stringLabel(t.group)} string`, name, 'listening');
@@ -208,6 +221,7 @@ export function createTriadsUI(ctx) {
       showIntro(first ? 'Boss round!' : `${prev} done · chord ${it.n} of ${it.of}`, `${name}!`, `${it.shapes === 3 ? 'All three shapes' : `all ${it.shapes} shapes`} · start on the ${stringLabel(t.group)} string —`, BOSS_INTRO_MS, false);
       text = `${first ? 'Boss round! ' : ''}${said} Find every shape!`;
     }
+    if (t.chain && t.chain.index === 0) showIntro(`${t.chain.count} shapes`, 'Shape chain round!', `${name} · one shape at a time —`, CHAIN_INTRO_MS, true);
     if (notice) { ctx.setStatus(notice.text, notice.tone); notice = null; } else ctx.setStatus(status);
     if (t.kind === 'boss') { ctx.announce(text, null, { speak: settings().voice, holdClock: true }); return; }
     // The shape's clock and hint countdown start only once the prompt and the cue are over, so the
@@ -267,6 +281,20 @@ export function createTriadsUI(ctx) {
     return extra;
   }
 
+  /** A shape of the chain was answered (after the streak was scored): a clean run earns the bonus. */
+  function onChainShape(p) {
+    if (!chain || chain.index !== p.target.chain.index) return;
+    const r = chain.advance(p.firstTry && !p.hinted);
+    if (!r.done) return;
+    chain = null;
+    if (!r.perfect) return;
+    const bonus = CHAIN_BONUS * combo.multiplier;
+    if (ctx.comboActive()) { combo.bonus(bonus); ctx.saveComboBests(); ctx.renderCombo(); ctx.flash(ui.comboGain, `+${bonus}`, 1400); }
+    ctx.flash(ui.comboShout, 'Chain complete!', 1700);
+    hud.confetti();
+    ctx.queueShout('Chain complete!');
+  }
+
   function onShape(p) {
     const extra = recordShape(p);
     const v = p.voicing;
@@ -286,6 +314,7 @@ export function createTriadsUI(ctx) {
   function onCorrect(p) {
     const t = p.target;
     let extra = recordShape(p);
+    if (t.chain) onChainShape(p);
     paintBoard(p.voicing);
     blingTop(p.voicing);
     ui.noteName.dataset.state = 'correct';
@@ -329,12 +358,13 @@ export function createTriadsUI(ctx) {
   function onSkip() {
     if (isProg()) { prog.onSkip(); return; }
     const t = session.target;
+    chain = null;
     if (t) history.recordTriad(t.quality, { skipped: true });
     if (boss && boss.state === 'running') failBoss('Boss round over: skipping ends it. Try again anytime');
   }
 
   function stopped() {
-    fretboard.clearWindow(); hintLevel = 0;
+    fretboard.clearWindow(); hintLevel = 0; chain = null;
     if (isProg()) { clearTimeout(introTimer); prog.stopped(); return; }
     clearTimeout(introTimer);
     boss = null; notice = null;
@@ -374,7 +404,7 @@ export function createTriadsUI(ctx) {
     if (!active() || !isPath() || !store.progress(lvl.id).bossUnlocked) return;
     const b = createTriadBoss(lvl);
     if (b.state !== 'running') { ctx.setStatus('No shape of this level fits.', 'bad'); return; }
-    boss = b; notice = null; bossFinale = null; ctx.hideBossEnd();
+    boss = b; notice = null; bossFinale = null; chain = null; ctx.hideBossEnd();
     renderAll();
     if (session.state === 'idle') await ctx.toggleSession(); else session.skip();
   }
@@ -534,7 +564,7 @@ export function createTriadsUI(ctx) {
   for (const m of [['path', 'Path', 'Work through the levels, a few chords at a time'], ['custom', 'Custom', 'Choose major or minor and the string groups yourself'], ['progressions', 'Progressions', 'Play chord progressions in a key, staying close from chord to chord']]) {
     chip(el.modePicker, m[1], { id: m[0] }, () => {
       if (settings().triadMode === m[0]) return;
-      boss = null; notice = null; prog.cancelBoss();
+      boss = null; notice = null; chain = null; prog.cancelBoss();
       ctx.commit({ triadMode: m[0] });
       if (session.state !== 'idle' && session.mode === 'triads') session.skip();
     });
@@ -650,12 +680,12 @@ export function createTriadsUI(ctx) {
     get boss() { return isProg() ? prog.boss : boss; },
     active,
     warm: () => ctx.voice.preload(TRIAD_CLIPS),
-    cancelBoss() { boss = null; notice = null; prog.cancelBoss(); },
+    cancelBoss() { boss = null; notice = null; chain = null; prog.cancelBoss(); },
     comboOn: () => active() && !boss && !isProg(),
     comboKey: () => (!active() ? null : boss || isProg() ? 'boss' : isPath() ? `triad:${store.current}` : 'triad:custom'),
     bests: () => (isProg() ? {} : isPath() ? store.bests(store.current) : customBest.get()),
     saveBests(b) { if (isProg()) return; if (isPath()) store.saveBests(store.current, b); else customBest.save(b); },
-    resetPath() { store.reset(); boss = null; tipOpen = false; },
+    resetPath() { store.reset(); boss = null; chain = null; tipOpen = false; },
     store,
   };
 }

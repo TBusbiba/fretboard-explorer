@@ -2,10 +2,11 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { NOTE_NAMES } from '../js/notes.js';
 import { WINDOW } from '../js/path.js';
+import { CHAIN_GAP } from '../js/chain.js';
 import { questionVoicings } from '../js/triad-match.js';
 import {
   TRIAD_LEVELS, evaluate, blankEntry, chordKey, createTriadShapeBag, shapeKey, createTriadBoss, createTriadPathStore, starsFor, STAR2_MS, STAR3_MS, AVG_MS_MAX,
-  hintNotesFor,
+  hintNotesFor, createShapeChainSchedule, pickShapeChainChord, createShapeChain,
 } from '../js/triad-path.js';
 
 const pc = (n) => NOTE_NAMES.indexOf(n);
@@ -201,4 +202,38 @@ test('hint stages: stage 1 lights only the first (thickest-string) note, stage 2
   assert.equal(hintNotesFor(v, 1)[0], v.notes[0]);
   assert.ok(hintNotesFor(v, 1)[0].string > v.notes[1].string, 'first note is on the thickest string');
   assert.equal(hintNotesFor(v, 2).length, 3);
+});
+
+test('shape chain schedule: due every 6-9 normal questions, then again', () => {
+  for (const r of [0, 0.5, 0.99]) {
+    const s = createShapeChainSchedule(() => r);
+    const gap = CHAIN_GAP[0] + Math.floor(r * (CHAIN_GAP[1] - CHAIN_GAP[0] + 1));
+    let n = 0;
+    while (!s.due()) n += 1;
+    assert.equal(n + 1, gap);
+    assert.ok(gap >= 6 && gap <= 9);
+    n = 0;
+    while (!s.due()) n += 1;
+    assert.equal(n + 1, gap);
+  }
+});
+
+test('shape chain chord: from the level pool with 2+ shapes, avoids the last chord, null when none fits', () => {
+  const lvl = TRIAD_LEVELS[0];
+  const c = pickShapeChainChord(lvl, () => 0);
+  assert.ok(lvl.pool.some(p => chordKey(p) === chordKey(c)));
+  const d = pickShapeChainChord(lvl, () => 0, undefined, chordKey(c));
+  assert.notEqual(chordKey(d), chordKey(c));
+  assert.equal(pickShapeChainChord(lvl, () => 0, () => [1]), null);
+  const only = { pool: [lvl.pool[0]] };
+  assert.equal(chordKey(pickShapeChainChord(only, () => 0, undefined, chordKey(lvl.pool[0]))), chordKey(lvl.pool[0]));
+});
+
+test('shape chain: walks every shape in order; a hinted or missed shape spoils the bonus', () => {
+  const c = createShapeChain(TRIAD_LEVELS[0].pool[0], 3, 1);
+  assert.deepEqual([c.advance(true), c.advance(true)].map(r => r.done), [false, false]);
+  assert.deepEqual(c.advance(true), { done: true, perfect: true });
+  const m = createShapeChain(TRIAD_LEVELS[0].pool[0], 3, 1);
+  m.advance(true); m.advance(false);
+  assert.deepEqual(m.advance(true), { done: true, perfect: false });
 });

@@ -16,6 +16,9 @@ export function starsFor(avgMs, mistakes = 0) {
   return avgMs <= STAR3_MS && mistakes === 0 ? 3 : avgMs <= STAR2_MS && mistakes <= STAR2_MISTAKES ? 2 : 1;
 }
 import { questionVoicings, QUALITIES, FULL_RANGE } from './triad-match.js';
+import { CHAIN_GAP, CHAIN_BONUS } from './chain.js';
+
+export { CHAIN_BONUS };
 
 const KEY = 'fretboard-practice.triad-path.v1';
 
@@ -114,11 +117,49 @@ export function createTriadShapeBag(rng = Math.random, voicingsOf = (c) => quest
   };
 }
 
-// ---------- hint stages ----------
+// ---------- hint stages and shape chains ----------
 
 /** The notes a window question's hint lights: stage 1 only the first (thickest string), stage 2 all three. */
 export function hintNotesFor(voicing, stage) {
   return stage >= 2 ? voicing.notes : voicing.notes.slice(0, 1);
+}
+
+/** Calls the next shape chain after CHAIN_GAP normal questions (same spirit as chain.js). Chain questions do not count. */
+export function createShapeChainSchedule(rng = Math.random) {
+  const gap = () => CHAIN_GAP[0] + Math.floor(rng() * (CHAIN_GAP[1] - CHAIN_GAP[0] + 1));
+  let left = gap();
+  return {
+    /** Call once per normal question; true when a chain is due now. */
+    due() {
+      left -= 1;
+      if (left > 0) return false;
+      left = gap();
+      return true;
+    },
+  };
+}
+
+/** The chord a chain asks: a random one from the level's pool with two or more shapes, not `avoidKey` when another fits. null when none. */
+export function pickShapeChainChord(level, rng = Math.random, voicingsOf = (c) => questionVoicings(c.root, c.quality, c.group), avoidKey = '') {
+  const fits = level.pool.filter(c => voicingsOf(c).length >= 2);
+  const fresh = fits.filter(c => chordKey(c) !== avoidKey);
+  const list = fresh.length ? fresh : fits;
+  return list.length ? list[Math.floor(rng() * list.length)] : null;
+}
+
+/** One shape chain in progress: the chord's shapes in order, low to high up the neck. */
+export function createShapeChain(chord, count, levelId) {
+  const chain = {
+    chord, count, levelId, index: 0, perfect: true, done: false,
+    /** The current shape was answered; `clean` = right first try without a hint. */
+    advance(clean) {
+      if (!clean) chain.perfect = false;
+      chain.index += 1;
+      if (chain.index >= chain.count) chain.done = true;
+      return { done: chain.done, perfect: chain.perfect };
+    },
+  };
+  return chain;
 }
 
 // ---------- boss round ----------
