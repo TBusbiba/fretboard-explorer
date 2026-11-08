@@ -52,15 +52,16 @@ export function createVoice({ onSpeaking = () => {} } = {}) {
     return a;
   }
 
-  function playOne(file, rate, onStart) {
+  function playOne(file, rate, onStart, earlyMs = 0) {
     return new Promise((resolve, reject) => {
       const a = audioFor(file);
       current = a;
       a.playbackRate = rate;
       a.currentTime = 0;
-      let timer = 0;
+      let timer = 0, early = 0;
       const finish = (fn, arg) => {
-        clearTimeout(timer);
+        clearTimeout(timer); clearTimeout(early);
+        a.removeEventListener('timeupdate', check); a.removeEventListener('loadedmetadata', check);
         a.removeEventListener('ended', onEnd); a.removeEventListener('error', onErr); a.removeEventListener('pause', onPause);
         if (current === a) current = null;
         fn(arg);
@@ -70,18 +71,32 @@ export function createVoice({ onSpeaking = () => {} } = {}) {
       const onPause = () => { if (!a.ended) finish(resolve); };   // cancel() paused it
       a.addEventListener('ended', onEnd); a.addEventListener('error', onErr); a.addEventListener('pause', onPause);
       timer = setTimeout(() => finish(resolve), CLIP_TIMEOUT_MS);
-      a.play().then(() => { if (onStart) onStart(); }, err => finish(reject, err));
+      let released = false;
+      const release = () => { if (released) return; released = true; clearTimeout(early); resolve(); };   // the clip keeps playing; only the wait ends
+      const remainingMs = () => ((a.duration - a.currentTime) / (a.playbackRate || 1)) * 1000;
+      const check = () => {
+        if (released || !(earlyMs > 0) || !isFinite(a.duration) || !(a.duration > 0)) return;
+        const left = remainingMs();
+        if (left <= earlyMs) { release(); return; }
+        clearTimeout(early);
+        early = setTimeout(release, left - earlyMs);
+      };
+      if (earlyMs > 0) {
+        a.addEventListener('timeupdate', check);
+        a.addEventListener('loadedmetadata', check);
+      }
+      a.play().then(() => { if (onStart) onStart(); check(); }, err => finish(reject, err));
     });
   }
 
   /** Play the clips back to back. Resolves true when played (or cancelled), false when the very first could not start. */
-  async function playClips(files, rate, my, onPromptStart) {
+  async function playClips(files, rate, my, onPromptStart, earlyMs = 0) {
     setSpeaking(true);
     let first = true;
     try {
       for (let i = 0; i < files.length; i++) {
         if (my !== run) return true;
-        try { await playOne(files[i], rate, i === files.length - 1 ? onPromptStart : null); } catch (err) { if (first) return false; return true; }
+        try { await playOne(files[i], rate, i === files.length - 1 ? onPromptStart : null, i === files.length - 1 ? earlyMs : 0); } catch (err) { if (first) return false; return true; }
         first = false;
       }
       return true;
@@ -134,9 +149,10 @@ export function createVoice({ onSpeaking = () => {} } = {}) {
      * voice every phrase of the text that has a clip is played; if any phrase lacks
      * one the whole text goes to speechSynthesis (or, with `clipsOnly`, stays silent).
      * `onPromptStart` is called once when the last phrase starts playing (or the TTS utterance starts).
+     * `earlyMs` (recorded clips only): free the voice, and resolve, that long before the last clip ends.
      * `wait` lets a clip still playing finish first instead of cutting it off.
      */
-    async speak(text, { voiceName = CLIP_VOICE, rate = 1, clipsOnly = false, wait = false, onPromptStart = null } = {}) {
+    async speak(text, { voiceName = CLIP_VOICE, rate = 1, clipsOnly = false, wait = false, onPromptStart = null, earlyMs = 0 } = {}) {
       let started = false;   // fires once, when the last phrase (the prompt) begins playing
       const promptStart = onPromptStart ? () => { if (!started) { started = true; onPromptStart(); } } : null;
       const clips = usesClips(voiceName);
@@ -150,7 +166,7 @@ export function createVoice({ onSpeaking = () => {} } = {}) {
       const my = ++run;
       if (current) { current.pause(); current = null; }
       if (files) {
-        const p = playClips(files, rate, my, promptStart);
+        const p = playClips(files, rate, my, promptStart, earlyMs);
         const tracked = p.then(() => {}, () => {});
         clipDone = tracked;
         tracked.then(() => { if (clipDone === tracked) clipDone = null; });

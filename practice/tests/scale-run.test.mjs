@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { spokenPrompt, scaleClipPhrases, notePoints, liveScore, runScore, runStars, combineStats } from '../js/scale-run.js';
+import { spokenPrompt, announceText, scaleClipPhrases, notePoints, liveScore, runScore, runStars, combineStats } from '../js/scale-run.js';
 import { SCALE_LEVELS } from '../js/scale-path.js';
 import { clipFiles } from '../js/clips.js';
 
@@ -38,4 +38,15 @@ test('stars and combined stats', () => {
   assert.equal(runStars({ avgMs: 900, mistakes: 0 }), 1);
   const c = combineStats([{ total: 3, gaps: [400, 600], mistakes: 1 }, { total: 2, gaps: [500], mistakes: 0 }]);
   assert.equal(c.total, 5); assert.equal(c.totalMs, 1500); assert.equal(c.avgMs, 500); assert.equal(c.mistakes, 1);
+});
+
+test('announceText says the scale only when the root or scale changes', () => {
+  const a1 = { scale: 'minorPentatonic', rootPc: 9, boxes: [1] };
+  const a2 = { scale: 'minorPentatonic', rootPc: 9, boxes: [2] };
+  assert.equal(announceText(a1, null), 'A minor pentatonic! Box 1!');
+  assert.equal(announceText(a2, a1), 'Box 2!');
+  assert.equal(announceText({ ...a2, boxes: [2, 3] }, a1), 'Boxes 2 and 3!');
+  assert.equal(announceText({ ...a2, rootPc: 2 }, a1), 'D minor pentatonic! Box 2!');
+  assert.equal(announceText({ scale: 'major', rootPc: 9, boxes: [3] }, a1), 'A major! Position 3!');
+  assert.equal(announceText(a1, a1), 'Box 1!');
 });

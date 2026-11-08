@@ -35,7 +35,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '41';
+const BUILD = '42';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -108,7 +108,7 @@ let promptToken = 0;
 // `holdClock` (note prompts): the answer clock stays at zero until the prompt phrase itself starts playing.
 const CLOCK_HOLD_MAX_MS = 4500;      // never freeze the clock longer than this once the voice has gone quiet
 const CLOCK_HOLD_SPEECH_MS = 20000;  // ...or longer than this even while it is still talking (long chain/boss intros)
-async function announce(text, playMidi, { speak = settings.voice, holdClock = false } = {}) {
+async function announce(text, playMidi, { speak = settings.voice, holdClock = false, earlyMs = 0 } = {}) {
   const token = ++promptToken;
   let release = () => {};
   const held = holdClock && speak && !!text;
@@ -122,7 +122,7 @@ async function announce(text, playMidi, { speak = settings.voice, holdClock = fa
     release = () => { if (done) return; done = true; clearTimeout(safety); if (token === promptToken) session.restartClock(); };
   }
   if (speak && text) {
-    try { await voice.speak(text, { ...voiceOpts(), wait: true, onPromptStart: held ? release : null }); }
+    try { await voice.speak(text, { ...voiceOpts(), wait: true, onPromptStart: held ? release : null, earlyMs }); }
     finally { release(); }
   }
   if (token !== promptToken) return;

@@ -12,7 +12,7 @@ import {
   WINDOW_RUNS, AVG_NOTE_MS_MAX, MAX_RUN_MISTAKES, STAR2_NOTE_MS, STAR3_NOTE_MS, STAR2_MISTAKES,
 } from './scale-path.js';
 import * as hud from './hud.js';
-import { spokenPrompt, scaleClipPhrases, liveScore, runScore, runStars, combineStats } from './scale-run.js';
+import { spokenPrompt, announceText, scaleClipPhrases, liveScore, runScore, runStars, combineStats } from './scale-run.js';
 
 const KINDS = ['minorPentatonic', 'majorPentatonic', 'major'];
 const KIND_LABEL = { minorPentatonic: 'Minor pentatonic', majorPentatonic: 'Major pentatonic', major: 'Major' };
@@ -53,6 +53,7 @@ export function createScalesUI(ctx) {
     result: $('sc-result'), stats: $('sc-stats'), score: $('sc-score'), miss: $('sc-miss'), missBlock: $('sc-miss-block'),
   };
 
+  const EARLY_MIC_MS = 500;   // the mic opens this long before the announcement ends
   let running = false;      // Start pressed: the mic is open and runs follow each other
   let run = null;           // the run in progress: {ex, listener, phase: 'intro' | 'play' | 'result', firstAt, lit, ...}
   let boss = null;          // the boss in progress: {levelId, runs, index, stats, score, totalMs, mistakes}
@@ -174,7 +175,7 @@ export function createScalesUI(ctx) {
 
   // ---------- one run ----------
 
-  async function beginRun(ex, { say = true, intro = '' } = {}) {
+  async function beginRun(ex, { say = true, intro = '', text = spokenPrompt(ex) } = {}) {
     clearTimeout(pause);
     const my = ++token;
     const r = exerciseRun(ex);
@@ -184,7 +185,7 @@ export function createScalesUI(ctx) {
     ctx.setStatus(`Up and back down · ${directionText()}`);
     updateBossStrip();
     if (say && ctx.getSettings().voice) {
-      try { await ctx.announce(`${intro}${spokenPrompt(ex)}`, null, { speak: true }); } catch { /* a missing clip falls back to TTS inside announce */ }
+      try { await ctx.announce(`${intro}${text}`, null, { speak: true, earlyMs: EARLY_MIC_MS }); } catch { /* a missing clip falls back to TTS inside announce */ }
     }
     if (my !== token || !running) return;
     run.listener = createScaleListener(r.sequence, { now });
@@ -245,8 +246,10 @@ export function createScalesUI(ctx) {
 
   function nextRun() {
     if (!running) return;
-    const prev = run ? run.ex.label : null;
-    beginRun(isPath() ? pathExercise(prev) : drillExercise(), { say: isPath() || drill.runs === 0 });
+    const prevEx = run ? run.ex : null;
+    const prev = prevEx ? prevEx.label : null;
+    const ex = isPath() ? pathExercise(prev) : drillExercise();
+    beginRun(ex, { say: isPath() || drill.runs === 0, text: isPath() ? announceText(ex, prevEx) : spokenPrompt(ex) });
   }
 
   // ---------- Drill's best time ----------
