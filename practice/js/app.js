@@ -35,7 +35,7 @@ window.addEventListener('unhandledrejection', (e) => showFault(e.reason && e.rea
 
 // Guard against a browser mixing a cached index.html with newer scripts (or
 // vice versa): bump both this and data-build in index.html together.
-const BUILD = '40';
+const BUILD = '41';
 if (document.documentElement.dataset.build !== BUILD) {
   const el = $('stale');
   if (el) el.hidden = false;
@@ -163,6 +163,7 @@ const pitch = createPitchDetector({
     if (scales.running) scales.feed(midi, info);
     else if (session.matcher) session.stableDetected(midi, info);   // Triads: the only place a wrong note is counted
   },   // Scales: every steady reading, not one per note
+  onClear: (midi, info) => { if (scales.running && !micGate.isMuted()) scales.feedClear(midi, info); },
   onLevel: updateMeter,
   onState: updateMicState,
 });

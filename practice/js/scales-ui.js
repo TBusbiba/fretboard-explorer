@@ -197,7 +197,10 @@ export function createScalesUI(ctx) {
     if (!running || !run || run.phase !== 'play') return null;
     const l = run.listener;
     if (l.index === 0 && !info.fresh && lastEnd != null && (midi === lastEnd || midi === lastEnd + 12 || midi === lastEnd - 12)) return 'ignored';
-    const r = l.onPitch(midi, info);
+    return handle(midi, info.fast ? l.onClear(midi, info) : l.onPitch(midi, info));
+  }
+
+  function handle(midi, r) {
     if (r.status === 'advance' || r.status === 'done') {
       const n = run.ex.sequence[r.index - 1];
       if (r.index === 1) run.firstAt = now();
@@ -570,7 +573,7 @@ export function createScalesUI(ctx) {
   }
 
   return {
-    toggle, stop, skip, hint, tick, feed, render, renderBossStrip, startBoss, active,
+    toggle, stop, skip, hint, tick, feed, feedClear: (midi, info = {}) => feed(midi, { ...info, fast: true }), render, renderBossStrip, startBoss, active,
     get running() { return running; },
     get boss() { return boss; },
     canHint,

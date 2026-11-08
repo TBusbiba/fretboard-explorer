@@ -36,7 +36,7 @@ for (const count of [3, 4, 5]) for (const note of NOTES) add(`${['Three', 'Four'
 for (const s of STRING_NAMES) add(`Start with the ${s} string!`, 'hype');
 add('Boss round!', 'hype');
 ['Rapid fire!', 'Finish him!', 'The boss wins!', 'Boss defeated!'].forEach(t => add(t, 'hype'));
-for (const q of ['major', 'minor']) for (const note of NOTES) add(`${note} ${q}!`, 'plain', `${note} ${q}.`);
+for (const q of ['major', 'minor']) for (const note of NOTES) add(`${note} ${q}!`, note === 'E' && q === 'minor' ? 'prompt' : 'plain', `${note} ${q}.`);
 for (const g of ['6 5 4', '5 4 3', '4 3 2', '3 2 1']) add(`Strings ${g}!`, 'prompt', `[excited] Strings ${g}!`);
 add('Climb the neck!', 'hype');
 add('Find every shape!', 'hype');

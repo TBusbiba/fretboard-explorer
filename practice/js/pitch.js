@@ -11,7 +11,8 @@
 //
 // onStable(midi, {fresh, heldMs}) is called on every frame a note is steady (not once): `fresh` =
 // the candidate started with a new attack (a pluck, not a ring), `heldMs` = how long it has held.
-// The Scales screen listens this way; onNote keeps its report-once behaviour.
+// `attackId` counts plucks. onClear(midi, {fresh, attackId, rms}) (optional) fires on any clear frame whose pitch class is the
+// expected one, before the hold: the Scales fast lane. The Scales screen listens this way; onNote keeps its report-once behaviour.
 //
 // isMuted(now) returns true while the app's own sound is playing or has just
 // stopped; readings are discarded then.
@@ -41,7 +42,7 @@ const ATTACK_RATIO = 1.6;        // a pluck is this much louder than the quietes
 const FRESH_MS = 300;            // a note counts as freshly plucked when its attack is this close to its start
 const HIGHPASS_HZ = 70;         // strip room rumble so it doesn't count toward the gate
 
-export function createPitchDetector({ getSettings, getExpected = () => null, getAccepted = null, onDebug = null, isMuted = () => false, onNote, onStable = null, onLevel = () => {}, onState = () => {} }) {
+export function createPitchDetector({ getSettings, getExpected = () => null, getAccepted = null, onDebug = null, isMuted = () => false, onNote, onStable = null, onClear = null, onLevel = () => {}, onState = () => {} }) {
   let ctx = null, stream = null, gainNode = null, analyser = null, detector = null;
   let buf = null;
   let rafId = 0;
@@ -50,6 +51,7 @@ export function createPitchDetector({ getSettings, getExpected = () => null, get
   let candidate = null, candidateSince = 0, hits = 0, lastHitAt = 0, lastLoudAt = 0;
   let recent = []; // [midi, time] of recent accepted readings
   let reported = null;
+  let attackSeq = 0; // counts attacks; lets a listener tell one pluck from the next
   let candidateFresh = false, attackAt = 0, attackFloor = 0, quiet = true; // quiet: the last loud frame was an onset
   let ringing = null; // last low note reported; survives reset() until real silence
   const attack = createAttackGuard(); // the reported pitch is ignored until silence or a fresh pluck, across reset() and mutes
@@ -83,7 +85,7 @@ export function createPitchDetector({ getSettings, getExpected = () => null, get
     lastLoudAt = now;
     // An attack: the first loud frame after silence, or a jump well above the quietest level since the last one.
     if (quiet || rms > Math.max(attackFloor, gate) * ATTACK_RATIO) {
-      attackAt = now; attackFloor = rms;
+      attackAt = now; attackFloor = rms; attackSeq += 1;
       if (candidate != null && now - candidateSince < FRESH_MS) candidateFresh = true;
     } else attackFloor = Math.min(attackFloor, rms);
     quiet = false;
@@ -114,6 +116,10 @@ export function createPitchDetector({ getSettings, getExpected = () => null, get
     hits += 1;
     lastHitAt = now;
     const low = hz < LOW_HZ;
+    // Fast lane: a clear frame already sounding the expected pitch class is offered at once, before the hold.
+    if (onClear && expected != null && midi % 12 === expected % 12 && !(low && ringing != null && midi === ringing + 12 && expected !== midi)) {
+      onClear(midi, { fresh: now - attackAt <= FRESH_MS, attackId: attackSeq, rms });
+    }
     const hold = low ? LOW_HOLD_MS : HOLD_MS;
     const need = low ? LOW_HITS : MIN_HITS;
     if (hits >= need && now - candidateSince >= hold) {
@@ -124,7 +130,7 @@ export function createPitchDetector({ getSettings, getExpected = () => null, get
       // A low string fades towards its octave-up partial; that is still the old note
       // ringing, unless the octave is exactly what the app is asking for next.
       if (low && ringing != null && final === ringing + 12 && expected !== final) return;
-      if (onStable) onStable(final, { fresh: candidateFresh, heldMs: now - candidateSince, rms });
+      if (onStable) onStable(final, { fresh: candidateFresh, heldMs: now - candidateSince, rms, attackId: attackSeq });
       if (reported === midi || reported === final) return;
       if (attack.blocks(final)) return;
       reported = final;

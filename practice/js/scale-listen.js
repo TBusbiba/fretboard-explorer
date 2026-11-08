@@ -19,13 +19,19 @@ export function createScaleListener(sequence, { now = () => Date.now() } = {}) {
   let times = [];                // when each note was played
   let mistakes = 0;
   let marked = new Set();        // pitches already counted as a mistake at this step
+  let last = null;               // {midi, attackId} of the last accepted note
 
   const lastPlayed = () => midis.slice(Math.max(0, index - RECENT_IGNORED), index);
 
-  function onPitch(midi, { fresh = false, heldMs = 0 } = {}) {
+  // Same pluck as the last accepted note, same pitch class: a repeated note needs a new attack.
+  const sameAttack = (midi, attackId) => attackId != null && last && last.attackId === attackId && last.midi % 12 === midi % 12;
+
+  function onPitch(midi, { fresh = false, heldMs = 0, attackId = null } = {}) {
     if (index >= midis.length) return { status: 'done', index };
     const want = midis[index];
     if (midi === want || midi === want + 12 || midi === want - 12) {
+      if (sameAttack(midi, attackId)) return { status: 'ignored', index };
+      last = { midi, attackId };
       times.push(now());
       index += 1;
       marked = new Set();
@@ -38,6 +44,14 @@ export function createScaleListener(sequence, { now = () => Date.now() } = {}) {
       return { status: 'mistake', index };
     }
     return { status: 'ignored', index };
+  }
+
+  /** Fast lane: a clear frame, before the hold. Only ever advances; a wrong pitch is left to onPitch's stable path. */
+  function onClear(midi, info = {}) {
+    if (index >= midis.length) return { status: 'ignored', index };
+    const want = midis[index];
+    if (midi !== want && midi !== want + 12 && midi !== want - 12) return { status: 'ignored', index };
+    return onPitch(midi, info);
   }
 
   function stats() {
@@ -55,11 +69,11 @@ export function createScaleListener(sequence, { now = () => Date.now() } = {}) {
   }
 
   return {
-    onPitch, stats,
+    onPitch, onClear, stats,
     get index() { return index; },
     get expected() { return index < midis.length ? midis[index] : null; },
     get done() { return index >= midis.length; },
     get mistakes() { return mistakes; },
-    reset() { index = 0; times = []; mistakes = 0; marked = new Set(); startedAt = now(); },
+    reset() { index = 0; times = []; mistakes = 0; marked = new Set(); last = null; startedAt = now(); },
   };
 }
