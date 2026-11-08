@@ -16,8 +16,8 @@ export function spokenPrompt(e) {
 /** What the Path says: the scale clip only when the root or scale differs from the previous run, else just the box clip. */
 export function announceText(e, prev) {
   const full = spokenPrompt(e);
-  if (!prev || prev.rootPc !== e.rootPc || prev.scale !== e.scale) return full;
-  return full.slice(full.indexOf('!') + 1).trim();
+  if (prev && prev.rootPc === e.rootPc && prev.scale === e.scale) return '';
+  return full.slice(0, full.indexOf('!') + 1);
 }
 
 /** Every phrase the Path can say (the recording list and the preload list). */

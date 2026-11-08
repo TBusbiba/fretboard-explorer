@@ -184,7 +184,7 @@ export function createScalesUI(ctx) {
     renderRun();
     ctx.setStatus(`Up and back down · ${directionText()}`);
     updateBossStrip();
-    if (say && ctx.getSettings().voice) {
+    if (say && (intro || text) && ctx.getSettings().voice) {
       try { await ctx.announce(`${intro}${text}`, null, { speak: true, earlyMs: EARLY_MIC_MS }); } catch { /* a missing clip falls back to TTS inside announce */ }
     }
     if (my !== token || !running) return;
